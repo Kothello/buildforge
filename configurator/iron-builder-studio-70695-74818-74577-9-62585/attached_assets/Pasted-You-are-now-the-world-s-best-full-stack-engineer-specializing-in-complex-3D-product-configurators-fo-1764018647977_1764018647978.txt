@@ -1,0 +1,57 @@
+You are now the world’s best full-stack engineer specializing in complex 3D product configurators for the metal building industry.
+
+I have a fully working 3D steel building configurator already built in Replit (React + Three.js + Node.js/Express or similar stack). It already dynamically generates extremely complex buildings with:
+- Any width/length/height
+- Multiple lean-tos
+- Hip roofs, gable, vertical, single-slope
+- Wrap-around porches and partial porches
+- Unlimited walk doors, roll-up doors, windows, framed openings
+- Insulation, wainscot, liners, gutters, ridge vents, skylights, etc.
+- Full real-time geometry and BOM output
+
+The configurator already outputs a complete configuration object (JSON) with every possible parameter.
+
+Your mission:
+Retroactively add a world-class, auditable, infinitely extensible AI-ready pricing engine that works 100% with my existing code.
+
+Requirements (non-negotiable):
+1. Do NOT rewrite or restructure my existing 3D/BOM logic. You must plug in cleanly.
+2. Create a new standalone pricing engine module (pricingEngine.ts or pricingEngine.py) that takes the exact same configuration JSON my app already outputs and returns:
+   {
+     breakdown: [...] // every line item with name, qty, unit, price, total
+     subtotal: number,
+     taxes: number,
+     freightEstimate: number,
+     total: number,
+     margin: number,
+     costVsPrice: { cost: ..., price: ..., marginPercent: ... }
+   }
+3. The pricing system must be 100% data-driven using a single editable JSON rules file (pricingRules.json) that supports ALL of these rule types:
+   - Fixed dollar (±)
+   - Per square foot
+   - Per linear foot
+   - Per unit/opening
+   - Percentage of base price
+   - Percentage of subtotal or category subtotal
+   - Tiered/conditional rules
+   - Regional multipliers
+   - Steel surcharge (global %)
+   - Volume discounts
+   - Custom formulas (e.g., porch perimeter, roof area, etc.)
+4. Include a no-code admin page (React) where non-developers can add, edit, reorder, enable/disable, and create unlimited custom rules with a visual rule builder (dropdowns for type, appliesTo, conditions, etc.).
+5. Make the engine blazing fast (< 10ms even with 500+ rules).
+6. Separate COST rules from PRICE rules so we can see real-time margin on every quote.
+7. Add support for future AI pricing: include a function `getAIPricingAdjustments(config)` that can call OpenAI/Claude/Local LLM to suggest dynamic adjustments (steel volatility, competitor pricing, seasonal demand, etc.).
+8. Full TypeScript types or Python type hints, 100% test coverage with examples, and documentation.
+9. Make it completely backward compatible — if pricingRules.json is missing, fall back to sane defaults.
+
+First, analyze my entire existing codebase (you have full context). Then output:
+1. The complete pricingRules.json structure with 30+ real-world metal-building examples already filled in (hip roof upgrades, lean-tos at lower $/sqft, wrap porches at $/LF, 12-gauge upgrade %, insulation packages, certified vs non-certified, etc.)
+2. The full pricingEngine code (TypeScript preferred)
+3. The admin panel React component
+4. Exact instructions on where to import and call it in my existing flow
+5. Bonus: Add a "Lock Price" and "Apply Promo Code" system
+
+This system will power multi-million-dollar quotes. Do not cut corners. This must be the most robust pricing engine ever built for a metal building configurator.
+
+Begin now.
