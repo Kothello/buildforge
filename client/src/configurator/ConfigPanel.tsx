@@ -142,7 +142,7 @@ export const ConfigPanel = ({
                 <SelectTrigger data-testid="select-width">
                   <SelectValue placeholder="Select width" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background" side="bottom">
+                <SelectContent className="bg-background">
                   {widthOptions.map((w) => (
                     <SelectItem key={w} value={w.toString()}>
                       {w} ft
@@ -158,7 +158,7 @@ export const ConfigPanel = ({
                 <SelectTrigger data-testid="select-length">
                   <SelectValue placeholder="Select length" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background" side="bottom">
+                <SelectContent className="bg-background">
                   {lengthOptions.map((l) => (
                     <SelectItem key={l} value={l.toString()}>
                       {l} ft
@@ -174,7 +174,7 @@ export const ConfigPanel = ({
                 <SelectTrigger data-testid="select-height">
                   <SelectValue placeholder="Select height" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background" side="bottom">
+                <SelectContent className="bg-background">
                   {heightOptions.map((h) => (
                     <SelectItem key={h} value={h.toString()}>
                       {h} ft
