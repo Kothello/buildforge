@@ -43,7 +43,7 @@ export function LeadDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-none p-0">
+      <SheetContent side="right" className="w-full sm:w-full md:w-full lg:w-full xl:w-full max-w-none p-0">
         <div className="h-full flex flex-col lg:flex-row">
           {/* Left Side - Lead Details */}
           <div className="w-full lg:w-[40%] lg:border-r border-border flex flex-col h-full">
