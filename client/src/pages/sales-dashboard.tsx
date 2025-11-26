@@ -6,12 +6,15 @@ import { Search, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { Lead, Activity, Deal } from "@shared/schema";
 import { LeadDetailSheet } from "@/components/lead-detail-sheet";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { toast } = useToast();
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads"],
@@ -136,7 +139,12 @@ export default function SalesDashboard() {
                   </td>
                   <td className="py-3 px-3 sm:px-4">${lead.totalPrice || "0"}</td>
                   <td className="py-3 px-3 sm:px-4 text-right">
-                    <Button size="sm" variant="ghost" data-testid={`button-view-lead-${lead.id}`}>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      data-testid={`button-view-lead-${lead.id}`}
+                      onClick={() => handleLeadClick(lead)}
+                    >
                       View
                     </Button>
                   </td>
@@ -146,6 +154,34 @@ export default function SalesDashboard() {
           </table>
         </div>
       )}
+
+      <LeadDetailSheet
+        lead={selectedLead}
+        deal={selectedDeal}
+        activities={activities}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onGenerateContract={() => {
+          toast({
+            title: "Generating Contract",
+            description: "AI is creating a custom contract...",
+          });
+        }}
+        onUnstickDeal={() => {
+          toast({
+            title: "AI Analysis",
+            description: "Analyzing deal obstacles and generating suggestions...",
+          });
+        }}
+        onLeadUpdate={(updatedLead) => {
+          setSelectedLead(updatedLead);
+          queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+          toast({
+            title: "Lead Updated",
+            description: "Configuration has been saved successfully.",
+          });
+        }}
+      />
     </div>
   );
 }
