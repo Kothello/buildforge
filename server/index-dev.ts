@@ -1,25 +1,63 @@
-// Stub for Next.js migration - run Next.js dev server
-import { spawn } from 'child_process'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import fs from "node:fs";
+import path from "node:path";
+import { type Server } from "node:http";
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+import { nanoid } from "nanoid";
+import { type Express } from "express";
+import { createServer as createViteServer, createLogger } from "vite";
 
-console.log('Starting Next.js development server...')
+import viteConfig from "../vite.config";
+import runApp from "./app";
 
-const nextDev = spawn('npx', ['next', 'dev', '-p', '5000'], {
-  cwd: path.resolve(__dirname, '..'),
-  stdio: 'inherit',
-  env: { ...process.env, NODE_ENV: 'development' }
-})
+export async function setupVite(app: Express, server: Server) {
+  const viteLogger = createLogger();
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true as const,
+  };
 
-nextDev.on('error', (err: any) => {
-  console.error('Failed to start Next.js:', err)
-  process.exit(1)
-})
+  const vite = await createViteServer({
+    ...viteConfig,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
+      },
+    },
+    server: serverOptions,
+    appType: "custom",
+  });
 
-process.on('SIGINT', () => {
-  nextDev.kill()
-  process.exit(0)
-})
+  app.use(vite.middlewares);
+  app.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+
+    try {
+      const clientTemplate = path.resolve(
+        import.meta.dirname,
+        "..",
+        "client",
+        "index.html",
+      );
+
+      // always reload the index.html file from disk incase it changes
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`,
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e as Error);
+      next(e);
+    }
+  });
+}
+
+(async () => {
+  await runApp(setupVite);
+})();

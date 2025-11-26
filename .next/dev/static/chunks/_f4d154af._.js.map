@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///home/runner/workspace/app/page.tsx"],"sourcesContent":["'use client'\n\nimport { useRouter } from 'next/navigation'\nimport { useEffect } from 'react'\n\nexport default function Home() {\n  const router = useRouter()\n\n  useEffect(() => {\n    // For now, bypass auth and go straight to sales dashboard\n    router.push('/sales')\n  }, [router])\n\n  return null\n}\n"],"names":[],"mappings":";;;;AAEA;AACA;;AAHA;;;AAKe,SAAS;;IACtB,MAAM,SAAS,IAAA,kJAAS;IAExB,IAAA,0KAAS;0BAAC;YACR,0DAA0D;YAC1D,OAAO,IAAI,CAAC;QACd;yBAAG;QAAC;KAAO;IAEX,OAAO;AACT;GATwB;;QACP,kJAAS;;;KADF"}},
-    {"offset": {"line": 41, "column": 0}, "map": {"version":3,"sources":["file:///home/runner/workspace/node_modules/next/navigation.js"],"sourcesContent":["module.exports = require('./dist/client/components/navigation')\n"],"names":[],"mappings":"AAAA,OAAO,OAAO","ignoreList":[0]}}]
-}
