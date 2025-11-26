@@ -1,0 +1,68 @@
+You must migrate the ENTIRE real building configurator from the standalone configurator project into the CRM project. The current CRM 3D builder is incomplete and missing almost all features (door/window placement, lean-tos, sidebar controls, state machine, reducers, etc.). 
+
+Your job is to perform a FULL and complete port of the configurator exactly as it exists in the original project.
+
+Here are the rules for this task:
+
+1. Use the configurator inside:
+   configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/
+
+2. You MUST migrate ALL required files and folders into:
+   client/src/configurator/
+
+3. The following directories from the original configurator MUST be copied over completely (do not skip any files):
+
+   components/
+   ├─ Openings/
+   ├─ Doors/
+   ├─ Windows/
+   ├─ LeanTo/
+   ├─ Panels/
+   ├─ UI/
+   ├─ 3D/
+   
+   state/
+   ├─ store/
+   ├─ actions/
+   ├─ reducers/
+
+   lib/
+   ├─ openingMath/
+   ├─ geometry/
+   ├─ helpers/
+
+   Also migrate:
+   - the full and real BuilderPage.tsx
+   - the full side panel with all tabs (Dimensions, Colors, Openings, Lean-to, Roof, Frame Spacing, etc.)
+   - the complete opening placement engine (drag, drop, snapping, grid, span detection)
+   - the lean-to logic
+   - the building editing drawer
+   - the undo/redo stack
+   - configuration validation logic
+   - any Zustand or Redux store files, if present
+
+4. All import paths must be updated to work inside the CRM project structure.
+
+5. The CRM BuilderPage.tsx must become the REAL builder UI from the original configurator. Replace the CRM version entirely.
+
+6. Scene3D.tsx and BuildingModel.tsx should be merged with the original versions if the originals have more features or more geometry logic. Prefer the original versions.
+
+7. Ensure configuration state sync works:
+   - changing options updates the 3D model
+   - placing doors/windows updates state
+   - lean-to options update state
+   - pricing still works using the existing CRM /api/pricing/calculate route
+
+8. Ensure the Lead Configurator Embed (LeadConfiguratorEmbed.tsx) also uses the full configurator and can load/save:
+   - configuration
+   - buildingSpecs
+   - totalPrice
+
+9. When finished:
+   - remove old or duplicate placeholder files
+   - make sure the full configurator builds and runs inside the CRM
+   - confirm routes /builder and /leads/[id]/config show the full configurator
+
+This task requires complete autonomy and deep file-level refactoring. DO NOT oversimplify. DO NOT stub or fake any logic. The CRM must receive the full, real, production-level configurator exactly as it existed originally.
+
+Begin now.
