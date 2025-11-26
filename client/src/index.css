@@ -290,3 +290,13 @@
     inset: -1px;
   }
 }
+
+/* Force sheet overlay to be visible above everything */
+[data-radix-dialog-overlay] {
+  z-index: 99999 !important;
+  position: fixed !important;
+}
+
+[data-radix-dialog-content] {
+  z-index: 99999 !important;
+}
