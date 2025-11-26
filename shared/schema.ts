@@ -110,6 +110,34 @@ export const zapierWebhooks = pgTable("zapier_webhooks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const buildingDesigns = pgTable("building_designs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  width: integer("width").notNull().default(30),
+  length: integer("length").notNull().default(40),
+  height: integer("height").notNull().default(12),
+  wallColor: varchar("wall_color", { length: 50 }).notNull().default("#8B4513"),
+  roofColor: varchar("roof_color", { length: 50 }).notNull().default("#4A4A4A"),
+  trimColor: varchar("trim_color", { length: 50 }).notNull().default("#FFFFFF"),
+  roofStyle: varchar("roof_style", { length: 50 }).notNull().default("gable"),
+  roofPitch: integer("roof_pitch").notNull().default(3),
+  hasLeanTo: boolean("has_lean_to").notNull().default(false),
+  leanToWidth: integer("lean_to_width").default(10),
+  leanToSide: varchar("lean_to_side", { length: 20 }).default("left"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const designPricing = pgTable("design_pricing", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  designId: varchar("design_id").references(() => buildingDesigns.id).notNull(),
+  basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull().default("0"),
+  pricePerSquareFoot: decimal("price_per_sq_ft", { precision: 10, scale: 2 }).default("0"),
+  rules: jsonb("rules").default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   assignedLeads: many(leads),
   activities: many(activities),
@@ -169,6 +197,17 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
   user: one(users, {
     fields: [activities.userId],
     references: [users.id],
+  }),
+}));
+
+export const buildingDesignsRelations = relations(buildingDesigns, ({ many }) => ({
+  pricing: many(designPricing),
+}));
+
+export const designPricingRelations = relations(designPricing, ({ one }) => ({
+  design: one(buildingDesigns, {
+    fields: [designPricing.designId],
+    references: [buildingDesigns.id],
   }),
 }));
 
