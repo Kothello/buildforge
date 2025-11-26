@@ -1,0 +1,63 @@
+Important constraints:
+
+Ignore the “No QueryClient set” / useAuth error for now. Do not change any React Query or auth provider code.
+
+Keep the existing CRM pipeline and lead detail behavior; only extend it to show and update the building configuration.
+
+Context:
+
+The CRM already has a pipeline UI and a lead detail sheet/panel component that shows info for a selected lead.
+
+Each lead now has buildingSpecs and configuration populated when created from /builder.
+
+The /builder route uses BuilderPage and related configurator components in client/src/configurator/.
+
+The backend exposes POST /api/leads, and there is a leads update endpoint (typically PATCH /api/leads/:id) wired up in server/routes.ts and using updateLeadSchema.
+
+Goal:
+
+When a sales rep opens a lead in the CRM, they should see the same building configuration inside the lead detail view and be able to adjust it, then save updates back to that lead.
+
+Task:
+
+Inspect the CRM frontend to locate:
+
+The component that renders the lead detail sheet/panel (for example something like LeadDetailSheet in client/src/components).
+
+How it receives the selected lead data (props, React Query, etc.).
+
+Create a new wrapper component in the configurator folder (for example client/src/configurator/LeadConfiguratorEmbed.tsx) that:
+
+Accepts a lead (or at least leadId, buildingSpecs, and configuration) as props.
+
+Initializes the configurator state from lead.configuration if present; otherwise falls back to the same defaults used on /builder.
+
+Renders the main configurator UI in an embedded mode that does not show the lead capture form from BuilderPage (this is for editing an existing lead, not creating a new one).
+
+Add a clear “Save changes to lead” action in this embedded configurator context:
+
+When clicked, it should:
+
+Take the current configurator state.
+
+Recompute a buildingSpecs summary (dimensions, roof style, colors, counts, etc.), in the same shape used when creating a lead from /builder.
+
+Call the existing leads update endpoint (e.g. PATCH /api/leads/:id) to update that lead’s configuration and buildingSpecs.
+
+If the update endpoint currently does not allow buildingSpecs/configuration, extend the update schema and handler so those fields can be updated, but keep all other behavior intact.
+
+Integrate this new LeadConfiguratorEmbed into the lead detail sheet/panel so that:
+
+When you open a lead, the configurator appears on one side (e.g. left or top area), showing the building from that lead.
+
+The rest of the lead detail UI (notes, contact info, activities, etc.) continues to work as before.
+
+Do not alter the /builder standalone route behavior; it still serves as the public entry point for new leads. Reuse configurator logic where possible instead of duplicating it.
+
+At the end, list:
+
+The new wrapper component file and what props it expects.
+
+The changes made to the lead detail component to render the configurator.
+
+The exact API endpoint used to save updated configurations back to the lead.
