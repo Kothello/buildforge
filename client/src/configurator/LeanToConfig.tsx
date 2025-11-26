@@ -434,7 +434,7 @@ export const LeanToConfig = ({
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="z-50 bg-background">
+                  <SelectContent className="bg-background">
                     {leanTo.type === 'gable'
                       ? (() => {
                           const wallDimension = (leanTo.wall === 'left' || leanTo.wall === 'right') 
@@ -484,7 +484,7 @@ export const LeanToConfig = ({
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="z-50 bg-background">
+                  <SelectContent className="bg-background">
                     {leanTo.type === 'gable'
                       ? Array.from({ length: 50 }, (_, i) => 10 + i * 10).map((l) => (
                           <SelectItem key={l} value={l.toString()}>{l} ft</SelectItem>
@@ -521,7 +521,7 @@ export const LeanToConfig = ({
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="z-50 bg-background">
+                  <SelectContent className="bg-background">
                     {heightOptions.filter(h => h <= buildingHeight).map((h) => (
                       <SelectItem key={h} value={h.toString()}>{h} ft</SelectItem>
                     ))}
@@ -554,7 +554,7 @@ export const LeanToConfig = ({
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="z-50 bg-background">
+                    <SelectContent className="bg-background">
                       {(() => {
                         const wallDimension = (leanTo.wall === 'front' || leanTo.wall === 'back') 
                           ? buildingLength 
@@ -592,7 +592,7 @@ export const LeanToConfig = ({
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="z-50 bg-background">
+                    <SelectContent className="bg-background">
                       {(() => {
                         const wallDimension = (leanTo.wall === 'front' || leanTo.wall === 'back') 
                           ? buildingLength 
