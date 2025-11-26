@@ -1,0 +1,45 @@
+Important constraints:
+
+Do not touch any backend files (server/*).
+
+Do not remove the existing QueryClientProvider; only fix the cause of "No QueryClient set, use QueryClientProvider to set one".
+
+Keep the overall app structure the same; make the smallest change that guarantees all React Query hooks run under a QueryClientProvider.
+
+Context:
+
+The app is showing the error "No QueryClient set, use QueryClientProvider to set one".
+
+App.tsx appears to wrap the router/content in QueryClientProvider, but some hook (likely useAuth or a React Query hook it uses) is still being called outside that provider.
+
+The CRM uses React Query for data fetching and an auth context or useAuth hook.
+
+Goal:
+
+Ensure that every use of React Query hooks (useQuery/useMutation or any custom hooks like useAuth that depend on them) is rendered inside a single top-level QueryClientProvider, so the error disappears and the app renders correctly.
+
+Task:
+
+Inspect the entry point files (for example client/src/main.tsx and client/src/App.tsx) and any layout/shell components that wrap the router. Determine exactly where QueryClientProvider is mounted.
+
+Find all usages of React Query hooks and any custom hooks that depend on React Query (for example useAuth, useCurrentUser, etc.). Identify if any of them are being called:
+
+In module scope (top level of a file).
+
+In components that are rendered outside the QueryClientProvider tree.
+
+Fix the structure so that:
+
+QueryClientProvider (and any AuthProvider that depends on it) is mounted at the very top of the React tree (in main.tsx or App.tsx) and wraps the router and all children.
+
+No React Query–dependent hook is called before the provider is established. If any hook is used in a component that can render outside the provider, refactor so it only renders inside the provider.
+
+Make the minimal necessary code changes to eliminate the "No QueryClient set" error while preserving existing behavior. Do not refactor unrelated components or rename routes.
+
+At the end, list:
+
+Which files you changed.
+
+How the provider tree is now structured (who wraps whom).
+
+Which component/hook was previously causing the error and how you addressed it.
