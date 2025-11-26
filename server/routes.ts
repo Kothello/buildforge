@@ -4,8 +4,24 @@ import { storage } from "./storage";
 import { insertLeadSchema, insertDealSchema, insertActivitySchema, insertZapierWebhookSchema } from "@shared/schema";
 import { parseLeadFromText, generateFirstMessage, generateCallSummary, generateUnstickSuggestion, generateMorningBrief } from "./ai";
 import { triggerWebhook } from "./webhooks";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  await setupAuth(app);
+
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
   app.get("/api/leads", async (req, res) => {
     try {
       const leads = await storage.getLeads();
