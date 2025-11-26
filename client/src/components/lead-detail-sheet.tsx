@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileCheck, Sparkles, DollarSign } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { LeadConfiguratorEmbed } from "@/configurator/LeadConfiguratorEmbed";
 
 interface LeadDetailSheetProps {
   lead: Lead | null;
@@ -25,6 +26,7 @@ interface LeadDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   onGenerateContract?: () => void;
   onUnstickDeal?: () => void;
+  onLeadUpdate?: (updatedLead: Lead) => void;
 }
 
 export function LeadDetailSheet({
@@ -35,6 +37,7 @@ export function LeadDetailSheet({
   onOpenChange,
   onGenerateContract,
   onUnstickDeal,
+  onLeadUpdate,
 }: LeadDetailSheetProps) {
   if (!lead) return null;
 
@@ -62,8 +65,9 @@ export function LeadDetailSheet({
           <ScrollArea className="flex-1">
             <div className="p-6 space-y-6">
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+                  <TabsTrigger value="configurator" data-testid="tab-configurator">Config</TabsTrigger>
                   <TabsTrigger value="3d-viewer" data-testid="tab-3d">3D Viewer</TabsTrigger>
                   <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
                 </TabsList>
@@ -137,6 +141,10 @@ export function LeadDetailSheet({
                       </div>
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="configurator" className="mt-6">
+                  <LeadConfiguratorEmbed lead={lead} onSave={onLeadUpdate} />
                 </TabsContent>
 
                 <TabsContent value="3d-viewer" className="mt-6">
