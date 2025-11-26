@@ -1,0 +1,51 @@
+Important constraints:
+
+Do not touch backend files (server/*).
+
+Do not change the configurator logic (BuilderPage, LeadConfiguratorEmbed) except where needed to hook into the existing lead detail sheet.
+
+Context:
+
+The “My Leads” page (client/src/pages/leads.tsx or similar) shows a list of leads with a View button in each row.
+
+Clicking View currently does nothing visible in the UI; the lead detail sheet does not appear.
+
+There is already a working lead detail sheet / panel component (for example client/src/components/lead-detail-sheet.tsx) that was recently updated to add a Config tab and embed the configurator.
+
+The pipeline page (client/src/pages/pipeline.tsx) likely uses this detail sheet correctly.
+
+Goal:
+
+Make the View button on the My Leads page open the same lead detail sheet component, passing the selected lead and allowing edits (including the Config tab with the 3D viewer).
+
+Task:
+
+Locate the My Leads page component (the one that renders the table shown under the “My Leads” navigation item). Identify:
+
+Where the View button is rendered.
+
+How (or if) it currently manages selectedLead and a boolean for the detail sheet being open.
+
+Locate the shared lead detail sheet component (e.g. LeadDetailSheet). Inspect how it is used in another page (like the pipeline page) where it is already working.
+
+Make the My Leads page follow the same pattern as the working page:
+
+Maintain selectedLead state.
+
+Maintain an isOpen/open state for the sheet.
+
+On View click, set selectedLead to that row’s lead and open the sheet.
+
+Render LeadDetailSheet with the correct props (lead, open, onOpenChange, and any new onLeadUpdate callback that was added when the configurator was integrated).
+
+Ensure the My Leads page passes the full lead object into LeadDetailSheet, including buildingSpecs and configuration, so the Config tab can initialize properly.
+
+Do not duplicate detail sheet logic; reuse the same LeadDetailSheet component already used elsewhere.
+
+At the end, summarize:
+
+Which file implements the My Leads page and what changes you made there.
+
+Which detail sheet component is used and what props are passed.
+
+Confirmation that clicking View on My Leads now opens the detail sheet for that lead.
