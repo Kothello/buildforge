@@ -1,0 +1,56 @@
+mportant constraints:
+
+Do not touch any backend files (server/*). Pricing routes under /api/pricing/* and server/pricingEngine.ts must stay as they are.
+
+Do not remove or break existing Admin features; only add a pricing admin screen and wire the existing button to it.
+
+Context:
+
+The QueryClient error has been resolved; the app now renders correctly.
+
+The configurator project inside this Repl includes a PricingAdmin React component at:
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/PricingAdmin.tsx
+
+That component is already wired to call endpoints like /api/pricing/rules, /api/pricing/calculate, etc.
+
+The CRM frontend has an Admin page with a "Manage Pricing Configuration" button that is currently not hooked up.
+
+Pricing endpoints are mounted in this CRM backend under /api/pricing/*.
+
+Goal:
+
+Make the CRM Admin area show the Pricing Admin UI, using this app’s /api/pricing endpoints, accessible by clicking the existing "Manage Pricing Configuration" button.
+
+Task:
+
+Copy the PricingAdmin component (and any direct dependencies it needs) from the configurator project into the CRM client under an organized path, for example:
+
+client/src/admin/PricingAdminPage.tsx as the main page component,
+
+and supporting components under client/src/admin/pricing/ if needed.
+
+Update all API calls in the new Pricing Admin code to use this app’s endpoints with relative paths, for example:
+
+/api/pricing/rules
+
+/api/pricing/calculate
+
+/api/pricing/validation
+
+etc.
+Remove any hard-coded origins or base URLs from the old configurator project.
+
+Register a new route in the CRM React router for the pricing admin screen (for example /admin/pricing) and render the Pricing Admin page/component there.
+
+Find the existing "Manage Pricing Configuration" button in the Admin UI and update its click handler so that it navigates to /admin/pricing using the same navigation approach used elsewhere in the app (React Router).
+
+Keep styling consistent with the rest of the CRM (page title, padding, layout). Do not rewrite the pricing logic; focus on making the screen functional.
+
+At the end, list:
+
+All new or modified frontend files.
+
+The route path where the Pricing Admin is now available.
+
+Which /api/pricing/* endpoints the UI is calling and for what actions (load rules, save rules, test pricing, etc.).
