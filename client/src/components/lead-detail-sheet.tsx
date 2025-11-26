@@ -43,37 +43,37 @@ export function LeadDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-full p-0 max-w-full">
-        <div className="h-full flex flex-col md:flex-row">
+      <SheetContent side="left" className="w-screen p-0">
+        <div className="h-full flex flex-row">
           {/* Left Side - Lead Details */}
-          <div className="w-full md:w-[35%] md:border-r border-border flex flex-col h-full">
+          <div className="w-[35%] border-r border-border flex flex-col h-full">
             <SheetHeader className="p-6 pb-4 border-b shrink-0">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <SheetTitle className="text-2xl truncate" data-testid="text-lead-title">
+                  <SheetTitle className="text-xl truncate" data-testid="text-lead-title">
                     {lead.companyName}
                   </SheetTitle>
-                  <p className="text-muted-foreground mt-1 truncate">{lead.contactName}</p>
+                  <p className="text-muted-foreground mt-1 truncate text-sm">{lead.contactName}</p>
                 </div>
                 <TemperatureBadge temperature={lead.temperature as any} className="shrink-0" />
               </div>
               <div className="flex flex-wrap gap-2 mt-4">
-                <Badge variant="outline">{lead.email}</Badge>
-                <Badge variant="outline">{lead.phone}</Badge>
-                <Badge variant="secondary">{lead.source}</Badge>
+                <Badge variant="outline" className="text-xs">{lead.email}</Badge>
+                <Badge variant="outline" className="text-xs">{lead.phone}</Badge>
+                <Badge variant="secondary" className="text-xs">{lead.source}</Badge>
               </div>
             </SheetHeader>
 
             <ScrollArea className="flex-1">
-              <div className="p-6 space-y-6">
+              <div className="p-4 space-y-4">
                 <Tabs defaultValue="overview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-                    <TabsTrigger value="3d-viewer" data-testid="tab-3d">3D View</TabsTrigger>
-                    <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-3 h-8">
+                    <TabsTrigger value="overview" data-testid="tab-overview" className="text-xs">Overview</TabsTrigger>
+                    <TabsTrigger value="3d-viewer" data-testid="tab-3d" className="text-xs">3D View</TabsTrigger>
+                    <TabsTrigger value="activity" data-testid="tab-activity" className="text-xs">Activity</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="overview" className="space-y-6 mt-6">
+                  <TabsContent value="overview" className="space-y-3 mt-3">
                     <ActionButtons
                       phone={lead.phone || undefined}
                       email={lead.email || undefined}
@@ -170,11 +170,11 @@ export function LeadDetailSheet({
           </div>
 
           {/* Right Side - Configurator */}
-          <div className="w-full md:w-[65%] md:border-r-0 flex flex-col h-full bg-background">
-            <div className="p-4 border-b shrink-0">
+          <div className="w-[65%] flex flex-col h-full bg-background overflow-hidden">
+            <div className="p-3 border-b shrink-0">
               <h3 className="font-semibold text-sm" data-testid="text-configurator-title">Building Configurator</h3>
             </div>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden w-full">
               <LeadConfiguratorEmbed lead={lead} onSave={onLeadUpdate} />
             </div>
           </div>
