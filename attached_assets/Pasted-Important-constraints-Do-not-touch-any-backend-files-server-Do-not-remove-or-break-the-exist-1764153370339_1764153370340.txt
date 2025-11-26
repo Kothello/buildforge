@@ -1,0 +1,59 @@
+Important constraints:
+
+Do not touch any backend files (server/*).
+
+Do not remove or break the existing controls and pricing logic in BuilderPage; only replace the placeholder 3D area and wire in the real viewer.
+
+Assume the QueryClientProvider in client/src/main.tsx is correct. Ignore any stale “No QueryClient set” errors; do not modify the provider setup again.
+
+Context:
+
+The /builder route renders client/src/configurator/BuilderPage.tsx, which currently shows a placeholder text “3D Building Configurator / 3D viewer coming soon…”.
+
+The original configurator project contains the real 3D viewer components at:
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/Scene3D.tsx
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+The lead detail “Config” tab uses client/src/configurator/LeadConfiguratorEmbed.tsx, which should show the same 3D viewer when editing a lead.
+
+The project already has the Three.js / React Three Fiber dependencies in package.json.
+
+Goal:
+
+Replace the placeholder text in BuilderPage with the real 3D viewer (Scene3D + BuildingModel) and reuse that same viewer inside LeadConfiguratorEmbed, so both /builder and the lead Config tab show a live 3D building that responds to the current configuration.
+
+Task:
+
+Copy Scene3D.tsx and BuildingModel.tsx (and any directly imported helpers) from the configurator project into the CRM client under client/src/configurator/, keeping imports consistent. For example:
+
+client/src/configurator/Scene3D.tsx
+
+client/src/configurator/BuildingModel.tsx
+
+Verify that required dependencies (three, @react-three/fiber, @react-three/drei, etc.) are present in this project’s package.json. If anything is missing, add it and update imports accordingly.
+
+Update client/src/configurator/BuilderPage.tsx so that:
+
+The placeholder “3D viewer coming soon…” block is removed.
+
+The new Scene3D component is rendered instead in that area.
+
+The current building configuration state from BuilderPage (dimensions, colors, roof style, openings, etc.) is passed into Scene3D / BuildingModel as props in whatever shape those components expect. Adapt the props if necessary so UI changes affect the 3D view.
+
+Update client/src/configurator/LeadConfiguratorEmbed.tsx to also use the same Scene3D component, initialized from the lead’s existing configuration data.
+
+Reuse the same viewer component rather than duplicating any 3D logic.
+
+Ensure that when the lead configuration is edited via the controls, the 3D view stays in sync.
+
+Do not change the /builder lead submission behavior or the PATCH logic for saving updates to configuration / buildingSpecs. Only enhance the visuals.
+
+At the end, list:
+
+The paths of the new 3D viewer files you added under client/src/configurator/.
+
+The specific changes you made in BuilderPage.tsx and LeadConfiguratorEmbed.tsx.
+
+Any dependency changes in package.json.
