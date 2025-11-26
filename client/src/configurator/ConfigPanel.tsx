@@ -129,19 +129,20 @@ export const ConfigPanel = ({
   ];
 
   return (
-    <div className="h-full overflow-y-auto px-3 py-2 space-y-3">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
       <Card className="p-4 space-y-2">
         <div>
           <h3 className="text-sm font-semibold mb-3 text-foreground">Dimensions</h3>
           
-          <div className="grid grid-cols-3 gap-2">
-            <div>
+          <div className="grid grid-cols-3 gap-2 relative z-40">
+            <div className="relative">
               <Label className="mb-1.5 block text-xs">Width</Label>
               <Select value={width.toString()} onValueChange={(value) => onWidthChange(Number(value))}>
                 <SelectTrigger data-testid="select-width">
                   <SelectValue placeholder="Select width" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background">
+                <SelectContent className="z-50 bg-background" side="bottom">
                   {widthOptions.map((w) => (
                     <SelectItem key={w} value={w.toString()}>
                       {w} ft
@@ -151,13 +152,13 @@ export const ConfigPanel = ({
               </Select>
             </div>
 
-            <div>
+            <div className="relative">
               <Label className="mb-1.5 block text-xs">Length</Label>
               <Select value={length.toString()} onValueChange={(value) => onLengthChange(Number(value))}>
                 <SelectTrigger data-testid="select-length">
                   <SelectValue placeholder="Select length" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background">
+                <SelectContent className="z-50 bg-background" side="bottom">
                   {lengthOptions.map((l) => (
                     <SelectItem key={l} value={l.toString()}>
                       {l} ft
@@ -167,13 +168,13 @@ export const ConfigPanel = ({
               </Select>
             </div>
 
-            <div>
+            <div className="relative">
               <Label className="mb-1.5 block text-xs">Height</Label>
               <Select value={height.toString()} onValueChange={(value) => onHeightChange(Number(value))}>
                 <SelectTrigger data-testid="select-height">
                   <SelectValue placeholder="Select height" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background">
+                <SelectContent className="z-50 bg-background" side="bottom">
                   {heightOptions.map((h) => (
                     <SelectItem key={h} value={h.toString()}>
                       {h} ft
@@ -486,6 +487,7 @@ export const ConfigPanel = ({
           region="midwest"
           onTotalChange={onTotalChange}
         />
+      </div>
       </div>
     </div>
   );
