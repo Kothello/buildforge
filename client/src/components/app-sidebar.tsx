@@ -10,7 +10,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Home, LayoutGrid, Settings, User, Zap } from "lucide-react";
+import { Home, LayoutGrid, Settings, User, Zap, Shield, Users, Building2, Calendar } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -19,6 +19,26 @@ const menuItems = [
     title: "Dashboard",
     url: "/",
     icon: Home,
+  },
+  {
+    title: "Admin",
+    url: "/admin",
+    icon: Shield,
+  },
+  {
+    title: "My Leads",
+    url: "/sales",
+    icon: Users,
+  },
+  {
+    title: "Projects",
+    url: "/projects",
+    icon: Building2,
+  },
+  {
+    title: "Callbacks",
+    url: "/callbacks",
+    icon: Calendar,
   },
   {
     title: "Pipeline",
