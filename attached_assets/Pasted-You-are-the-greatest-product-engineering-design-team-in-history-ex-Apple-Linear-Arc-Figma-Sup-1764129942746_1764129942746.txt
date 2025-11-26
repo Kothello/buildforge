@@ -1,0 +1,84 @@
+You are the greatest product engineering + design team in history (ex-Apple, Linear, Arc, Figma, Superhuman).  
+You are building “SteelFlow One” — the most beautiful, intuitive, and powerful platform ever created for the steel building industry.
+
+EMPIRE PRIORITIES — FINAL LOCKED ORDER (never break this):
+1. World-class, breath-taking UI/UX & design flow (this is now equal #1 — it must feel like luxury software)
+2. Desktop-first power workflow (large screens, keyboard-first, zero wasted clicks)
+3. Zapier as the universal integration backbone
+4. Universal lead ingestion (known + totally unknown sources)
+5. Mobile perfection (PWA that feels native on iPhone/iPad/Android)
+6. AI that closes deals while you sleep
+
+TECH STACK — LOCKED:
+Next.js 15 App Router • TypeScript • Tailwind • shadcn/ui (heavily customized) • Framer Motion • Radix • TanStack everything • Supabase (Postgres + Auth + RLS + Realtime + Storage) • Vercel • Resend • Stripe • OpenAI • Zapier webhooks on every event
+
+NON-NEGOTIABLE — DESIGN & FLOW RULES (this is what separates empires from everyone else):
+
+- Default dark mode with perfect contrast, glassmorphism cards, subtle glows, micro-animations on every interaction
+- Every action completes in ≤1 click or 1 keyboard shortcut
+- No modals when a drawer or inline expand will do
+- All primary actions are giant, obvious, satisfying buttons
+- Loading states are beautiful skeletons with shimmer
+- Drag-and-drop feels buttery (react-dnd or @dnd-kit)
+- Typography: Inter + custom font (Satoshi or Neue Montreal) for headings
+- Color system: deep charcoal base + electric blue primary + success green + warning amber
+- Mobile = zero compromise (bottom sheets, swipe actions, thumb-friendly)
+
+CORE FLOWS THAT MUST FEEL LIKE MAGIC:
+
+1. New Lead Appears → Card Slides In
+   → Auto-opens right sidebar with 3D viewer already spinning
+   → “Call Now” / “Text Now” / “Email Now” are 3 giant buttons at top
+   → AI already wrote the perfect first message
+
+2. Phone Call Ends → AI Summary Arrives
+   → Giant floating “PASTE AI CALL NOTES” button appears
+   → One click → summary posts, tasks created, stage auto-advances, confetti if hot lead
+
+3. Drop Any Garbage Lead → Magic Happens
+   → Drag email/screenshot/CSV into drop zone
+   → 2-second AI parse → new lead card appears fully populated + 3D mockup if size detected
+   → Rep never types name/phone again
+
+4. Deal Card View (the money screen)
+   → Left half: full 3D viewer with screenshot button
+   → Right half: pricing breakdown, contract status, deposit button, activity timeline
+   → Top bar: lead temperature meter (cold → warm → hot → on fire)
+
+5. Morning Brief (homepage)
+   → Beautiful dashboard with your face + “Good morning, Emperor”
+   → 10 hottest deals today in priority order
+   → Each has AI-written script + one-click send button
+
+FULL FEATURE LIST (everything from before + design perfection):
+
+- Universal lead ingestion (webhooks + drop zone + website scraper + OCR)
+- Embedded live 3D viewer + one-click screenshot
+- One-click contract generation + e-sign + deposit
+- AI call notes → one-click paste + auto-tasks
+- iMessage/SMS rich templates with 3D + pricing
+- Full pricing engine integration (cost vs price, margin %)
+- Zapier webhooks on every single event
+- Daily AI brief, “Unstick This Deal”, dead-lead resurrection
+- Roles: Owner through Install Crew
+
+DELIVERABLES — 100% copy-paste ready:
+
+1. Complete Next.js 15 codebase with perfect folder structure
+2. All custom shadcn components (buttons, cards, drawers, drop zone, etc.)
+3. Framer Motion animations for every transition
+4. Full design system (colors, typography, spacing, motion config)
+5. Supabase schema + RLS + Realtime
+6. All AI prompts (parsing, morning brief, call summary, unstick, etc.)
+7. Zapier webhook payloads for every event
+8. Mobile PWA manifest + icons
+9. One-click Vercel deploy script
+
+This is no longer feels like a CRM.  
+It feels like flying a spaceship made of black glass and money.
+
+This is the most beautiful, intuitive, and profitable software ever built for the steel building industry.
+
+No compromises. No “good enough” design. This must be jaw-dropping.
+
+Build it now. Make it perfect.
