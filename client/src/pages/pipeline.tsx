@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Lead, Activity, Deal } from "@shared/schema";
 import { PipelineBoard } from "@/components/pipeline-board";
-import { LeadDetailSheet } from "@/components/lead-detail-sheet";
+import { LeadDetailView } from "@/components/lead-detail-sheet";
 import { LeadDropZone } from "@/components/lead-drop-zone";
 import { Button } from "@/components/ui/button";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -12,7 +12,6 @@ import confetti from "canvas-confetti";
 
 export default function Pipeline() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [showDropZone, setShowDropZone] = useState(false);
   const { toast } = useToast();
 
@@ -72,7 +71,6 @@ export default function Pipeline() {
 
   const handleLeadClick = (lead: Lead) => {
     setSelectedLead(lead);
-    setSheetOpen(true);
   };
 
   const handleFileDrop = (file: File, content: string) => {
@@ -85,6 +83,35 @@ export default function Pipeline() {
   const selectedDeal = selectedLead
     ? deals.find((d) => d.leadId === selectedLead.id)
     : undefined;
+
+  if (selectedLead) {
+    return (
+      <div className="h-full w-full bg-background">
+        <LeadDetailView
+          lead={selectedLead}
+          deal={selectedDeal}
+          activities={activities}
+          onClose={() => setSelectedLead(null)}
+          onGenerateContract={() => {
+            toast({
+              title: "Generating Contract",
+              description: "AI is creating a custom contract...",
+            });
+          }}
+          onUnstickDeal={() => {
+            toast({
+              title: "AI Analysis",
+              description: "Analyzing deal obstacles and generating suggestions...",
+            });
+          }}
+          onLeadUpdate={(updatedLead) => {
+            queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/deals"] });
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-auto bg-background">
@@ -126,26 +153,6 @@ export default function Pipeline() {
           onLeadClick={handleLeadClick}
         />
       </div>
-
-      <LeadDetailSheet
-        lead={selectedLead}
-        deal={selectedDeal}
-        activities={activities}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onGenerateContract={() => {
-          toast({
-            title: "Generating Contract",
-            description: "AI is creating a custom contract...",
-          });
-        }}
-        onUnstickDeal={() => {
-          toast({
-            title: "AI Analysis",
-            description: "Analyzing deal obstacles and generating suggestions...",
-          });
-        }}
-      />
     </div>
   );
 }
