@@ -1,0 +1,78 @@
+You are the greatest product engineering + design team ever assembled (ex-Linear, ex-Apple, ex-Superhuman, ex-Vercel).  
+You are building SteelFlow One — the single most intelligent, beautiful, and profitable sales + project execution platform in the history of the steel building industry.
+
+This is the FINAL version. Zero revisions allowed after this. Make it perfect.
+
+EMPIRE PRIORITIES — LOCKED FOREVER:
+1. God-tier UI/UX that feels like magic (Linear × Arc × Apple level)
+2. Desktop-first power + zero horizontal scroll ever (everything auto-resizes perfectly for mobile → tablet → desktop)
+3. Ruthless intelligence & automation (no human should ever do repetitive work)
+4. Zapier on every single event
+5. Universal lead ingestion
+
+TECH STACK — FINAL:
+Next.js 15 App Router • TypeScript • Tailwind • shadcn/ui (heavily customized) • Framer Motion • TanStack Table/Query • Supabase (Postgres + RLS + Realtime) • Vercel • Resend • Stripe • OpenAI • Zapier webhooks everywhere
+
+MANDATORY MULTI-PAGE LAYOUT (exact pages & access):
+
+1. /admin — Admin Empire Control
+   - Full pricing rules editor (exact same no-code rule builder from earlier — add/edit/delete all pricing rules live)
+   - Global settings panel: toggle auto-assignment ON/OFF
+   - User management + role assignments
+   - System-wide automations toggle
+   - View ALL leads across all reps
+
+2. /sales — Sales Rep Dashboard (default landing page for sales role)
+   - Left sidebar with "My Leads" tab that opens a beautiful infinite-scroll list
+   - Leads smart-sorted daily: Hot → Warm → New → Follow-up today → Sleeping
+   - Only shows leads assigned to the logged-in rep
+   - Once deposit paid → deal auto-moves to /projects (visible to PMs)
+
+3. /projects — Project Management Dashboard
+   - All sold buildings automatically appear here on deposit
+   - Stages: Engineering → Permitting → Production → Delivery → Install → Paid
+   - PMs + install crew see only this board
+
+AUTOMATED SCHEDULING FLOW (this must work perfectly):
+- Customer submits quote from website → instantly created as lead in CRM
+- Auto-triggers Calendly-style rich link (via Sendblue/LoopMessage) with available rep slots
+- If no appointment booked in 24h → auto resend #1
+- 48h later → auto resend #2
+- 72h later → auto resend #3
+- After 3 failed auto-reschedules AND 3 failed rep outreach attempts (call/text) → lead auto-moved to “No-Show Nurture” board
+- All attempts logged automatically in activity timeline with timestamps
+
+NO-SHOW NURTURE SYSTEM:
+- New board/section called “No-Show Nurture”
+- Zero-effort resurrection: monthly AI-generated “We’re still here” rich email + new 3D render
+- One-click “Re-activate” button moves back to sales rep’s active list
+
+DESIGN & LAYOUT RULES (non-negotiable):
+- Zero horizontal scroll EVER — everything uses perfect responsive grids, resizable sidebars, and collapse/expand
+- Desktop: 3-column max, intelligent auto-layout
+- Tablet: 2-column
+- Mobile: single column + bottom navigation
+- All tables use TanStack virtualized infinite scroll
+- Left sidebar always present (collapsible on mobile)
+
+ADDITIONAL REQUIRED INTELLIGENCE:
+- Lead temperature meter on every card (cold → hot → on fire)
+- Auto-assignment round-robin UNLESS admin disables in settings
+- All automated messages (reschedules, no-show emails) fully customizable in /admin
+- Full activity timeline with auto-logging of every system action
+
+DELIVERABLES — 100% copy-paste ready, production perfection:
+
+1. Complete Next.js 15 multi-page codebase (exact /admin, /sales, /projects routes)
+2. Responsive layout system that never allows horizontal scroll
+3. Infinite-scroll “My Leads” list with smart sorting logic
+4. Full pricing rules editor in /admin (exact same builder as before)
+5. Automated scheduling + 3× resend + no-show nurture logic with Sendblue templates
+6. Auto-move to /projects on deposit paid
+7. Role-based routing (sales sees /sales, admin sees everything, PM sees /projects)
+8. All Zapier webhooks (especially lead_created, appointment_booked, no_show_moved, deposit_received)
+9. Framer Motion animations + perfect design system (dark mode, glass, glows)
+10. Supabase schema updates + RLS for multi-role access
+11. Environment variables + one-click deploy
+
+This is the smartest, most efficient
