@@ -1,9 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  typescript: { strict: true },
   reactStrictMode: true,
-  swcMinify: true,
   experimental: {
     optimizePackageImports: ["@radix-ui/react-*"],
   },
