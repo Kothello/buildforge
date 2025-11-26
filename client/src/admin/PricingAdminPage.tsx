@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, Edit2, Save, X, ArrowLeft } from 'lucide-react';
-import { Link } from 'wouter';
+import { useLocation } from 'wouter';
 
 interface Rule {
   id: string;
@@ -42,6 +42,7 @@ export default function PricingAdminPage() {
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     loadPricingRules();
@@ -176,11 +177,14 @@ export default function PricingAdminPage() {
     <div className="h-full overflow-auto p-3 sm:p-6 space-y-6">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-3">
-          <Link href="/admin">
-            <Button variant="ghost" size="icon" data-testid="button-back-to-admin">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            data-testid="button-back-to-admin"
+            onClick={() => setLocation('/admin')}
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
           <h1 className="text-2xl font-bold" data-testid="text-pricing-admin-title">Pricing Rules Admin</h1>
         </div>
         <Button onClick={saveRules} className="gap-2" data-testid="button-save-rules">
