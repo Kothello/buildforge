@@ -43,10 +43,10 @@ export function LeadDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-6xl p-0">
+      <SheetContent side="left" className="w-full p-0 max-w-full">
         <div className="h-full flex flex-col md:flex-row">
           {/* Left Side - Lead Details */}
-          <div className="w-full md:w-[45%] md:border-r border-border flex flex-col h-full">
+          <div className="w-full md:w-[35%] md:border-r border-border flex flex-col h-full">
             <SheetHeader className="p-6 pb-4 border-b shrink-0">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -170,7 +170,7 @@ export function LeadDetailSheet({
           </div>
 
           {/* Right Side - Configurator */}
-          <div className="w-full md:w-[55%] md:border-r-0 flex flex-col h-full bg-background">
+          <div className="w-full md:w-[65%] md:border-r-0 flex flex-col h-full bg-background">
             <div className="p-4 border-b shrink-0">
               <h3 className="font-semibold text-sm" data-testid="text-configurator-title">Building Configurator</h3>
             </div>
