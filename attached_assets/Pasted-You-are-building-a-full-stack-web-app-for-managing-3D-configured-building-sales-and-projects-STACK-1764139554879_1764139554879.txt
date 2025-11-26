@@ -1,0 +1,280 @@
+You are building a full-stack web app for managing 3D-configured building sales and projects.
+
+STACK
+- Frontend: React + TypeScript + a modern component library (e.g., Tailwind or similar).
+- Backend: Node.js with Express (or a comparable framework).
+- Database: PostgreSQL (or SQLite if easier in Replit).
+- Auth: Basic email/password auth with role-based access (admin, sales, project_manager).
+
+GOAL
+I like the existing UI style (clean, modern). Keep or improve that kind of UI, but the priority is new functionality and clear multi-page navigation with role-based views.
+
+PAGES / ROLES
+
+1) ADMIN DASHBOARD
+- Route: /admin
+- Role: admin only.
+- Features:
+  - 3D Configurator section:
+    - Assume a placeholder 3D configurator component for now (mock data / dummy 3D viewer).
+    - Next to it, a “Pricing Panel” that the admin can edit.
+    - Admin can configure:
+      - Base price.
+      - Add-on options (e.g., doors, windows, extra features) with name, description, and price.
+      - Pricing rules (e.g., price per square foot, multipliers by material).
+    - Use tabs in this panel: e.g., [Base Pricing] [Add-ons] [Rules].
+    - Changes persist to the database and are used for price calculations in the sales view.
+  - User / Sales Rep management:
+    - CRUD for sales reps (create, disable, reset password link placeholder).
+    - Ability to assign leads manually to a sales rep.
+  - Leads overview:
+    - Table of all leads with search and filter.
+    - Each row: customer name, sales rep, status, created date, total quoted price.
+
+2) SALES DASHBOARD
+- Route: /sales
+- Role: sales only.
+- Behavior:
+  - Each sales rep logs in and sees ONLY their own leads.
+  - Lead list:
+    - Columns: Lead ID, customer name, configuration summary, status (New, In Progress, Sold, Lost), last update.
+    - Status filter and search by customer name.
+  - Lead detail page:
+    - Route: /sales/leads/:id
+    - Show:
+      - Customer info (name, email, phone, notes).
+      - Selected 3D configuration data (can be text/JSON summary for now).
+      - Calculated price based on the admin’s pricing config (use the pricing rules from the admin dashboard).
+      - Actions:
+        - Update notes.
+        - Update lead status (New, In Progress, Lost).
+        - Button: “Mark as Sold”.
+  - When “Mark as Sold” is clicked:
+    - Backend logic:
+      - Update the lead status to “Sold”.
+      - Create or move this record into a “projects” table / collection used by the project management page.
+      - Ensure the lead no longer appears in “active” leads but appears in the project management bin.
+
+3) PROJECT MANAGEMENT PAGE (PROJECT BIN)
+- Route: /projects
+- Role: project_manager and admin. (Admins see everything; project_manager sees all projects but no admin settings).
+- Features:
+  - Show all sold buildings as “projects”.
+  - Simple Kanban-style or column-based layout:
+    - Example statuses: [Planning] [Design] [Permitting] [Production] [Installation] [Completed].
+  - Each project card:
+    - Project ID (same as lead ID reference).
+    - Customer name.
+    - Sales rep name.
+    - Total price.
+    - Short configuration summary.
+  - Ability to:
+    - Change project status by dropdown or drag-and-drop between columns (drag-and-drop optional; a dropdown is fine if simpler).
+    - Assign a project manager.
+    - Add internal notes.
+  - All changes persist in the database.
+
+DATA MODEL (SUGGESTED)
+- users:
+  - id
+  - name
+  - email
+  - password_hash
+  - role: 'admin' | 'sales' | 'project_manager'
+- pricing_config:
+  - id
+  - base_price
+  - rules (JSON)
+- add_ons:
+  - id
+  - name
+  - description
+  - price
+- leads:
+  - id
+  - customer_name
+  - customer_email
+  - customer_phone
+  - sales_rep_id (FK to users)
+  - configuration (JSON)
+  - status: 'new' | 'in_progress' | 'sold' | 'lost'
+  - total_price
+  - created_at
+  - updated_at
+- projects:
+  - id
+  - lead_id (FK to leads)
+  - project_manager_id (FK to users)
+  - status: 'planning' | 'design' | 'permitting' | 'production' | 'installation' | 'completed'
+  - notes (text)
+  - created_at
+  - updated_at
+
+KEY BEHAVIORAL REQUIREMENTS
+- Role-based routing and protection:
+  - Admin routes guarded for admin role.
+  - Sales dashboard shows only leads where leads.sales_rep_id = current user.
+  - Project page visible to admin and project_manager.
+- “Mark as Sold” flow:
+  - Triggered from the sales lead detail page.
+  - Sets lead.status = 'sold'.
+  - Either:
+    - Creates a new row in projects with link to that lead.
+    - Or moves the lead into a projects table. Use whichever is simpler but keep the logic clean.
+- UI expectations:
+  - Use a clean, modern layout with a sidebar or top navigation linking:
+    - Admin: [Admin Dashboard] [Projects] [Logout]
+    - Sales: [My Leads] [Projects (read-only or none)] [Logout]
+    - Project Manager: [Projects] [Logout]
+  - Forms must have basic validation and show success/failure to the user.
+  - Include seed data / fixtures so I can see:
+    - At least 2 admins, 3 sales reps, 1 project_manager.
+    - 10 sample leads assigned across reps.
+    - 3 projects in various statuses.
+
+DELIVERABLE
+- Working full-stack app in this Replit environment.
+- Clear README with:
+  - How to run the app.
+  - Default logins for each role (admin, sales, project_manager).
+  - Brief note on where to find and edit the pricing configuration and 3D configurator placeholder.
+You are building a full-stack web app for managing 3D-configured building sales and projects.
+
+STACK
+- Frontend: React + TypeScript + a modern component library (e.g., Tailwind or similar).
+- Backend: Node.js with Express (or a comparable framework).
+- Database: PostgreSQL (or SQLite if easier in Replit).
+- Auth: Basic email/password auth with role-based access (admin, sales, project_manager).
+
+GOAL
+I like the existing UI style (clean, modern). Keep or improve that kind of UI, but the priority is new functionality and clear multi-page navigation with role-based views.
+
+PAGES / ROLES
+
+1) ADMIN DASHBOARD
+- Route: /admin
+- Role: admin only.
+- Features:
+  - 3D Configurator section:
+    - Assume a placeholder 3D configurator component for now (mock data / dummy 3D viewer).
+    - Next to it, a “Pricing Panel” that the admin can edit.
+    - Admin can configure:
+      - Base price.
+      - Add-on options (e.g., doors, windows, extra features) with name, description, and price.
+      - Pricing rules (e.g., price per square foot, multipliers by material).
+    - Use tabs in this panel: e.g., [Base Pricing] [Add-ons] [Rules].
+    - Changes persist to the database and are used for price calculations in the sales view.
+  - User / Sales Rep management:
+    - CRUD for sales reps (create, disable, reset password link placeholder).
+    - Ability to assign leads manually to a sales rep.
+  - Leads overview:
+    - Table of all leads with search and filter.
+    - Each row: customer name, sales rep, status, created date, total quoted price.
+
+2) SALES DASHBOARD
+- Route: /sales
+- Role: sales only.
+- Behavior:
+  - Each sales rep logs in and sees ONLY their own leads.
+  - Lead list:
+    - Columns: Lead ID, customer name, configuration summary, status (New, In Progress, Sold, Lost), last update.
+    - Status filter and search by customer name.
+  - Lead detail page:
+    - Route: /sales/leads/:id
+    - Show:
+      - Customer info (name, email, phone, notes).
+      - Selected 3D configuration data (can be text/JSON summary for now).
+      - Calculated price based on the admin’s pricing config (use the pricing rules from the admin dashboard).
+      - Actions:
+        - Update notes.
+        - Update lead status (New, In Progress, Lost).
+        - Button: “Mark as Sold”.
+  - When “Mark as Sold” is clicked:
+    - Backend logic:
+      - Update the lead status to “Sold”.
+      - Create or move this record into a “projects” table / collection used by the project management page.
+      - Ensure the lead no longer appears in “active” leads but appears in the project management bin.
+
+3) PROJECT MANAGEMENT PAGE (PROJECT BIN)
+- Route: /projects
+- Role: project_manager and admin. (Admins see everything; project_manager sees all projects but no admin settings).
+- Features:
+  - Show all sold buildings as “projects”.
+  - Simple Kanban-style or column-based layout:
+    - Example statuses: [Planning] [Design] [Permitting] [Production] [Installation] [Completed].
+  - Each project card:
+    - Project ID (same as lead ID reference).
+    - Customer name.
+    - Sales rep name.
+    - Total price.
+    - Short configuration summary.
+  - Ability to:
+    - Change project status by dropdown or drag-and-drop between columns (drag-and-drop optional; a dropdown is fine if simpler).
+    - Assign a project manager.
+    - Add internal notes.
+  - All changes persist in the database.
+
+DATA MODEL (SUGGESTED)
+- users:
+  - id
+  - name
+  - email
+  - password_hash
+  - role: 'admin' | 'sales' | 'project_manager'
+- pricing_config:
+  - id
+  - base_price
+  - rules (JSON)
+- add_ons:
+  - id
+  - name
+  - description
+  - price
+- leads:
+  - id
+  - customer_name
+  - customer_email
+  - customer_phone
+  - sales_rep_id (FK to users)
+  - configuration (JSON)
+  - status: 'new' | 'in_progress' | 'sold' | 'lost'
+  - total_price
+  - created_at
+  - updated_at
+- projects:
+  - id
+  - lead_id (FK to leads)
+  - project_manager_id (FK to users)
+  - status: 'planning' | 'design' | 'permitting' | 'production' | 'installation' | 'completed'
+  - notes (text)
+  - created_at
+  - updated_at
+
+KEY BEHAVIORAL REQUIREMENTS
+- Role-based routing and protection:
+  - Admin routes guarded for admin role.
+  - Sales dashboard shows only leads where leads.sales_rep_id = current user.
+  - Project page visible to admin and project_manager.
+- “Mark as Sold” flow:
+  - Triggered from the sales lead detail page.
+  - Sets lead.status = 'sold'.
+  - Either:
+    - Creates a new row in projects with link to that lead.
+    - Or moves the lead into a projects table. Use whichever is simpler but keep the logic clean.
+- UI expectations:
+  - Use a clean, modern layout with a sidebar or top navigation linking:
+    - Admin: [Admin Dashboard] [Projects] [Logout]
+    - Sales: [My Leads] [Projects (read-only or none)] [Logout]
+    - Project Manager: [Projects] [Logout]
+  - Forms must have basic validation and show success/failure to the user.
+  - Include seed data / fixtures so I can see:
+    - At least 2 admins, 3 sales reps, 1 project_manager.
+    - 10 sample leads assigned across reps.
+    - 3 projects in various statuses.
+
+DELIVERABLE
+- Working full-stack app in this Replit environment.
+- Clear README with:
+  - How to run the app.
+  - Default logins for each role (admin, sales, project_manager).
+  - Brief note on where to find and edit the pricing configuration and 3D configurator placeholder.

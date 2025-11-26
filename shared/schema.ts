@@ -8,8 +8,27 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  role: text("role").notNull(),
+  passwordHash: text("password_hash").default(""),
+  role: text("role").notNull().default("sales"),
   avatar: text("avatar"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const pricingConfig = pgTable("pricing_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull().default("0"),
+  pricePerSquareFoot: decimal("price_per_sq_ft", { precision: 10, scale: 2 }).default("0"),
+  rules: jsonb("rules").default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const addOns = pgTable("add_ons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -22,12 +41,37 @@ export const leads = pgTable("leads", {
   source: text("source").notNull(),
   temperature: text("temperature").notNull().default("cold"),
   stage: text("stage").notNull().default("new"),
+  status: text("status").notNull().default("new"),
   assignedTo: varchar("assigned_to").references(() => users.id),
+  salesRepId: varchar("sales_rep_id").references(() => users.id),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).default("0"),
   buildingSpecs: jsonb("building_specs"),
+  configuration: jsonb("configuration"),
   aiNotes: text("ai_notes"),
   aiFirstMessage: text("ai_first_message"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  projectManagerId: varchar("project_manager_id").references(() => users.id),
+  status: text("status").notNull().default("planning"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const callbacks = pgTable("callbacks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  notes: text("notes"),
+  completed: boolean("completed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const deals = pgTable("deals", {
@@ -69,6 +113,8 @@ export const zapierWebhooks = pgTable("zapier_webhooks", {
 export const usersRelations = relations(users, ({ many }) => ({
   assignedLeads: many(leads),
   activities: many(activities),
+  projects: many(projects),
+  callbacks: many(callbacks),
 }));
 
 export const leadsRelations = relations(leads, ({ one, many }) => ({
@@ -76,8 +122,36 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
     fields: [leads.assignedTo],
     references: [users.id],
   }),
+  salesRep: one(users, {
+    fields: [leads.salesRepId],
+    references: [users.id],
+  }),
   deals: many(deals),
   activities: many(activities),
+  projects: many(projects),
+  callbacks: many(callbacks),
+}));
+
+export const projectsRelations = relations(projects, ({ one }) => ({
+  lead: one(leads, {
+    fields: [projects.leadId],
+    references: [leads.id],
+  }),
+  projectManager: one(users, {
+    fields: [projects.projectManagerId],
+    references: [users.id],
+  }),
+}));
+
+export const callbacksRelations = relations(callbacks, ({ one }) => ({
+  lead: one(leads, {
+    fields: [callbacks.leadId],
+    references: [leads.id],
+  }),
+  user: one(users, {
+    fields: [callbacks.userId],
+    references: [users.id],
+  }),
 }));
 
 export const dealsRelations = relations(deals, ({ one }) => ({
@@ -124,6 +198,28 @@ export const insertZapierWebhookSchema = createInsertSchema(zapierWebhooks).omit
   createdAt: true,
 });
 
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCallbackSchema = createInsertSchema(callbacks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPricingConfigSchema = createInsertSchema(pricingConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAddOnSchema = createInsertSchema(addOns).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Lead = typeof leads.$inferSelect;
@@ -134,3 +230,11 @@ export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type ZapierWebhook = typeof zapierWebhooks.$inferSelect;
 export type InsertZapierWebhook = z.infer<typeof insertZapierWebhookSchema>;
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type Callback = typeof callbacks.$inferSelect;
+export type InsertCallback = z.infer<typeof insertCallbackSchema>;
+export type PricingConfig = typeof pricingConfig.$inferSelect;
+export type InsertPricingConfig = z.infer<typeof insertPricingConfigSchema>;
+export type AddOn = typeof addOns.$inferSelect;
+export type InsertAddOn = z.infer<typeof insertAddOnSchema>;
