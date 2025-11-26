@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLeadSchema, insertDealSchema, insertActivitySchema, insertZapierWebhookSchema } from "@shared/schema";
+import { insertLeadSchema, insertDealSchema, insertActivitySchema, insertZapierWebhookSchema, insertProjectSchema, insertCallbackSchema, insertPricingConfigSchema } from "@shared/schema";
 import { parseLeadFromText, generateFirstMessage, generateCallSummary, generateUnstickSuggestion, generateMorningBrief } from "./ai";
 import { triggerWebhook } from "./webhooks";
 
@@ -223,6 +223,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(webhook);
     } catch (error) {
       res.status(400).json({ error: "Invalid webhook data" });
+    }
+  });
+
+  app.get("/api/projects", async (req, res) => {
+    try {
+      const allProjects = await storage.getProjects();
+      res.json(allProjects);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch projects" });
+    }
+  });
+
+  app.get("/api/projects/:id", async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch project" });
+    }
+  });
+
+  app.post("/api/projects", async (req, res) => {
+    try {
+      const validatedData = insertProjectSchema.parse(req.body);
+      const project = await storage.createProject(validatedData);
+      res.json(project);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid project data" });
+    }
+  });
+
+  app.patch("/api/projects/:id", async (req, res) => {
+    try {
+      const project = await storage.updateProject(req.params.id, req.body);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update project" });
+    }
+  });
+
+  app.get("/api/callbacks", async (req, res) => {
+    try {
+      const allCallbacks = await storage.getCallbacks();
+      res.json(allCallbacks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch callbacks" });
+    }
+  });
+
+  app.get("/api/callbacks/:id", async (req, res) => {
+    try {
+      const callback = await storage.getCallback(req.params.id);
+      if (!callback) {
+        return res.status(404).json({ error: "Callback not found" });
+      }
+      res.json(callback);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch callback" });
+    }
+  });
+
+  app.post("/api/callbacks", async (req, res) => {
+    try {
+      const validatedData = insertCallbackSchema.parse(req.body);
+      const callback = await storage.createCallback(validatedData);
+      res.json(callback);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid callback data" });
+    }
+  });
+
+  app.patch("/api/callbacks/:id", async (req, res) => {
+    try {
+      const callback = await storage.updateCallback(req.params.id, req.body);
+      if (!callback) {
+        return res.status(404).json({ error: "Callback not found" });
+      }
+      res.json(callback);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update callback" });
+    }
+  });
+
+  app.get("/api/pricing", async (req, res) => {
+    try {
+      const pricing = await storage.getPricingConfig();
+      res.json(pricing || {});
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pricing config" });
+    }
+  });
+
+  app.post("/api/pricing", async (req, res) => {
+    try {
+      const validatedData = insertPricingConfigSchema.parse(req.body);
+      const pricing = await storage.createPricingConfig(validatedData);
+      res.json(pricing);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid pricing data" });
+    }
+  });
+
+  app.patch("/api/pricing/:id", async (req, res) => {
+    try {
+      const pricing = await storage.updatePricingConfig(req.params.id, req.body);
+      if (!pricing) {
+        return res.status(404).json({ error: "Pricing config not found" });
+      }
+      res.json(pricing);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update pricing" });
     }
   });
 

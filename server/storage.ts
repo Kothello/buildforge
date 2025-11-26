@@ -9,9 +9,15 @@ import {
   type InsertActivity,
   type ZapierWebhook,
   type InsertZapierWebhook,
+  type Project,
+  type InsertProject,
+  type Callback,
+  type InsertCallback,
+  type PricingConfig,
+  type InsertPricingConfig,
 } from "@shared/schema";
 import { db } from "./db";
-import { users, leads, deals, activities, zapierWebhooks } from "@shared/schema";
+import { users, leads, deals, activities, zapierWebhooks, projects, callbacks, pricingConfig } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export interface IStorage {
@@ -34,6 +40,20 @@ export interface IStorage {
   
   getWebhooks(): Promise<ZapierWebhook[]>;
   createWebhook(webhook: InsertZapierWebhook): Promise<ZapierWebhook>;
+  
+  getProjects(): Promise<Project[]>;
+  getProject(id: string): Promise<Project | undefined>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined>;
+  
+  getCallbacks(): Promise<Callback[]>;
+  getCallback(id: string): Promise<Callback | undefined>;
+  createCallback(callback: InsertCallback): Promise<Callback>;
+  updateCallback(id: string, updates: Partial<Callback>): Promise<Callback | undefined>;
+  
+  getPricingConfig(): Promise<PricingConfig | undefined>;
+  createPricingConfig(pricing: InsertPricingConfig): Promise<PricingConfig>;
+  updatePricingConfig(id: string, updates: Partial<PricingConfig>): Promise<PricingConfig | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -110,6 +130,71 @@ export class DatabaseStorage implements IStorage {
   async createWebhook(insertWebhook: InsertZapierWebhook): Promise<ZapierWebhook> {
     const [webhook] = await db.insert(zapierWebhooks).values(insertWebhook).returning();
     return webhook;
+  }
+
+  async getProjects(): Promise<Project[]> {
+    return await db.select().from(projects);
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const [project] = await db.insert(projects).values(insertProject).returning();
+    return project;
+  }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined> {
+    const [project] = await db
+      .update(projects)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return project || undefined;
+  }
+
+  async getCallbacks(): Promise<Callback[]> {
+    return await db.select().from(callbacks);
+  }
+
+  async getCallback(id: string): Promise<Callback | undefined> {
+    const [callback] = await db.select().from(callbacks).where(eq(callbacks.id, id));
+    return callback || undefined;
+  }
+
+  async createCallback(insertCallback: InsertCallback): Promise<Callback> {
+    const [callback] = await db.insert(callbacks).values(insertCallback).returning();
+    return callback;
+  }
+
+  async updateCallback(id: string, updates: Partial<Callback>): Promise<Callback | undefined> {
+    const [callback] = await db
+      .update(callbacks)
+      .set(updates)
+      .where(eq(callbacks.id, id))
+      .returning();
+    return callback || undefined;
+  }
+
+  async getPricingConfig(): Promise<PricingConfig | undefined> {
+    const [pricing] = await db.select().from(pricingConfig).limit(1);
+    return pricing || undefined;
+  }
+
+  async createPricingConfig(insertPricing: InsertPricingConfig): Promise<PricingConfig> {
+    const [pricing] = await db.insert(pricingConfig).values(insertPricing).returning();
+    return pricing;
+  }
+
+  async updatePricingConfig(id: string, updates: Partial<PricingConfig>): Promise<PricingConfig | undefined> {
+    const [pricing] = await db
+      .update(pricingConfig)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(pricingConfig.id, id))
+      .returning();
+    return pricing || undefined;
   }
 }
 
