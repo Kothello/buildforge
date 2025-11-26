@@ -43,130 +43,141 @@ export function LeadDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl p-0">
-        <div className="h-full flex flex-col">
-          <SheetHeader className="p-6 pb-4 border-b">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <SheetTitle className="text-2xl" data-testid="text-lead-title">
-                  {lead.companyName}
-                </SheetTitle>
-                <p className="text-muted-foreground mt-1">{lead.contactName}</p>
+      <SheetContent side="right" className="w-full sm:max-w-6xl p-0">
+        <div className="h-full flex flex-col md:flex-row">
+          {/* Left Side - Lead Details */}
+          <div className="w-full md:w-[45%] md:border-r border-border flex flex-col h-full">
+            <SheetHeader className="p-6 pb-4 border-b shrink-0">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <SheetTitle className="text-2xl truncate" data-testid="text-lead-title">
+                    {lead.companyName}
+                  </SheetTitle>
+                  <p className="text-muted-foreground mt-1 truncate">{lead.contactName}</p>
+                </div>
+                <TemperatureBadge temperature={lead.temperature as any} className="shrink-0" />
               </div>
-              <TemperatureBadge temperature={lead.temperature as any} />
-            </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              <Badge variant="outline">{lead.email}</Badge>
-              <Badge variant="outline">{lead.phone}</Badge>
-              <Badge variant="secondary">{lead.source}</Badge>
-            </div>
-          </SheetHeader>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <Badge variant="outline">{lead.email}</Badge>
+                <Badge variant="outline">{lead.phone}</Badge>
+                <Badge variant="secondary">{lead.source}</Badge>
+              </div>
+            </SheetHeader>
 
-          <ScrollArea className="flex-1">
-            <div className="p-6 space-y-6">
-              <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-                  <TabsTrigger value="configurator" data-testid="tab-configurator">Config</TabsTrigger>
-                  <TabsTrigger value="3d-viewer" data-testid="tab-3d">3D Viewer</TabsTrigger>
-                  <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
-                </TabsList>
+            <ScrollArea className="flex-1">
+              <div className="p-6 space-y-6">
+                <Tabs defaultValue="overview" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+                    <TabsTrigger value="3d-viewer" data-testid="tab-3d">3D View</TabsTrigger>
+                    <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="overview" className="space-y-6 mt-6">
-                  <ActionButtons
-                    phone={lead.phone || undefined}
-                    email={lead.email || undefined}
-                  />
-
-                  {lead.aiFirstMessage && (
-                    <AIMessageCard
-                      message={lead.aiFirstMessage}
-                      title="AI-Generated First Message"
+                  <TabsContent value="overview" className="space-y-6 mt-6">
+                    <ActionButtons
+                      phone={lead.phone || undefined}
+                      email={lead.email || undefined}
                     />
-                  )}
 
-                  {lead.aiNotes && (
-                    <AIMessageCard
-                      message={lead.aiNotes}
-                      title="AI Analysis"
-                    />
-                  )}
+                    {lead.aiFirstMessage && (
+                      <AIMessageCard
+                        message={lead.aiFirstMessage}
+                        title="AI-Generated First Message"
+                      />
+                    )}
 
-                  <PricingBreakdown
-                    buildingSpecs={deal?.buildingWidth ? {
-                      width: deal.buildingWidth,
-                      length: deal.buildingLength || undefined,
-                      height: deal.buildingHeight || undefined,
-                      roofStyle: deal.roofStyle || undefined,
-                    } : undefined}
-                    cost={deal?.cost ? parseFloat(deal.cost) : undefined}
-                    price={deal?.price ? parseFloat(deal.price) : undefined}
-                    margin={deal?.margin ? parseFloat(deal.margin) : undefined}
-                  />
+                    {lead.aiNotes && (
+                      <AIMessageCard
+                        message={lead.aiNotes}
+                        title="AI Analysis"
+                      />
+                    )}
 
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1 gap-2"
-                      onClick={onGenerateContract}
-                      data-testid="button-generate-contract"
-                    >
-                      <FileCheck className="h-4 w-4" />
-                      Generate Contract
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 gap-2"
-                      onClick={onUnstickDeal}
-                      data-testid="button-unstick-deal"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      Unstick This Deal
-                    </Button>
-                  </div>
-
-                  {deal?.contractStatus && deal.contractStatus !== "pending" && (
-                    <div className="p-4 rounded-lg bg-accent border border-accent-border">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Contract Status</p>
-                          <p className="text-sm text-muted-foreground capitalize">{deal.contractStatus}</p>
-                        </div>
-                        {!deal.depositPaid && deal.depositAmount && (
-                          <Button variant="default" size="sm" className="gap-2">
-                            <DollarSign className="h-4 w-4" />
-                            Pay ${parseFloat(deal.depositAmount).toLocaleString()} Deposit
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="configurator" className="mt-6">
-                  <LeadConfiguratorEmbed lead={lead} onSave={onLeadUpdate} />
-                </TabsContent>
-
-                <TabsContent value="3d-viewer" className="mt-6">
-                  <div className="h-[600px] rounded-lg overflow-hidden border border-border">
-                    <BuildingViewer3D
+                    <PricingBreakdown
                       buildingSpecs={deal?.buildingWidth ? {
                         width: deal.buildingWidth,
                         length: deal.buildingLength || undefined,
                         height: deal.buildingHeight || undefined,
                         roofStyle: deal.roofStyle || undefined,
-                        color: deal.color || undefined,
                       } : undefined}
+                      cost={deal?.cost ? parseFloat(deal.cost) : undefined}
+                      price={deal?.price ? parseFloat(deal.price) : undefined}
+                      margin={deal?.margin ? parseFloat(deal.margin) : undefined}
                     />
-                  </div>
-                </TabsContent>
 
-                <TabsContent value="activity" className="mt-6">
-                  <ActivityTimeline activities={activities} />
-                </TabsContent>
-              </Tabs>
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex-1 gap-2 text-xs sm:text-sm"
+                        onClick={onGenerateContract}
+                        data-testid="button-generate-contract"
+                      >
+                        <FileCheck className="h-4 w-4" />
+                        <span className="hidden sm:inline">Generate Contract</span>
+                        <span className="sm:hidden">Contract</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 gap-2 text-xs sm:text-sm"
+                        onClick={onUnstickDeal}
+                        data-testid="button-unstick-deal"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        <span className="hidden sm:inline">Unstick Deal</span>
+                        <span className="sm:hidden">Unstick</span>
+                      </Button>
+                    </div>
+
+                    {deal?.contractStatus && deal.contractStatus !== "pending" && (
+                      <div className="p-4 rounded-lg bg-accent border border-accent-border">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm">Contract Status</p>
+                            <p className="text-xs text-muted-foreground capitalize">{deal.contractStatus}</p>
+                          </div>
+                          {!deal.depositPaid && deal.depositAmount && (
+                            <Button variant="default" size="sm" className="gap-2 shrink-0 text-xs">
+                              <DollarSign className="h-3 w-3" />
+                              <span className="hidden sm:inline">Pay ${parseFloat(deal.depositAmount).toLocaleString()}</span>
+                              <span className="sm:hidden">Pay</span>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="3d-viewer" className="mt-6">
+                    <div className="h-[400px] rounded-lg overflow-hidden border border-border">
+                      <BuildingViewer3D
+                        buildingSpecs={deal?.buildingWidth ? {
+                          width: deal.buildingWidth,
+                          length: deal.buildingLength || undefined,
+                          height: deal.buildingHeight || undefined,
+                          roofStyle: deal.roofStyle || undefined,
+                          color: deal.color || undefined,
+                        } : undefined}
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="activity" className="mt-6">
+                    <ActivityTimeline activities={activities} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* Right Side - Configurator */}
+          <div className="w-full md:w-[55%] md:border-r-0 flex flex-col h-full bg-background">
+            <div className="p-4 border-b shrink-0">
+              <h3 className="font-semibold text-sm" data-testid="text-configurator-title">Building Configurator</h3>
             </div>
-          </ScrollArea>
+            <div className="flex-1 overflow-hidden">
+              <LeadConfiguratorEmbed lead={lead} onSave={onLeadUpdate} />
+            </div>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
