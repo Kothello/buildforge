@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, CheckCircle, AlertCircle } from 'lucide-react';
 import type { Door, Window, LeanTo, BuildingConfig } from './types';
 import { PricingDisplay } from './PricingDisplay';
+import { Scene3D } from './Scene3D';
 
 export default function BuilderPage() {
   const [width, setWidth] = useState(40);
@@ -25,6 +26,12 @@ export default function BuilderPage() {
   const [leanTos, setLeanTos] = useState<LeanTo[]>([]);
   const [wallEnclosure, setWallEnclosure] = useState<'fully-enclosed' | 'fully-open' | 'gable-ends' | 'customize'>('fully-enclosed');
   const [customWalls, setCustomWalls] = useState({ front: true, back: true, left: true, right: true });
+  
+  // 3D viewer interaction state
+  const [draggedDoorId, setDraggedDoorId] = useState<string | null>(null);
+  const [draggedWindowId, setDraggedWindowId] = useState<string | null>(null);
+  const [leanToDragPositions] = useState<Map<string, number>>(new Map());
+  const [isDraggingLeanTo] = useState(false);
   
   // Lead capture form state
   const [contactName, setContactName] = useState('');
@@ -87,6 +94,22 @@ export default function BuilderPage() {
       title: 'Window Added',
       description: 'Window added to front wall'
     });
+  };
+
+  const handleDoorMove = (doorId: string, newPosition: number) => {
+    setDoors(prev => prev.map(d => d.id === doorId ? { ...d, position: newPosition } : d));
+  };
+
+  const handleWindowMove = (windowId: string, newPosition: number) => {
+    setWindows(prev => prev.map(w => w.id === windowId ? { ...w, position: newPosition } : w));
+  };
+
+  const handleDoorClick = (doorId: string) => {
+    toast({ title: 'Door Selected', description: `Door ${doorId} clicked` });
+  };
+
+  const handleWindowClick = (windowId: string) => {
+    toast({ title: 'Window Selected', description: `Window ${windowId} clicked` });
   };
 
   const colorOptions = [
@@ -187,12 +210,38 @@ export default function BuilderPage() {
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-background">
-      {/* 3D Viewer Placeholder */}
-      <div className="flex-1 flex items-center justify-center bg-slate-900">
-        <div className="text-center text-white">
-          <h2 className="text-2xl font-bold mb-2">3D Building Configurator</h2>
-          <p className="text-muted-foreground">3D viewer coming soon...</p>
-        </div>
+      {/* 3D Viewer */}
+      <div className="flex-1 bg-slate-900">
+        <Scene3D
+          width={width}
+          length={length}
+          height={height}
+          wallColor={wallColor}
+          roofColor={roofColor}
+          trimColor={trimColor}
+          roofStyle={roofStyle}
+          roofPitch={roofPitch}
+          doors={doors}
+          windows={windows}
+          onDoorClick={handleDoorClick}
+          onWindowClick={handleWindowClick}
+          onDoorMove={handleDoorMove}
+          onWindowMove={handleWindowMove}
+          draggedDoorId={draggedDoorId}
+          onDraggedDoorIdChange={setDraggedDoorId}
+          draggedWindowId={draggedWindowId}
+          onDraggedWindowIdChange={setDraggedWindowId}
+          editMode={false}
+          wallEnclosure={wallEnclosure}
+          customWalls={customWalls}
+          leanTos={leanTos}
+          leanToEditMode={false}
+          leanToDragPositions={leanToDragPositions}
+          isDraggingLeanTo={isDraggingLeanTo}
+          onLeanToMove={() => {}}
+          highlightedWall={null}
+          onWallClick={() => {}}
+        />
       </div>
 
       {/* Control Panel */}
