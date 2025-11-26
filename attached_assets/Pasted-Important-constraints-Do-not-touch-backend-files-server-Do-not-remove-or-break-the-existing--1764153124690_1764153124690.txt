@@ -1,0 +1,41 @@
+Important constraints:
+
+Do not touch backend files (server/*).
+
+Do not remove or break the existing controls and pricing logic in BuilderPage; only replace the placeholder 3D area.
+
+Context:
+
+The /builder route renders client/src/configurator/BuilderPage.tsx. Right now it shows text like “3D Building Configurator” and “3D viewer coming soon…”, which is just a placeholder.
+
+The original configurator project under configurator/iron-builder-studio-*/client/src contains the real 3D viewer component that renders the building model.
+
+The lead detail view is using LeadConfiguratorEmbed from client/src/configurator/LeadConfiguratorEmbed.tsx, which should eventually show the same 3D viewer when editing a lead.
+
+Goal:
+
+Replace the placeholder “3D viewer coming soon…” area with the actual 3D viewer from the original configurator so the user sees a live 3D model on /builder and inside the lead Config tab.
+
+Task:
+
+In the configurator project (configurator/iron-builder-studio-*/client/src), find the real 3D viewer component (look for components named BuildingViewer3D, Scene, Canvas, or anything using three / @react-three/fiber / @react-three/drei).
+
+Copy that viewer component and any required helpers into the CRM client under a clear path, for example:
+
+client/src/configurator/ThreeDViewer.tsx
+
+plus any helper files it depends on.
+
+If the viewer requires extra packages (e.g. three, @react-three/fiber, @react-three/drei), add them to this project’s package.json and wire imports correctly.
+
+Update BuilderPage so that the placeholder text block is removed and the new 3D viewer component is rendered in that area instead. Pass the current building configuration state from BuilderPage down as props so changes (dimensions, colors, doors, etc.) are reflected in the 3D view.
+
+Update LeadConfiguratorEmbed so it also uses the same shared 3D viewer component, initialized from the lead’s configuration. Avoid duplicating viewer code.
+
+At the end, list:
+
+The name and path of the 3D viewer component you integrated.
+
+The files you changed (BuilderPage, LeadConfiguratorEmbed, and any others).
+
+Any new dependencies added.
