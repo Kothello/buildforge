@@ -259,6 +259,18 @@ export const insertAddOnSchema = createInsertSchema(addOns).omit({
   createdAt: true,
 });
 
+export const insertBuildingDesignSchema = createInsertSchema(buildingDesigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDesignPricingSchema = createInsertSchema(designPricing).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Lead = typeof leads.$inferSelect;
@@ -277,3 +289,7 @@ export type PricingConfig = typeof pricingConfig.$inferSelect;
 export type InsertPricingConfig = z.infer<typeof insertPricingConfigSchema>;
 export type AddOn = typeof addOns.$inferSelect;
 export type InsertAddOn = z.infer<typeof insertAddOnSchema>;
+export type BuildingDesign = typeof buildingDesigns.$inferSelect;
+export type InsertBuildingDesign = z.infer<typeof insertBuildingDesignSchema>;
+export type DesignPricing = typeof designPricing.$inferSelect;
+export type InsertDesignPricing = z.infer<typeof insertDesignPricingSchema>;
