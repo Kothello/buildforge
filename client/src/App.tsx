@@ -13,11 +13,13 @@ import AdminDashboard from "@/pages/admin";
 import SalesDashboard from "@/pages/sales-dashboard";
 import ProjectsPage from "@/pages/projects";
 import CallbackCalendar from "@/pages/callback-calendar";
+import BuilderPage from "@/configurator/BuilderPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
+      <Route path="/builder" component={BuilderPage} />
       <Route path="/" component={Dashboard} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/sales" component={SalesDashboard} />
