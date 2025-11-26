@@ -71,6 +71,7 @@ interface ConfigPanelProps {
   }>) => void;
   editingLeanToId: string | null;
   onEditingLeanToIdChange: (id: string | null) => void;
+  onTotalChange?: (total: string) => void;
 }
 
 export const ConfigPanel = ({
@@ -104,7 +105,8 @@ export const ConfigPanel = ({
   leanTos,
   onLeanTosChange,
   editingLeanToId,
-  onEditingLeanToIdChange
+  onEditingLeanToIdChange,
+  onTotalChange
 }: ConfigPanelProps) => {
   const [colorTab, setColorTab] = useState<'walls' | 'roof' | 'trim'>('walls');
   const widthOptions = Array.from({ length: (120 - 35) / 5 + 1 }, (_, i) => 35 + i * 5);
@@ -482,6 +484,7 @@ export const ConfigPanel = ({
             leanTos: leanTos
           }}
           region="midwest"
+          onTotalChange={onTotalChange}
         />
       </div>
     </div>

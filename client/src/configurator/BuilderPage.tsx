@@ -4,13 +4,14 @@ import { ConfigPanel } from './ConfigPanel';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Save } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle 
 } from '@/components/ui/dialog';
-import type { Door, Window } from './types';
+import type { Door, Window, LeanTo, BuildingConfig } from './types';
 
 const ROLLUP_SIZES = [
   { width: 10, height: 8 },
@@ -23,17 +24,65 @@ const ROLLUP_SIZES = [
 const MIN_GAP_FT = 1.0;
 const EPS = 1e-4;
 
-const BuilderPage = () => {
-  const [width, setWidth] = useState(40);
-  const [length, setLength] = useState(60);
-  const [height, setHeight] = useState(12);
-  const [wallColor, setWallColor] = useState('#6B7280');
-  const [roofColor, setRoofColor] = useState('#FFFFFF');
-  const [trimColor, setTrimColor] = useState('#FFFFFF');
-  const [roofStyle, setRoofStyle] = useState<'gable' | 'single-slope'>('gable');
-  const [roofPitch, setRoofPitch] = useState(2);
-  const [doors, setDoors] = useState<Door[]>([]);
-  const [windows, setWindows] = useState<Window[]>([]);
+export interface BuildingSpecs {
+  width: number;
+  length: number;
+  height: number;
+  roofStyle: string;
+  roofPitch: number;
+  wallColor: string;
+  roofColor: string;
+  trimColor: string;
+  wallEnclosure: string;
+  doorsCount: number;
+  windowsCount: number;
+  leanTosCount: number;
+}
+
+export interface BuilderPageProps {
+  initialConfig?: BuildingConfig;
+  onSave?: (config: BuildingConfig, buildingSpecs: BuildingSpecs, totalPrice: string) => void;
+  isSaving?: boolean;
+}
+
+const BuilderPage = ({ initialConfig, onSave, isSaving }: BuilderPageProps = {}) => {
+  const [width, setWidth] = useState(initialConfig?.width ?? 40);
+  const [length, setLength] = useState(initialConfig?.length ?? 60);
+  const [height, setHeight] = useState(initialConfig?.height ?? 12);
+  const [wallColor, setWallColor] = useState(initialConfig?.wallColor ?? '#6B7280');
+  const [roofColor, setRoofColor] = useState(initialConfig?.roofColor ?? '#FFFFFF');
+  const [trimColor, setTrimColor] = useState(initialConfig?.trimColor ?? '#FFFFFF');
+  const [roofStyle, setRoofStyle] = useState<'gable' | 'single-slope'>(initialConfig?.roofStyle ?? 'gable');
+  const [roofPitch, setRoofPitch] = useState(initialConfig?.roofPitch ?? 2);
+  const [doors, setDoors] = useState<Door[]>(() => {
+    if (initialConfig?.doors) {
+      return initialConfig.doors.map((d: any) => ({
+        id: d.id,
+        type: d.type || d.doorType || 'rollup',
+        wall: d.wall || 'front',
+        position: d.position,
+        width: d.width,
+        height: d.height,
+        leanToId: d.leanToId,
+        leanToWall: d.leanToWall,
+      }));
+    }
+    return [];
+  });
+  const [windows, setWindows] = useState<Window[]>(() => {
+    if (initialConfig?.windows) {
+      return initialConfig.windows.map((w: any) => ({
+        id: w.id,
+        wall: w.wall || 'front',
+        position: w.position,
+        width: w.width,
+        height: w.height,
+        leanToId: w.leanToId,
+        leanToWall: w.leanToWall,
+      }));
+    }
+    return [];
+  });
   const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
   const [showWindowDialog, setShowWindowDialog] = useState(false);
   const [selectedDoorId, setSelectedDoorId] = useState<string | null>(null);
@@ -53,30 +102,117 @@ const BuilderPage = () => {
     leanToWall?: 'front' | 'back' | 'left' | 'right' 
   } | null>(null);
   
-  const [wallEnclosure, setWallEnclosure] = useState<'fully-enclosed' | 'fully-open' | 'gable-ends' | 'customize'>('fully-enclosed');
-  const [customWalls, setCustomWalls] = useState({ front: true, back: true, left: true, right: true });
+  const [wallEnclosure, setWallEnclosure] = useState<'fully-enclosed' | 'fully-open' | 'gable-ends' | 'customize'>(initialConfig?.wallEnclosure ?? 'fully-enclosed');
+  const [customWalls, setCustomWalls] = useState(initialConfig?.customWalls ?? { front: true, back: true, left: true, right: true });
   
-  const [leanTos, setLeanTos] = useState<Array<{
-    id: string;
-    type: 'enclosed' | 'open' | 'gable';
-    wall: 'front' | 'back' | 'left' | 'right';
-    width: number;
-    length: number;
-    pitch: number;
-    height: number;
-    walls: { front: boolean; back: boolean; left: boolean; right: boolean };
-    isOpen: boolean;
-    position: number;
-    wraparound: boolean;
-    wraparoundCorner?: 'left' | 'right' | 'both';
-    parentId?: string;
-  }>>([]);
+  const [leanTos, setLeanTos] = useState<LeanTo[]>(initialConfig?.leanTos ?? []);
   
   const [editingLeanToId, setEditingLeanToId] = useState<string | null>(null);
   const [leanToDragPositions, setLeanToDragPositions] = useState<Map<string, number>>(new Map());
   const [isDraggingLeanTo, setIsDraggingLeanTo] = useState(false);
+  const [currentTotalPrice, setCurrentTotalPrice] = useState<string>('0');
   
   const { toast } = useToast();
+
+  const getCurrentConfig = (): BuildingConfig => ({
+    width,
+    length,
+    height,
+    roofStyle,
+    roofPitch,
+    wallColor,
+    roofColor,
+    trimColor,
+    doors: doors.map(d => ({ 
+      id: d.id, 
+      type: d.type, 
+      position: d.position, 
+      width: d.width, 
+      height: d.height,
+      wall: d.wall,
+      leanToId: d.leanToId,
+      leanToWall: d.leanToWall,
+    })),
+    windows: windows.map(w => ({ 
+      id: w.id, 
+      position: w.position, 
+      width: w.width, 
+      height: w.height,
+      wall: w.wall,
+      leanToId: w.leanToId,
+      leanToWall: w.leanToWall,
+    })),
+    leanTos,
+    wallEnclosure,
+    customWalls,
+  });
+
+  const getCurrentBuildingSpecs = (): BuildingSpecs => ({
+    width,
+    length,
+    height,
+    roofStyle,
+    roofPitch,
+    wallColor,
+    roofColor,
+    trimColor,
+    wallEnclosure,
+    doorsCount: doors.length,
+    windowsCount: windows.length,
+    leanTosCount: leanTos.length,
+  });
+
+  const handleSave = async () => {
+    if (!onSave) return;
+    
+    const config = getCurrentConfig();
+    const buildingSpecs = getCurrentBuildingSpecs();
+    
+    let totalPrice = currentTotalPrice;
+    
+    if (!totalPrice || totalPrice === '0') {
+      try {
+        const pricingResponse = await fetch('/api/pricing/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            config: {
+              width,
+              length,
+              height,
+              roofStyle,
+              roofPitch,
+              wallColor,
+              roofColor,
+              trimColor,
+              doors: doors.map(d => ({ id: d.id, doorType: d.type === 'personnel' ? 'walk' : d.type, position: d.position, width: d.width, height: d.height })),
+              windows: windows.map(w => ({ id: w.id, position: w.position, width: w.width, height: w.height })),
+              leanTos: leanTos.map(lt => ({
+                id: lt.id,
+                type: lt.type,
+                wall: lt.wall,
+                width: lt.width,
+                length: lt.length,
+                pitch: lt.pitch,
+                height: lt.height,
+              })),
+            }, 
+            region: 'midwest' 
+          })
+        });
+        if (pricingResponse.ok) {
+          const pricingData = await pricingResponse.json();
+          if (pricingData?.total) {
+            totalPrice = pricingData.total.toString();
+          }
+        }
+      } catch (e) {
+        console.error('Failed to calculate pricing:', e);
+      }
+    }
+    
+    onSave(config, buildingSpecs, totalPrice);
+  };
 
   const doorResolveTimers = useRef<Map<string, number>>(new Map());
   const windowResolveTimers = useRef<Map<string, number>>(new Map());
@@ -1181,7 +1317,22 @@ const BuilderPage = () => {
             onLeanTosChange={handleLeanTosChange}
             editingLeanToId={editingLeanToId}
             onEditingLeanToIdChange={setEditingLeanToId}
+            onTotalChange={setCurrentTotalPrice}
           />
+          
+          {onSave && (
+            <div className="p-4 border-t" style={{ borderColor: 'hsl(var(--border))' }}>
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="w-full gap-2"
+                data-testid="button-save-configuration"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

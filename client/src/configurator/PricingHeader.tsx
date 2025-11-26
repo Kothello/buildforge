@@ -9,9 +9,10 @@ import type { BuildingConfig } from './pricingTypes';
 interface PricingHeaderProps {
   config: BuildingConfig;
   region?: string;
+  onTotalChange?: (total: string) => void;
 }
 
-export function PricingHeader({ config, region = 'midwest' }: PricingHeaderProps) {
+export function PricingHeader({ config, region = 'midwest', onTotalChange }: PricingHeaderProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [pricing, setPricing] = useState<any>(null);
   const [promoCode, setPromoCode] = useState('');
@@ -35,6 +36,9 @@ export function PricingHeader({ config, region = 'midwest' }: PricingHeaderProps
       if (!response.ok) throw new Error('Pricing calculation failed');
       const data = await response.json();
       setPricing(data);
+      if (data?.total && onTotalChange) {
+        onTotalChange(data.total.toString());
+      }
     } catch (error) {
       console.error('Pricing error:', error);
     } finally {

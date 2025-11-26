@@ -80,6 +80,39 @@ new → contacted → quote_sent → negotiating → won/lost
 cold → warm → hot → fire (with visual badges and animations)
 ```
 
+### Building Configurator
+
+**Location:** `client/src/configurator/`
+
+The building configurator provides 3D visualization and configuration of steel buildings. It operates in two modes:
+
+**Standalone Mode** (`/builder` route):
+- Full-featured configurator for designing buildings
+- No save functionality (users configure then create lead)
+- BuilderPage component renders with default values
+
+**CRM Embedded Mode** (Lead Detail → Config tab):
+- LeadConfiguratorEmbed wraps BuilderPage as thin wrapper
+- Loads initial configuration from `lead.configuration`
+- Shows "Save Changes" button that PATCHes `/api/leads/:id`
+- Saves `buildingSpecs`, `configuration`, and `totalPrice` to lead record
+
+**Key Components:**
+- `BuilderPage.tsx` - Main configurator with optional props (initialConfig, onSave, isSaving)
+- `Scene3D.tsx` - Three.js 3D building visualization
+- `ConfigPanel.tsx` - Controls for dimensions, colors, doors, windows, lean-tos
+- `PricingHeader.tsx` - Real-time pricing calculation display
+- `LeadConfiguratorEmbed.tsx` - Thin wrapper for CRM embedding
+
+**Features:**
+- Gable and single-slope roof styles
+- Rollup and personnel door placement with collision detection
+- Window placement on any wall
+- Lean-to configurations (enclosed, open, gable types)
+- Wall enclosure options (fully-enclosed, open, gable-ends, customize)
+- Camera-based wall selection for door/window placement
+- Real-time pricing via `/api/pricing/calculate`
+
 ### AI Integration
 
 **Provider:** OpenAI GPT-5 (latest model as of August 2025)

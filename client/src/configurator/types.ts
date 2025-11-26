@@ -44,8 +44,25 @@ export interface BuildingConfig {
   wallColor: string;
   roofColor: string;
   trimColor: string;
-  doors: Array<{ id: string; type: 'rollup' | 'personnel'; position: number; width: number; height: number }>;
-  windows: Array<{ id: string; position: number; width: number; height: number }>;
+  doors: Array<{ 
+    id: string; 
+    type: 'rollup' | 'personnel'; 
+    position: number; 
+    width: number; 
+    height: number;
+    wall?: 'front' | 'back' | 'left' | 'right';
+    leanToId?: string;
+    leanToWall?: 'front' | 'back' | 'left' | 'right';
+  }>;
+  windows: Array<{ 
+    id: string; 
+    position: number; 
+    width: number; 
+    height: number;
+    wall?: 'front' | 'back' | 'left' | 'right';
+    leanToId?: string;
+    leanToWall?: 'front' | 'back' | 'left' | 'right';
+  }>;
   leanTos: LeanTo[];
   wallEnclosure?: 'fully-enclosed' | 'fully-open' | 'gable-ends' | 'customize';
   customWalls?: { front: boolean; back: boolean; left: boolean; right: boolean };
