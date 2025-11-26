@@ -1,0 +1,41 @@
+Important constraints:
+
+Do not change the pricing backend; /api/pricing/* routes and server/pricingEngine.ts are already in place and working.
+
+Do not remove or break any existing Admin functionality; only add the Pricing Admin view and connect it to existing navigation.
+
+Context:
+
+This CRM frontend has an Admin page/area (with a “Manage Pricing Configuration” button or similar).
+
+The original configurator project includes a Pricing Admin React UI that manages pricing rules and talks to endpoints like /api/pricing/rules.
+
+Pricing routes are mounted in this CRM backend under /api/pricing/*.
+
+Goal:
+
+Make the CRM Admin section show the Pricing Admin UI from the configurator, fully wired to this app’s /api/pricing endpoints, accessible from the existing Admin navigation/button.
+
+Task:
+
+Locate the Pricing Admin React component in the configurator project (for example a component named PricingAdmin or similar that edits pricing rules).
+
+Copy or move this component into the CRM client under an organized folder, for example client/src/admin/PricingAdminPage.tsx (you can keep it split into smaller components if needed, but keep the structure clear).
+
+Update all API calls inside this Pricing Admin UI to point at this app’s endpoints:
+
+Use relative paths like /api/pricing/rules, /api/pricing/calculate, etc., instead of any old base URLs from the standalone configurator.
+
+Register a new route in the CRM React router for the pricing admin screen, for example /admin/pricing, and have it render the Pricing Admin component.
+
+Wire the existing “Manage Pricing Configuration” (or equivalent) button in the Admin UI so that clicking it navigates to this new /admin/pricing route. Do not change other admin actions.
+
+Keep styling consistent with the rest of the CRM (page title, padding, etc.) but do not rewrite the logic; focus on making it functional.
+
+At the end, list:
+
+The new or modified frontend files.
+
+The route path for the Pricing Admin page.
+
+Which /api/pricing/* endpoints the UI is currently using.
