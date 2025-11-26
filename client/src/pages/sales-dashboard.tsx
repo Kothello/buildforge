@@ -4,14 +4,27 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, TrendingUp } from "lucide-react";
 import { useState } from "react";
+import { Lead, Activity, Deal } from "@shared/schema";
+import { LeadDetailSheet } from "@/components/lead-detail-sheet";
 
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads"],
     queryFn: () => fetch("/api/leads").then(r => r.json()),
+  });
+
+  const { data: activities = [] } = useQuery<Activity[]>({
+    queryKey: ["/api/activities", selectedLead?.id],
+    enabled: !!selectedLead,
+  });
+
+  const { data: deals = [] } = useQuery<Deal[]>({
+    queryKey: ["/api/deals"],
   });
 
   const myLeads = leads.filter((lead: any) =>
@@ -24,6 +37,15 @@ export default function SalesDashboard() {
     inProgress: myLeads.filter((l: any) => l.status === "in_progress").length,
     sold: myLeads.filter((l: any) => l.status === "sold").length,
   };
+
+  const handleLeadClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setSheetOpen(true);
+  };
+
+  const selectedDeal = selectedLead
+    ? deals.find((d) => d.leadId === selectedLead.id)
+    : undefined;
 
   return (
     <div className="h-full overflow-auto p-3 sm:p-6 space-y-6">
