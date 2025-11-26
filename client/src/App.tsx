@@ -42,10 +42,10 @@ function App() {
   return (
     <TooltipProvider>
       <SidebarProvider style={style as React.CSSProperties}>
-        <div className="flex h-screen w-full overflow-hidden">
+        <div className="flex h-screen w-full">
           <AppSidebar />
-          <div className="flex flex-col flex-1 min-w-0">
-            <header className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 flex-shrink-0">
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+            <header className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
             </header>
             <main className="flex-1 overflow-hidden">
