@@ -8,6 +8,7 @@ import Pipeline from "@/pages/pipeline";
 import Automation from "@/pages/automation";
 import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
+import PricingAdminPage from "@/admin/PricingAdminPage";
 import SalesDashboard from "@/pages/sales-dashboard";
 import ProjectsPage from "@/pages/projects";
 import CallbackCalendar from "@/pages/callback-calendar";
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/builder" component={BuilderPage} />
       <Route path="/" component={Dashboard} />
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin/pricing" component={PricingAdminPage} />
       <Route path="/sales" component={SalesDashboard} />
       <Route path="/projects" component={ProjectsPage} />
       <Route path="/callbacks" component={CallbackCalendar} />

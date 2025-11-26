@@ -1,0 +1,55 @@
+mportant constraints:
+
+Do not touch any backend files (server/*). Pricing routes under /api/pricing/* and server/pricingEngine.ts must remain unchanged.
+
+Do not remove or break existing Admin features; only add the pricing screen and hook up the existing button.
+
+Assume the QueryClientProvider setup in client/src/main.tsx is correct; ignore any stale “No QueryClient set” messages and do not modify providers.
+
+Context:
+
+The configurator project includes a PricingAdmin UI at:
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/PricingAdmin.tsx
+This component manages cost rules, price rules, and promo codes and already calls endpoints like /api/pricing/rules.
+
+The CRM frontend has an Admin page at client/src/pages/admin.tsx with a "Manage Pricing Configuration" button (data-testid="button-manage-pricing").
+
+Pricing endpoints are mounted in this CRM backend under /api/pricing/*.
+
+Goal:
+
+Add a Pricing Admin page to the CRM (e.g. route /admin/pricing), render the PricingAdmin UI there, and wire the existing "Manage Pricing Configuration" button to navigate to it.
+
+Task:
+
+Copy the PricingAdmin component (and any direct dependencies it imports) from the configurator project into the CRM client under an organized path, for example:
+
+client/src/admin/PricingAdminPage.tsx as the main page component,
+
+plus any helper components under client/src/admin/pricing/ if needed.
+
+Update all API calls in the copied Pricing Admin code so they use relative paths to this app’s endpoints, for example:
+
+/api/pricing/rules
+
+/api/pricing/calculate
+
+/api/pricing/validation
+
+/api/pricing/quote
+Remove any hard-coded origins or old base URLs from the standalone configurator.
+
+Register a new route in the CRM router (in client/src/App.tsx) for /admin/pricing that renders PricingAdminPage. Keep the existing routes intact.
+
+In client/src/pages/admin.tsx, update the "Manage Pricing Configuration" button so that clicking it navigates to /admin/pricing using wouter’s navigation (the same pattern used elsewhere in the app).
+
+Keep layout/styling consistent with other admin pages (title, padding, container), but do not rewrite any pricing logic. Focus only on making the screen functional.
+
+At the end, summarize:
+
+All new or modified frontend files.
+
+The route path where the Pricing Admin page is now available.
+
+Which /api/pricing/* endpoints the UI calls for: loading rules, saving rules, and testing pricing.

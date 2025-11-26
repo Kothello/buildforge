@@ -1,8 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart3, Users, DollarSign } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function AdminDashboard() {
+  const [, setLocation] = useLocation();
+  
   return (
     <div className="h-full overflow-auto p-3 sm:p-6 space-y-6">
       <div className="flex items-center justify-between gap-2">
@@ -55,7 +58,12 @@ export default function AdminDashboard() {
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button variant="default" className="w-full justify-start" data-testid="button-manage-pricing">
+          <Button 
+            variant="default" 
+            className="w-full justify-start" 
+            data-testid="button-manage-pricing"
+            onClick={() => setLocation('/admin/pricing')}
+          >
             Manage Pricing Configuration
           </Button>
           <Button variant="outline" className="w-full justify-start" data-testid="button-manage-users">
