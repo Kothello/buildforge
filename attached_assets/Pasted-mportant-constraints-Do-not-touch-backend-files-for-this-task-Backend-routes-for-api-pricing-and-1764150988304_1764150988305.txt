@@ -1,0 +1,41 @@
+mportant constraints:
+
+Do not touch backend files for this task. Backend routes for /api/pricing and /api/designs already exist.
+
+Do not modify the CRM pipeline UI yet. Only update the /builder flow.
+
+Context:
+
+The /builder route now renders BuilderPage from client/src/configurator/BuilderPage.tsx.
+
+The configurator is already calling /api/pricing/calculate through PricingDisplay.
+
+The CRM backend exposes POST /api/leads, and the leads table includes buildingSpecs and configuration JSON fields (and may include buildingDesignId).
+
+Goal:
+
+When a user finishes configuring a building on /builder, they enter contact info and, on submit, a new lead is created in the CRM that contains their configuration and summary specs.
+
+Task:
+
+Update BuilderPage so that, in addition to the existing configuration controls, there is a simple lead capture form section that collects basic contact information (for example: name, email, phone, and optional notes).
+
+On submit:
+
+Make sure the current building configuration from the configurator state is available in the submit handler.
+
+Construct a buildingSpecs JSON object with key summary values (dimensions, roof style, etc.) based on that state.
+
+Include the full configuration object as configuration.
+
+Call POST /api/leads using the existing CRM leads API, with a payload that matches the insertLeadSchema / Lead type (re-use existing patterns from wherever leads are created today in the CRM).
+
+If a buildingDesigns table and buildingDesignId field on leads exist, optionally also save or update a design via /api/designs and store the resulting ID on the lead.
+
+After a successful response from /api/leads, show a basic success state on the /builder page (for example: "Thanks, your design has been submitted. Your lead ID is X") and clear or disable the form.
+
+Handle and display any obvious error states for the submit action, but keep the UI minimal.
+
+Do not modify the CRM admin, pipeline, or lead detail views yet. Focus only on BuilderPage and any helper used to submit the lead.
+
+At the end, list the files you changed, and describe exactly which fields are being sent in the POST /api/leads body.
