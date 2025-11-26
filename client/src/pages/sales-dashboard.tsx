@@ -137,7 +137,9 @@ export default function SalesDashboard() {
                       {lead.status}
                     </Badge>
                   </td>
-                  <td className="py-3 px-3 sm:px-4">${lead.totalPrice || "0"}</td>
+                  <td className="py-3 px-3 sm:px-4">
+                    ${parseFloat(lead.totalPrice || "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
                   <td className="py-3 px-3 sm:px-4 text-right">
                     <Button 
                       size="sm" 

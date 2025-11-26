@@ -1,0 +1,51 @@
+Important constraints:
+
+Do not change server/pricingEngine.ts or /api/pricing/* route signatures.
+
+Do not remove any fields from the leads table; only populate and display them correctly.
+
+Context:
+
+/builder (implemented in client/src/configurator/BuilderPage.tsx) calls /api/leads to create leads and already passes buildingSpecs and configuration.
+
+The pricing panel on /builder is already calling /api/pricing/calculate and receives a total price in its response.
+
+The leads table (in shared/schema.ts) includes a numeric field used for the lead’s price/value (for example price or estimatedValue), but it is currently not being set when the lead is created or updated.
+
+The My Leads table and lead detail views are currently showing $0.00 because that field is always zero/null.
+
+Goal:
+
+When a lead is created from /builder or updated via the embedded configurator, compute the price using the pricing API and store it on the lead record so the UI shows a real value instead of $0.00.
+
+Task:
+
+Inspect shared/schema.ts to confirm which field on leads represents the monetary value shown in the UI (e.g. price or estimatedValue).
+
+In client/src/configurator/BuilderPage.tsx:
+
+Reuse the result from /api/pricing/calculate (or add a call if needed) to obtain the numeric total price for the current configuration.
+
+Include that price in the POST /api/leads payload under the correct property name that matches the leads schema.
+
+In client/src/configurator/LeadConfiguratorEmbed.tsx (or whichever component handles saving changes to an existing lead):
+
+When the user saves updated configuration, call /api/pricing/calculate with the updated config.
+
+Send a PATCH /api/leads/:id request that includes:
+
+Updated configuration
+
+Updated buildingSpecs
+
+Updated lead price field with the latest total.
+
+In the My Leads list component and lead detail header where $0.00 is displayed, ensure they read and format this stored price field instead of any placeholder or hard-coded value.
+
+At the end, list:
+
+Which field on the lead is now being populated with price.
+
+Which components were updated to calculate and send that price.
+
+Which components were updated to display it.

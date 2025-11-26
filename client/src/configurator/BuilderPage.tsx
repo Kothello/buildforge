@@ -43,8 +43,15 @@ export default function BuilderPage() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [calculatedPrice, setCalculatedPrice] = useState<number>(0);
   
   const { toast } = useToast();
+
+  const handlePricingUpdate = (pricing: any) => {
+    if (pricing?.total) {
+      setCalculatedPrice(pricing.total);
+    }
+  };
 
   const config: BuildingConfig = useMemo(
     () => ({
@@ -165,6 +172,7 @@ export default function BuilderPage() {
         configuration: config,
         notes: notes || null,
         assignedTo: null,
+        totalPrice: calculatedPrice.toString(),
       };
 
       const response = await fetch('/api/leads', {
@@ -389,7 +397,7 @@ export default function BuilderPage() {
         </Card>
 
         {/* Pricing */}
-        <PricingDisplay config={config} region="default" />
+        <PricingDisplay config={config} region="default" onPricingUpdate={handlePricingUpdate} />
 
         {/* Lead Capture Form */}
         {submitStatus !== 'success' && (

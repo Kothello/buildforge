@@ -149,9 +149,28 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
         leanTosCount: leanTos.length,
       };
 
+      // Calculate price from pricing API
+      let totalPrice = lead.totalPrice || '0';
+      try {
+        const pricingResponse = await fetch('/api/pricing/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config, region: 'default' })
+        });
+        if (pricingResponse.ok) {
+          const pricingData = await pricingResponse.json();
+          if (pricingData?.total) {
+            totalPrice = pricingData.total.toString();
+          }
+        }
+      } catch (e) {
+        console.error('Failed to calculate pricing:', e);
+      }
+
       const payload = {
         buildingSpecs,
         configuration: config,
+        totalPrice,
       };
 
       const response = await apiRequest('PATCH', `/api/leads/${lead.id}`, payload);
