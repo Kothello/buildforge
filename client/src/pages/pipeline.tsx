@@ -87,28 +87,31 @@ export default function Pipeline() {
     : undefined;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="p-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Pipeline</h1>
-            <p className="text-muted-foreground mt-1">
+    <div className="h-full overflow-auto bg-background">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Pipeline</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Drag deals between stages to update their status
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 flex-shrink-0">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setShowDropZone(!showDropZone)}
-              className="gap-2"
+              className="gap-2 text-xs sm:text-sm"
               data-testid="button-toggle-dropzone"
             >
-              <Sparkles className="h-4 w-4" />
-              {showDropZone ? "Hide" : "Show"} Drop Zone
+              <Sparkles className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">{showDropZone ? "Hide" : "Show"} Drop Zone</span>
+              <span className="sm:hidden">{showDropZone ? "Hide" : "Show"}</span>
             </Button>
-            <Button variant="default" className="gap-2" data-testid="button-add-lead">
-              <Plus className="h-4 w-4" />
-              Add Lead
+            <Button size="sm" variant="default" className="gap-2 text-xs sm:text-sm" data-testid="button-add-lead">
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Add Lead</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </div>
         </div>

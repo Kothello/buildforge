@@ -100,7 +100,7 @@ export function PipelineBoard({ leads, onStageChange, onLeadClick }: PipelineBoa
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 pb-4">
         {stages.map((stage) => {
           const stageLeads = leads.filter((lead) => lead.stage === stage.id);
           const allIds = [...stageLeads.map((l) => l.id), stage.id];
@@ -108,7 +108,7 @@ export function PipelineBoard({ leads, onStageChange, onLeadClick }: PipelineBoa
           return (
             <Card
               key={stage.id}
-              className="flex-shrink-0 w-80 bg-card/50 backdrop-blur-sm"
+              className="bg-card/50 backdrop-blur-sm"
               data-testid={`column-${stage.id}`}
             >
               <CardHeader className="pb-3">
