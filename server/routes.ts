@@ -4,8 +4,16 @@ import { storage } from "./storage";
 import { insertLeadSchema, insertDealSchema, insertActivitySchema, insertZapierWebhookSchema, insertProjectSchema, insertCallbackSchema, insertPricingConfigSchema } from "@shared/schema";
 import { parseLeadFromText, generateFirstMessage, generateCallSummary, generateUnstickSuggestion, generateMorningBrief } from "./ai";
 import { triggerWebhook } from "./webhooks";
+import pricingRoutes from "./pricingRoutes";
+import designRoutes from "./designRoutes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register pricing routes
+  app.use("/api/pricing", pricingRoutes);
+  
+  // Register design routes
+  app.use("/api/designs", designRoutes);
+
   app.get("/api/leads", async (req, res) => {
     try {
       const leads = await storage.getLeads();
