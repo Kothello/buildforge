@@ -4,38 +4,44 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import Dashboard from "@/pages/dashboard";
-import Pipeline from "@/pages/pipeline";
-import Automation from "@/pages/automation";
-import Settings from "@/pages/settings";
-import ProjectsPage from "@/pages/projects";
-import CallbackCalendar from "@/pages/callback-calendar";
 import NotFound from "@/pages/not-found";
 
+const LazyDashboard = lazy(() => import("@/pages/dashboard"));
+const LazyPipeline = lazy(() => import("@/pages/pipeline"));
+const LazyAutomation = lazy(() => import("@/pages/automation"));
+const LazySettings = lazy(() => import("@/pages/settings"));
+const LazyProjectsPage = lazy(() => import("@/pages/projects"));
+const LazyCallbackCalendar = lazy(() => import("@/pages/callback-calendar"));
 const LazyAdminDashboard = lazy(() => import("@/pages/admin"));
 const LazyPricingAdminPage = lazy(() => import("@/admin/PricingAdminPage"));
 const LazySalesDashboard = lazy(() => import("@/pages/sales-dashboard"));
 const LazyBuilderPage = lazy(() => import("@/configurator/BuilderPage"));
 
-const AdminDashboardWrapper = () => <LazyAdminDashboard />;
-const PricingAdminPageWrapper = () => <LazyPricingAdminPage />;
-const SalesDashboardWrapper = () => <LazySalesDashboard />;
-const BuilderPageWrapper = () => <LazyBuilderPage />;
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    </div>
+  );
+}
 
 function Router() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+    <Suspense fallback={<PageLoader />}>
       <Switch>
-        <Route path="/builder" component={BuilderPageWrapper} />
-        <Route path="/" component={Dashboard} />
-        <Route path="/admin" component={AdminDashboardWrapper} />
-        <Route path="/admin/pricing" component={PricingAdminPageWrapper} />
-        <Route path="/sales" component={SalesDashboardWrapper} />
-        <Route path="/projects" component={ProjectsPage} />
-        <Route path="/callbacks" component={CallbackCalendar} />
-        <Route path="/pipeline" component={Pipeline} />
-        <Route path="/automation" component={Automation} />
-        <Route path="/settings" component={Settings} />
+        <Route path="/builder">{() => <LazyBuilderPage />}</Route>
+        <Route path="/">{() => <LazyDashboard />}</Route>
+        <Route path="/admin">{() => <LazyAdminDashboard />}</Route>
+        <Route path="/admin/pricing">{() => <LazyPricingAdminPage />}</Route>
+        <Route path="/sales">{() => <LazySalesDashboard />}</Route>
+        <Route path="/projects">{() => <LazyProjectsPage />}</Route>
+        <Route path="/callbacks">{() => <LazyCallbackCalendar />}</Route>
+        <Route path="/pipeline">{() => <LazyPipeline />}</Route>
+        <Route path="/automation">{() => <LazyAutomation />}</Route>
+        <Route path="/settings">{() => <LazySettings />}</Route>
         <Route component={NotFound} />
       </Switch>
     </Suspense>

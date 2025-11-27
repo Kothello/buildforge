@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import {
   Sheet,
   SheetContent,
@@ -5,7 +6,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Lead, Activity, Deal } from "@shared/schema";
-import { BuildingViewer3D } from "./building-viewer-3d";
 import { ActionButtons } from "./action-buttons";
 import { AIMessageCard } from "./ai-message-card";
 import { PricingBreakdown } from "./pricing-breakdown";
@@ -16,7 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileCheck, Sparkles, DollarSign } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { LeadConfiguratorEmbed } from "@/configurator/LeadConfiguratorEmbed";
+
+const BuildingViewer3D = lazy(() => import("./building-viewer-3d").then(m => ({ default: m.BuildingViewer3D })));
+const LeadConfiguratorEmbed = lazy(() => import("@/configurator/LeadConfiguratorEmbed").then(m => ({ default: m.LeadConfiguratorEmbed })));
 
 interface LeadDetailSheetProps {
   lead: Lead | null;
@@ -149,15 +151,17 @@ export function LeadDetailSheet({
 
                   <TabsContent value="3d-viewer" className="mt-6">
                     <div className="h-[400px] rounded-lg overflow-hidden border border-border">
-                      <BuildingViewer3D
-                        buildingSpecs={deal?.buildingWidth ? {
-                          width: deal.buildingWidth,
-                          length: deal.buildingLength || undefined,
-                          height: deal.buildingHeight || undefined,
-                          roofStyle: deal.roofStyle || undefined,
-                          color: deal.color || undefined,
-                        } : undefined}
-                      />
+                      <Suspense fallback={<div className="h-full flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+                        <BuildingViewer3D
+                          buildingSpecs={deal?.buildingWidth ? {
+                            width: deal.buildingWidth,
+                            length: deal.buildingLength || undefined,
+                            height: deal.buildingHeight || undefined,
+                            roofStyle: deal.roofStyle || undefined,
+                            color: deal.color || undefined,
+                          } : undefined}
+                        />
+                      </Suspense>
                     </div>
                   </TabsContent>
 
@@ -175,7 +179,9 @@ export function LeadDetailSheet({
               <h3 className="font-semibold text-sm" data-testid="text-configurator-title">Building Configurator</h3>
             </div>
             <div className="flex-1 overflow-hidden w-full">
-              <LeadConfiguratorEmbed lead={lead} onSave={onLeadUpdate} />
+              <Suspense fallback={<div className="h-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+                <LeadConfiguratorEmbed lead={lead} onSave={onLeadUpdate} />
+              </Suspense>
             </div>
           </div>
         </div>
