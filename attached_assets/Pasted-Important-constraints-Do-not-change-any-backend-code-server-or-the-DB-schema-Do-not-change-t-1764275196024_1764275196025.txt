@@ -1,0 +1,99 @@
+Important constraints:
+
+Do not change any backend code (server/*) or the DB schema.
+
+Do not change the /builder lead creation flow; it already works.
+
+Only fix the “Save Changes” behavior in the lead Config tab and make sure the My Leads list auto-updates.
+
+Context:
+
+In the lead detail view (Config tab), the Building Configurator shows a “Save Changes” button. Visually it looks right, but clicking it does not persist changes or update the UI.
+
+The embedded configurator lives in client/src/configurator/LeadConfiguratorEmbed.tsx (or a similarly named file). Earlier we wired a React Query mutation there to:
+
+Recalculate pricing via /api/pricing/calculate.
+
+Send a PATCH /api/leads/:id with updated configuration, buildingSpecs, and totalPrice.
+
+The My Leads list (Sales dashboard page) lives in client/src/pages/sales-dashboard.tsx and now shows the Price column using lead.totalPrice. It already has React Query useQuery hooks for leads and was partially wired to use LeadDetailSheet.
+
+React Query is set up via QueryClientProvider in client/src/main.tsx.
+
+Goals:
+
+Make the Save Changes button in the Config tab actually persist the updated configuration, specs, and price for the current lead.
+
+After a successful save, automatically update the UI so:
+
+The currently open lead detail shows the latest price/config.
+
+The My Leads list (sales-dashboard.tsx) shows the updated Price value without a full page reload.
+
+Task:
+
+Open client/src/configurator/LeadConfiguratorEmbed.tsx and:
+
+Confirm that the Save Changes button’s onClick actually triggers the React Query mutation that:
+
+Calls /api/pricing/calculate with the current configuration.
+
+Calls PATCH /api/leads/:id with configuration, buildingSpecs, and totalPrice.
+
+If the button is not wired or is calling a no-op handler, fix this so it uses the mutation.
+
+Ensure the handler:
+
+Uses the current lead’s id (guard against missing lead.id).
+
+Shows a loading state while the mutation runs and disables the button to prevent double-clicks.
+
+Surfaces basic success / error feedback (for example, a small success message or error text near the button).
+
+In the React Query mutation used for saving lead changes (in LeadConfiguratorEmbed):
+
+Use the onSuccess callback (or equivalent) to:
+
+Call a local onLeadUpdate prop if it exists, passing back the updated lead data.
+
+Invalidate or refetch the leads query using queryClient.invalidateQueries with the same query key that the My Leads / Sales dashboard page uses for its leads useQuery.
+
+Inspect sales-dashboard.tsx (and pipeline.tsx if needed) to determine the exact leads query key (e.g. ["leads"] or similar) and reuse that key in invalidateQueries.
+
+Open client/src/components/lead-detail-sheet.tsx (or wherever LeadDetailSheet is defined) and:
+
+Ensure it accepts an onLeadUpdate prop.
+
+When it receives updated lead data from LeadConfiguratorEmbed, merge that result into its local lead state so the panel shows the new price/config immediately after save.
+
+In client/src/pages/sales-dashboard.tsx (the My Leads page):
+
+Ensure LeadDetailSheet is rendered at the bottom of the component and receives:
+
+lead={selectedLead}
+
+open={sheetOpen}
+
+onOpenChange={setSheetOpen}
+
+onLeadUpdate that:
+
+Updates the corresponding lead in the local leads list OR simply relies on the React Query invalidation done in step 2.
+
+Make sure the View button in the leads table calls handleLeadClick(lead) so the sheet opens for that row.
+
+Verify that the My Leads price column is reading lead.totalPrice (which we now populate) and not a hard-coded value. Only adjust formatting if necessary.
+
+At the end, summarize:
+
+The exact changes made in LeadConfiguratorEmbed.tsx, lead-detail-sheet.tsx, and sales-dashboard.tsx.
+
+The React Query query key used for leads and how you invalidate/refetch it after a successful save.
+
+Confirmation that:
+
+Clicking Save Changes in the Config tab persists the new config/price.
+
+The lead detail shows the new price immediately.
+
+The My Leads list updates the Price column for that lead without a manual page refresh.

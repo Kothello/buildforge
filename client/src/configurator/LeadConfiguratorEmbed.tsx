@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@shared/schema';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useMutation } from '@tanstack/react-query';
 import type { BuildingSpecs } from './BuilderPage';
 import type { BuildingConfig } from './types';
@@ -52,6 +52,10 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
       buildingSpecs: BuildingSpecs; 
       totalPrice: string;
     }) => {
+      if (!lead.id) {
+        throw new Error('Lead ID is required');
+      }
+      
       const payload = {
         buildingSpecs,
         configuration: config,
@@ -63,17 +67,21 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
     },
     onSuccess: (updatedLead) => {
       setIsSaving(false);
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      
       toast({
         title: 'Success',
         description: 'Configuration saved',
       });
+      
       onSave?.(updatedLead);
     },
-    onError: () => {
+    onError: (error) => {
       setIsSaving(false);
       toast({
         title: 'Error',
-        description: 'Failed to save configuration',
+        description: error instanceof Error ? error.message : 'Failed to save configuration',
         variant: 'destructive',
       });
     },
