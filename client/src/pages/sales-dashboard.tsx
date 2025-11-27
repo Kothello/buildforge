@@ -6,6 +6,7 @@ import { Search, TrendingUp } from "lucide-react";
 import { useState, lazy, Suspense, useMemo } from "react";
 import { Lead, Activity, Deal } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 const LazyLeadDetailSheet = lazy(() =>
   import("@/components/lead-detail-sheet").then((m) => ({ default: m.LeadDetailSheet }))
@@ -221,7 +222,8 @@ export default function SalesDashboard() {
               });
             }}
             onLeadUpdate={() => {
-              // refetch leads so MyLeads table updates immediately
+              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/leads", selectedLeadId] });
               toast({
                 title: "Lead Updated",
                 description: "Configuration saved successfully.",
