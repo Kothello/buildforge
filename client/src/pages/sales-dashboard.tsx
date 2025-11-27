@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, TrendingUp } from "lucide-react";
-import { useState, lazy, Suspense, useMemo } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Lead, Activity, Deal } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -21,9 +21,8 @@ export default function SalesDashboard() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const { toast } = useToast();
 
-  const { data: leads = [], isLoading } = useQuery({
+  const { data: leads = [], isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
-    queryFn: () => fetch("/api/leads").then(r => r.json()),
   });
 
   const { data: activities = [] } = useQuery<Activity[]>({
@@ -36,23 +35,6 @@ export default function SalesDashboard() {
     enabled: !!selectedLead,
   });
 
-  const myLeads = useMemo(() => {
-    let filtered = leads.filter((lead: any) =>
-      lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((lead: any) => lead.status === statusFilter);
-    }
-    return filtered;
-  }, [leads, searchTerm, statusFilter]);
-
-  const stats = useMemo(() => ({
-    total: leads.length,
-    new: leads.filter((l: any) => l.status === "new").length,
-    inProgress: leads.filter((l: any) => l.status === "in_progress").length,
-    sold: leads.filter((l: any) => l.status === "sold").length,
-  }), [leads]);
-
   const handleLeadClick = (lead: Lead) => {
     setSelectedLead(lead);
     setSheetOpen(true);
@@ -61,6 +43,12 @@ export default function SalesDashboard() {
   const selectedDeal = selectedLead
     ? deals.find((d) => d.leadId === selectedLead.id)
     : undefined;
+
+  const filteredLeads = leads.filter((lead) => {
+    const matchesSearch = lead.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="h-full overflow-auto p-3 sm:p-6 space-y-6">
@@ -72,19 +60,30 @@ export default function SalesDashboard() {
       </div>
 
       <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">
-        {[
-          { label: "Total", value: stats.total, color: "bg-primary/10" },
-          { label: "New", value: stats.new, color: "bg-blue-500/10" },
-          { label: "In Progress", value: stats.inProgress, color: "bg-amber-500/10" },
-          { label: "Sold", value: stats.sold, color: "bg-green-500/10" },
-        ].map((stat, i) => (
-          <Card key={i} className={`${stat.color} backdrop-blur-sm`}>
-            <CardContent className="pt-4 pb-4">
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
-            </CardContent>
-          </Card>
-        ))}
+        <Card className="bg-primary/10 backdrop-blur-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-2xl font-bold">{leads.length}</div>
+            <p className="text-xs text-muted-foreground">Total</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-blue-500/10 backdrop-blur-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-2xl font-bold">{leads.filter((l) => l.status === "new").length}</div>
+            <p className="text-xs text-muted-foreground">New</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-amber-500/10 backdrop-blur-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-2xl font-bold">{leads.filter((l) => l.status === "in_progress").length}</div>
+            <p className="text-xs text-muted-foreground">In Progress</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-green-500/10 backdrop-blur-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-2xl font-bold">{leads.filter((l) => l.status === "sold").length}</div>
+            <p className="text-xs text-muted-foreground">Sold</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -118,7 +117,7 @@ export default function SalesDashboard() {
             <div key={i} className="h-16 bg-card/50 rounded-lg animate-pulse" />
           ))}
         </div>
-      ) : myLeads.length === 0 ? (
+      ) : filteredLeads.length === 0 ? (
         <Card className="bg-card/50 backdrop-blur-sm">
           <CardContent className="pt-8 pb-8 text-center text-muted-foreground">
             <p>No leads found</p>
@@ -136,7 +135,7 @@ export default function SalesDashboard() {
               </tr>
             </thead>
             <tbody>
-              {myLeads.map((lead: any) => (
+              {filteredLeads.map((lead) => (
                 <tr key={lead.id} className="border-b border-border/50 hover:bg-card/30 transition" onMouseEnter={prefetchConfigurator}>
                   <td className="py-3 px-3 sm:px-4">
                     <div>
