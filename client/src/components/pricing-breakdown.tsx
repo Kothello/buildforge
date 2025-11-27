@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DollarSign, TrendingUp, Loader2 } from "lucide-react";
@@ -40,15 +40,30 @@ export function PricingBreakdown({
 }: PricingBreakdownProps) {
   const [pricing, setPricing] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const hasFetched = useRef(false);
 
   const specs = buildingSpecs || configuration || {};
   const hasConfig = configuration && configuration.width && configuration.length;
+  
+  const configKey = useMemo(() => {
+    if (!configuration) return '';
+    return JSON.stringify({
+      width: configuration.width,
+      length: configuration.length,
+      height: configuration.height,
+      roofStyle: configuration.roofStyle,
+      doorsCount: configuration.doors?.length || 0,
+      windowsCount: configuration.windows?.length || 0,
+      leanTosCount: configuration.leanTos?.length || 0,
+    });
+  }, [configuration]);
 
   useEffect(() => {
-    if (configuration?.width && configuration?.length) {
+    if (configKey && !hasFetched.current) {
+      hasFetched.current = true;
       calculatePricing();
     }
-  }, [configuration]);
+  }, [configKey]);
 
   async function calculatePricing() {
     if (!configuration) return;

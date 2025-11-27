@@ -168,47 +168,45 @@ const BuilderPage = ({ initialConfig, onSave, isSaving }: BuilderPageProps = {})
     const config = getCurrentConfig();
     const buildingSpecs = getCurrentBuildingSpecs();
     
-    let totalPrice = currentTotalPrice;
+    let totalPrice = '0';
     
-    if (!totalPrice || totalPrice === '0') {
-      try {
-        const pricingResponse = await fetch('/api/pricing/calculate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            config: {
-              width,
-              length,
-              height,
-              roofStyle,
-              roofPitch,
-              wallColor,
-              roofColor,
-              trimColor,
-              doors: doors.map(d => ({ id: d.id, doorType: d.type === 'personnel' ? 'walk' : d.type, position: d.position, width: d.width, height: d.height })),
-              windows: windows.map(w => ({ id: w.id, position: w.position, width: w.width, height: w.height })),
-              leanTos: leanTos.map(lt => ({
-                id: lt.id,
-                type: lt.type,
-                wall: lt.wall,
-                width: lt.width,
-                length: lt.length,
-                pitch: lt.pitch,
-                height: lt.height,
-              })),
-            }, 
-            region: 'midwest' 
-          })
-        });
-        if (pricingResponse.ok) {
-          const pricingData = await pricingResponse.json();
-          if (pricingData?.total) {
-            totalPrice = pricingData.total.toString();
-          }
+    try {
+      const pricingResponse = await fetch('/api/pricing/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          config: {
+            width,
+            length,
+            height,
+            roofStyle,
+            roofPitch,
+            wallColor,
+            roofColor,
+            trimColor,
+            doors: doors.map(d => ({ id: d.id, doorType: d.type === 'personnel' ? 'walk' : d.type, position: d.position, width: d.width, height: d.height })),
+            windows: windows.map(w => ({ id: w.id, position: w.position, width: w.width, height: w.height })),
+            leanTos: leanTos.map(lt => ({
+              id: lt.id,
+              type: lt.type,
+              wall: lt.wall,
+              width: lt.width,
+              length: lt.length,
+              pitch: lt.pitch,
+              height: lt.height,
+            })),
+          }, 
+          region: 'midwest' 
+        })
+      });
+      if (pricingResponse.ok) {
+        const pricingData = await pricingResponse.json();
+        if (pricingData?.total) {
+          totalPrice = pricingData.total.toString();
         }
-      } catch (e) {
-        console.error('Failed to calculate pricing:', e);
       }
+    } catch (e) {
+      console.error('Failed to calculate pricing:', e);
     }
     
     onSave(config, buildingSpecs, totalPrice);
