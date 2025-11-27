@@ -1,39 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, TrendingUp } from "lucide-react";
-import { useState, lazy, Suspense, useMemo } from "react";
-import { Lead, Activity, Deal } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { useState, useMemo } from "react";
+import { Lead } from "@shared/schema";
 
-const LazyLeadDetailSheet = lazy(() => import("@/components/lead-detail-sheet").then(m => ({ default: m.LeadDetailSheet })));
-
-const prefetchConfigurator = () => {
+const prefetchLeadEdit = () => {
+  import("@/pages/lead-edit");
   import("@/configurator/BuilderPage");
 };
 
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads"],
     queryFn: () => fetch("/api/leads").then(r => r.json()),
-  });
-
-  const { data: activities = [] } = useQuery<Activity[]>({
-    queryKey: ["/api/activities", selectedLead?.id],
-    enabled: !!selectedLead,
-  });
-
-  const { data: deals = [] } = useQuery<Deal[]>({
-    queryKey: ["/api/deals"],
-    enabled: !!selectedLead,
   });
 
   const myLeads = useMemo(() => {
@@ -54,13 +40,8 @@ export default function SalesDashboard() {
   }), [leads]);
 
   const handleLeadClick = (lead: Lead) => {
-    setSelectedLead(lead);
-    setSheetOpen(true);
+    navigate(`/sales/leads/${lead.id}`);
   };
-
-  const selectedDeal = selectedLead
-    ? deals.find((d) => d.leadId === selectedLead.id)
-    : undefined;
 
   return (
     <div className="h-full overflow-auto p-3 sm:p-6 space-y-6">
@@ -137,7 +118,7 @@ export default function SalesDashboard() {
             </thead>
             <tbody>
               {myLeads.map((lead: any) => (
-                <tr key={lead.id} className="border-b border-border/50 hover:bg-card/30 transition" onMouseEnter={prefetchConfigurator}>
+                <tr key={lead.id} className="border-b border-border/50 hover:bg-card/30 transition" onMouseEnter={prefetchLeadEdit}>
                   <td className="py-3 px-3 sm:px-4">
                     <div>
                       <p className="font-medium truncate">{lead.companyName}</p>
@@ -167,38 +148,6 @@ export default function SalesDashboard() {
             </tbody>
           </table>
         </div>
-      )}
-
-      {sheetOpen && (
-        <Suspense fallback={null}>
-          <LazyLeadDetailSheet
-            lead={selectedLead}
-            deal={selectedDeal}
-            activities={activities}
-            open={sheetOpen}
-            onOpenChange={setSheetOpen}
-            onGenerateContract={() => {
-              toast({
-                title: "Generating Contract",
-                description: "AI is creating a custom contract...",
-              });
-            }}
-            onUnstickDeal={() => {
-              toast({
-                title: "AI Analysis",
-                description: "Analyzing deal obstacles and generating suggestions...",
-              });
-            }}
-            onLeadUpdate={(updatedLead) => {
-              setSelectedLead(updatedLead);
-              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-              toast({
-                title: "Lead Updated",
-                description: "Configuration has been saved successfully.",
-              });
-            }}
-          />
-        </Suspense>
       )}
     </div>
   );

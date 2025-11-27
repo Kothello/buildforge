@@ -69,6 +69,7 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
       setIsSaving(false);
       
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", lead.id] });
       
       toast({
         title: 'Success',

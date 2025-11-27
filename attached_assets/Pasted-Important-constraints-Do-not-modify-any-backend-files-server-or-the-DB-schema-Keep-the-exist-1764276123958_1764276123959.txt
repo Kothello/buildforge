@@ -1,0 +1,109 @@
+Important constraints:
+
+Do not modify any backend files (server/*) or the DB schema.
+
+Keep the existing /sales page as the My Leads list.
+
+Reuse existing components (LeadDetailSheet, LeadConfiguratorEmbed, etc.) where possible; don’t rewrite the configurator logic.
+
+Router uses wouter; follow the existing route patterns in client/src/App.tsx.
+
+Context:
+
+Right now, /sales shows the My Leads table (first screenshot). The View button opens an overlay/sheet-style detail view.
+
+I want a clearer flow:
+
+/sales → My Leads list
+
+/sales/leads/:leadId → full-page lead detail + configurator (what I see now in the sheet, second screenshot).
+
+When a sales rep clicks View on a row: navigate to /sales/leads/:leadId.
+
+On Save Changes in the configurator:
+
+Save the updated configuration + buildingSpecs + totalPrice via the existing PATCH /api/leads/:id logic.
+
+After a successful save, navigate back to /sales and ensure the list reflects the updated price.
+
+React Query is already set up; My Leads uses useQuery for the leads list and shows lead.totalPrice in the Price column.
+
+Goals:
+
+Introduce a dedicated lead edit/detail route (/sales/leads/:id) that shows the full lead view + configurator.
+
+Make the View button on /sales navigate to that route.
+
+Make Save Changes on the configurator save the lead and then navigate back to /sales, with the list refreshed to show the updated price.
+
+Task:
+
+Add a new lead edit page and route
+
+Create a new page component under client/src/pages/ (for example lead-edit.tsx or similar, name it consistently with existing pages).
+
+In this component:
+
+Use wouter’s useRoute / useParams (or the existing pattern in App.tsx) to read leadId from a route like /sales/leads/:id (adjust if routes use a base path).
+
+Use React Query to fetch the selected lead, its deal, and activities using the same hooks or patterns used in the pipeline/sales dashboard for LeadDetailSheet.
+
+Render a layout that matches the current lead detail + Config tab UI (second screenshot): left side with lead info / AI messaging, right side with the configurator (LeadConfiguratorEmbed). You can either:
+
+Reuse LeadDetailSheet but render it as a full page rather than a sheet, or
+
+Reuse the same internal components that LeadDetailSheet uses to build a full-page layout.
+
+Register this new page in client/src/App.tsx with a route like /sales/leads/:id (follow the existing App.tsx routing style and base path).
+
+Change the My Leads “View” button to navigate to the new route
+
+In client/src/pages/sales-dashboard.tsx (the My Leads list):
+
+Find the View button in the lead table.
+
+Replace its current behavior with a navigation using wouter (e.g. useLocation or equivalent) so that clicking View on a lead with id navigates to /sales/leads/<id> (match the route path you added in App.tsx).
+
+Remove or disable any now-unused sheet-opening logic from this page (selectedLead/sheetOpen), unless you still need it elsewhere.
+
+Hook Save Changes → PATCH + redirect + list refresh
+
+In whatever component handles the “Save Changes” button for the embedded configurator when editing a lead (likely client/src/configurator/LeadConfiguratorEmbed.tsx or a wrapper on the new edit page):
+
+Confirm that the save handler already:
+
+Calls /api/pricing/calculate to get a totalPrice.
+
+Calls PATCH /api/leads/:id with updated configuration, buildingSpecs, and totalPrice.
+
+In the React Query mutation’s onSuccess callback:
+
+Invalidate the leads query using queryClient.invalidateQueries(<exact leads query key>) so /sales will show updated prices. Use the same query key used in sales-dashboard.tsx.
+
+Use wouter’s navigation to programmatically go back to /sales after the PATCH succeeds.
+
+Show a brief loading state on the Save button while the mutation is executing, and optionally a small success/error message.
+
+Verify the full flow (describe, don’t hard-code tests):
+
+From /sales:
+
+Click View on a lead → confirm URL switches to /sales/leads/:id and the full lead detail + configurator page is shown.
+
+On the edit page:
+
+Adjust the building and click Save Changes → confirm:
+
+PATCH is sent with updated config/spec/totalPrice.
+
+You are redirected back to /sales.
+
+The Price column for that lead now shows the new total.
+
+At the end, summarize:
+
+The new route path and page component name for the lead edit view.
+
+The changes made in sales-dashboard.tsx to the View button and any removed sheet logic.
+
+Where the redirect on successful save is implemented, and which query key is invalidated to refresh the list.

@@ -15,6 +15,7 @@ const LazyCallbackCalendar = lazy(() => import("@/pages/callback-calendar"));
 const LazyAdminDashboard = lazy(() => import("@/pages/admin"));
 const LazyPricingAdminPage = lazy(() => import("@/admin/PricingAdminPage"));
 const LazySalesDashboard = lazy(() => import("@/pages/sales-dashboard"));
+const LazyLeadEditPage = lazy(() => import("@/pages/lead-edit"));
 const LazyBuilderPage = lazy(() => import("@/configurator/BuilderPage"));
 
 function PageLoader() {
@@ -36,6 +37,7 @@ function Router() {
         <Route path="/">{() => <LazyDashboard />}</Route>
         <Route path="/admin">{() => <LazyAdminDashboard />}</Route>
         <Route path="/admin/pricing">{() => <LazyPricingAdminPage />}</Route>
+        <Route path="/sales/leads/:id">{() => <LazyLeadEditPage />}</Route>
         <Route path="/sales">{() => <LazySalesDashboard />}</Route>
         <Route path="/projects">{() => <LazyProjectsPage />}</Route>
         <Route path="/callbacks">{() => <LazyCallbackCalendar />}</Route>
