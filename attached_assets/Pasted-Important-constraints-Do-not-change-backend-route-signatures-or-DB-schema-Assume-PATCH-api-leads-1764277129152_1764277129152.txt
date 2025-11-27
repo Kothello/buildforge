@@ -1,0 +1,81 @@
+Important constraints:
+
+Do not change backend route signatures or DB schema. Assume PATCH /api/leads/:id already accepts configuration, buildingSpecs, and totalPrice.
+
+Do not change the /builder new-lead flow; only fix the edit flow on /sales/leads/:id.
+
+Router is wouter; keep the existing /sales and /sales/leads/:id routes.
+
+Context:
+
+/sales shows the My Leads table. The Price column uses lead.totalPrice.
+
+Clicking View on a row navigates to /sales/leads/:id, which shows a full-page lead detail + Building Configurator and a Save Changes button.
+
+On /sales/leads/:id, the configurator correctly recalculates the Quote Total (e.g. $178,917.36), and clicking Save Changes navigates back to /sales.
+
+Problem: after returning to /sales, the My Leads table still shows the old price for that lead; the new totalPrice is not reflected.
+
+Desired behavior:
+
+When a sales rep clicks Save Changes on /sales/leads/:id:
+
+The app recalculates price using /api/pricing/calculate.
+
+Sends PATCH /api/leads/:id with updated configuration, buildingSpecs, and new totalPrice.
+
+Only after the PATCH succeeds:
+
+React Query refreshes the leads list (invalidate the same query key used on /sales).
+
+The app navigates back to /sales.
+
+When /sales renders after this flow, the Price column for that lead shows the new value without a manual browser refresh.
+
+Task:
+
+Open the component responsible for the edit page at /sales/leads/:id (the one that renders the full-page lead detail + configurator and Save Changes button). This is likely a new page under client/src/pages/ plus client/src/configurator/LeadConfiguratorEmbed.tsx.
+
+In the configurator save logic used on this edit page (React Query mutation):
+
+Confirm the code is calling /api/pricing/calculate with the current configuration and receiving the latest total price.
+
+Confirm the PATCH /api/leads/:id request body includes totalPrice mapped to the leads.totalPrice field (check the schema: decimal("total_price")). If it does not, update the payload to send totalPrice together with configuration and buildingSpecs.
+
+In that same mutation, implement a proper onSuccess handler that:
+
+Uses the shared QueryClient instance to invalidate the leads query.
+
+Look at client/src/pages/sales-dashboard.tsx (My Leads page) and find the exact query key used in its useQuery for leads (e.g. ["leads"] or similar).
+
+Use the same key in queryClient.invalidateQueries(...) so that the /sales page refetches fresh lead data (including the updated totalPrice).
+
+After invalidating, programmatically navigate back to /sales using wouter’s navigation hook (e.g. const [, setLocation] = useLocation(); setLocation("/sales")).
+
+Ensure the Save Changes button on the edit page:
+
+Calls this mutation handler.
+
+Shows a loading state while the mutation is in progress and prevents double-clicks.
+
+Optionally shows a small success or error message, but the primary requirement is that it saves and redirects.
+
+Verify that the My Leads table on /sales:
+
+Is still reading lead.totalPrice and formatting it as currency.
+
+Does not override the value with any local state that would mask the refetched data.
+
+At the end, summarize:
+
+Which file(s) contain the mutation for Save Changes and what fields are now sent in the PATCH body.
+
+The exact leads query key you invalidated and where you call invalidateQueries.
+
+Where the redirect back to /sales is implemented and confirmation that:
+
+You can edit a lead on /sales/leads/:id, click Save Changes,
+
+Get redirected to /sales, and
+
+See the updated Price value in the My Leads table without a manual refresh.
