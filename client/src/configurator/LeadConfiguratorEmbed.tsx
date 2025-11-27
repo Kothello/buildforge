@@ -68,8 +68,8 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
     onSuccess: async (updatedLead) => {
       setIsSaving(false);
       
-      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/leads", lead.id] });
+      await queryClient.refetchQueries({ queryKey: ["/api/leads"], type: 'all' });
+      queryClient.setQueryData(["/api/leads", lead.id], updatedLead);
       
       toast({
         title: 'Success',

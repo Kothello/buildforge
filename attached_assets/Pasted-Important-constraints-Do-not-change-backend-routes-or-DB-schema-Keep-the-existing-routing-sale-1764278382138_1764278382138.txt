@@ -1,0 +1,73 @@
+Important constraints:
+
+Do not change backend routes or DB schema.
+
+Keep the existing routing: /sales (My Leads list) and /sales/leads/:id (edit page).
+
+The Save Changes mutation on the edit page remains the single source of truth for updating the lead.
+
+Context:
+
+On /sales/leads/:id, clicking Save Changes successfully updates the lead in the backend and then navigates back to /sales.
+
+On /sales, the My Leads list uses React Query useQuery to load leads and shows lead.totalPrice in the Price column.
+
+Problem: after Save & redirect, /sales is still showing stale data until a manual browser refresh; the leads list and counts do not auto-refresh.
+
+Desired behavior:
+
+When a sales rep clicks Save Changes on /sales/leads/:id:
+
+The app recalculates price with /api/pricing/calculate and sends PATCH /api/leads/:id with configuration, buildingSpecs, and the new totalPrice.
+
+After the PATCH succeeds, the React Query cache for the leads list is invalidated/refetched.
+
+Then the app navigates back to /sales.
+
+When /sales renders, the My Leads list and summary tiles already show the updated lead data with the new price — no manual page refresh required.
+
+Task:
+
+Open client/src/pages/sales-dashboard.tsx (the /sales page):
+
+Locate the useQuery call that fetches the leads list.
+
+Identify the exact query key being used (e.g. ["leads"], ["leads", "sales"], etc.).
+
+Ensure the query is configured to refetch when invalidated:
+
+Set staleTime: 0 (or remove any large staleTime).
+
+Set refetchOnMount: "always" (or the equivalent option) so that when the component mounts after navigation and the query is stale/invalidated, it refetches.
+
+Open the component that owns the Save Changes logic on /sales/leads/:id (the edit page + embedded configurator, likely LeadConfiguratorEmbed and/or the new lead edit page under client/src/pages/):
+
+Find the React Query mutation used when clicking Save Changes.
+
+Confirm the mutation is sending configuration, buildingSpecs, and totalPrice in the PATCH /api/leads/:id body. If totalPrice is missing, add it.
+
+In this mutation’s onSuccess handler:
+
+First call await queryClient.invalidateQueries(<the leads query key from step 1>).
+
+Optionally also call await queryClient.refetchQueries(<the same leads query key>) to force an immediate refresh.
+
+Only after invalidation/refetch, navigate back to /sales using wouter (e.g. const [, setLocation] = useLocation(); setLocation("/sales");).
+
+Keep or add a loading state on the Save button while the mutation runs so users can’t spam it.
+
+Verify there is no extra local state in sales-dashboard.tsx that overrides the React Query result after navigation; the table rows and metrics should read directly from the query data so they benefit from the refetch.
+
+At the end, summarize:
+
+The leads query key and options now used in sales-dashboard.tsx (especially staleTime and refetchOnMount).
+
+The exact place where you call invalidateQueries / refetchQueries and then navigate back to /sales in the Save Changes mutation.
+
+Confirmation from a manual test that this flow now works:
+
+/sales → View → /sales/leads/:id
+
+Change config → Save Changes
+
+You are redirected to /sales and the updated price for that lead is immediately visible, with no manual reload.
