@@ -14,6 +14,17 @@ import { Home, LayoutGrid, Settings, User, Zap, Shield, Users, Building2, Calend
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+const prefetchMap: Record<string, () => void> = {
+  "/": () => import("@/pages/dashboard"),
+  "/sales": () => import("@/pages/sales-dashboard"),
+  "/admin": () => import("@/pages/admin"),
+  "/pipeline": () => import("@/pages/pipeline"),
+  "/automation": () => import("@/pages/automation"),
+  "/settings": () => import("@/pages/settings"),
+  "/projects": () => import("@/pages/projects"),
+  "/callbacks": () => import("@/pages/callback-calendar"),
+};
+
 const menuItems = [
   {
     title: "Dashboard",
@@ -85,6 +96,7 @@ export function AppSidebar() {
                     asChild
                     isActive={location === item.url}
                     data-testid={`nav-${item.title.toLowerCase()}`}
+                    onMouseEnter={() => prefetchMap[item.url]?.()}
                   >
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />

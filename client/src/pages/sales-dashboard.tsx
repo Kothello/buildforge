@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, TrendingUp } from "lucide-react";
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useMemo } from "react";
 import { Lead, Activity, Deal } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -33,18 +33,25 @@ export default function SalesDashboard() {
 
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["/api/deals"],
+    enabled: !!selectedLead,
   });
 
-  const myLeads = leads.filter((lead: any) =>
-    lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const myLeads = useMemo(() => {
+    let filtered = leads.filter((lead: any) =>
+      lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((lead: any) => lead.status === statusFilter);
+    }
+    return filtered;
+  }, [leads, searchTerm, statusFilter]);
 
-  const stats = {
-    total: myLeads.length,
-    new: myLeads.filter((l: any) => l.status === "new").length,
-    inProgress: myLeads.filter((l: any) => l.status === "in_progress").length,
-    sold: myLeads.filter((l: any) => l.status === "sold").length,
-  };
+  const stats = useMemo(() => ({
+    total: leads.length,
+    new: leads.filter((l: any) => l.status === "new").length,
+    inProgress: leads.filter((l: any) => l.status === "in_progress").length,
+    sold: leads.filter((l: any) => l.status === "sold").length,
+  }), [leads]);
 
   const handleLeadClick = (lead: Lead) => {
     setSelectedLead(lead);

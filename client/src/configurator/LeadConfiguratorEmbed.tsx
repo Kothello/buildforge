@@ -1,10 +1,39 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useMutation } from '@tanstack/react-query';
-import BuilderPage, { type BuildingSpecs } from './BuilderPage';
+import type { BuildingSpecs } from './BuilderPage';
 import type { BuildingConfig } from './types';
+
+const LazyBuilderPage = lazy(() => import('./BuilderPage'));
+
+function ConfiguratorSkeleton() {
+  return (
+    <div className="h-full w-full flex">
+      <div className="w-80 border-r border-border p-4 space-y-4">
+        <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+        <div className="h-8 bg-muted/30 rounded animate-pulse" />
+        <div className="space-y-3">
+          <div className="h-10 bg-muted/40 rounded animate-pulse" />
+          <div className="h-10 bg-muted/40 rounded animate-pulse" />
+          <div className="h-10 bg-muted/40 rounded animate-pulse" />
+        </div>
+        <div className="h-8 bg-muted/30 rounded animate-pulse mt-6" />
+        <div className="space-y-3">
+          <div className="h-10 bg-muted/40 rounded animate-pulse" />
+          <div className="h-10 bg-muted/40 rounded animate-pulse" />
+        </div>
+      </div>
+      <div className="flex-1 bg-muted/20 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading 3D view...</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface LeadConfiguratorEmbedProps {
   lead: Lead;
@@ -57,11 +86,13 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
 
   return (
     <div className="h-full w-full">
-      <BuilderPage
-        initialConfig={initialConfig}
-        onSave={handleSave}
-        isSaving={isSaving}
-      />
+      <Suspense fallback={<ConfiguratorSkeleton />}>
+        <LazyBuilderPage
+          initialConfig={initialConfig}
+          onSave={handleSave}
+          isSaving={isSaving}
+        />
+      </Suspense>
     </div>
   );
 }
