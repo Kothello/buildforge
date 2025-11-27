@@ -1,0 +1,77 @@
+Important constraints:
+
+Do not change backend routes or DB schema.
+
+Keep the routing as is: /sales for My Leads, /sales/leads/:id for the lead detail/configurator.
+
+Do not navigate automatically back to /sales after saving. The user must remain on /sales/leads/:id.
+
+Context:
+
+On /sales/leads/:id, the Building Configurator shows a Save Changes button.
+
+Clicking Save currently sends a PATCH and may be navigating back to /sales, but we want a different behavior.
+
+Desired behavior:
+
+When Save Changes is clicked, the app should:
+
+Recalculate price via /api/pricing/calculate.
+
+PATCH /api/leads/:id with updated configuration, buildingSpecs, and totalPrice.
+
+Stay on /sales/leads/:id.
+
+Auto-refresh the data on the current page so the UI reflects the updated configuration and price.
+
+Ensure that when the user later goes back to /sales, the My Leads list already has the updated price (via React Query, not a full browser reload).
+
+Task:
+
+Open the component that owns the Save Changes logic on /sales/leads/:id (the edit page and/or LeadConfiguratorEmbed.tsx):
+
+Find the React Query mutation that runs when the Save Changes button is clicked.
+
+Confirm it sends configuration, buildingSpecs, and totalPrice in the PATCH /api/leads/:id body. If totalPrice is missing, add it.
+
+Remove any code that navigates back to /sales in the mutation’s onSuccess handler (for example setLocation("/sales")). We should no longer redirect.
+
+In that mutation’s onSuccess handler, implement data refresh instead of redirect:
+
+Use the shared QueryClient to:
+
+Update the currently viewed lead on /sales/leads/:id either by:
+
+Calling queryClient.invalidateQueries(<lead-by-id query key>) and letting the page’s useQuery refetch, or
+
+Calling queryClient.setQueryData for the specific lead id to merge in the updated data returned by the PATCH.
+
+Invalidate the leads list query used on /sales so the My Leads page will show fresh data next time it mounts. Use the exact query key from sales-dashboard.tsx.
+
+After the mutation resolves and cache is updated, keep the user on /sales/leads/:id. Optionally show a brief “Saved” confirmation near the button.
+
+Open the edit page component for /sales/leads/:id:
+
+Ensure the lead data on this page comes from React Query (for example a useQuery that fetches the lead by id).
+
+Make sure the query key for this lead is stable and matches what you invalidate/set in step 2 (e.g. ["lead", leadId]).
+
+After the mutation’s onSuccess invalidates this key or sets new data, the UI on /sales/leads/:id should automatically show the updated totalPrice and config without a full reload.
+
+In client/src/pages/sales-dashboard.tsx (the /sales page):
+
+Confirm the leads list uses useQuery to fetch leads and that you are using a clear query key (e.g. ["leads"]).
+
+Make sure the query has staleTime and refetchOnMount configured so that when its key is invalidated and the user later navigates back to /sales, the list refetches and the Price column shows the new totalPrice automatically.
+
+At the end, summarize:
+
+Which mutation handles Save Changes and what its onSuccess now does (specific invalidateQueries / setQueryData calls).
+
+The query key for the single-lead query on /sales/leads/:id and the query key for the leads list on /sales.
+
+Confirmation from a manual test that now:
+
+On /sales/leads/:id, clicking Save Changes keeps you on that page and the displayed quote/price reflects the saved data.
+
+When you later go back to /sales, the My Leads list shows the updated price without a manual browser refresh.

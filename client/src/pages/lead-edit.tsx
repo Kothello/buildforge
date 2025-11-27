@@ -56,11 +56,6 @@ export default function LeadEditPage() {
   };
 
   const handleLeadUpdate = (updatedLead: Lead) => {
-    toast({
-      title: "Lead Updated",
-      description: "Configuration saved successfully.",
-    });
-    navigate("/sales");
   };
 
   if (isLoadingLead) {
