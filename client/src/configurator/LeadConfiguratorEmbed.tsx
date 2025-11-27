@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@shared/schema';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useMutation } from '@tanstack/react-query';
 import type { BuildingSpecs } from './BuilderPage';
 import type { BuildingConfig } from './types';
@@ -47,11 +47,38 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
   const initialConfig = (lead.configuration as BuildingConfig) || undefined;
 
   const updateMutation = useMutation({
-    mutationFn: async ({ config, buildingSpecs, totalPrice }: { 
+    mutationFn: async ({ config, buildingSpecs }: { 
       config: BuildingConfig; 
       buildingSpecs: BuildingSpecs; 
-      totalPrice: string;
     }) => {
+      const pricingResponse = await fetch('/api/pricing/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config: {
+            width: config.width || 40,
+            length: config.length || 60,
+            height: config.height || 14,
+            roofStyle: config.roofStyle || 'gable',
+            roofPitch: config.roofPitch || 3,
+            doors: config.doors || [],
+            windows: config.windows || [],
+            leanTos: config.leanTos || [],
+            wallEnclosure: config.wallEnclosure || 'fully-enclosed',
+            customWalls: config.customWalls,
+          },
+          region: 'midwest',
+        }),
+      });
+
+      let totalPrice = '0';
+      if (pricingResponse.ok) {
+        const pricingData = await pricingResponse.json();
+        if (pricingData?.total) {
+          totalPrice = pricingData.total.toString();
+        }
+      }
+
       const payload = {
         buildingSpecs,
         configuration: config,
@@ -63,6 +90,16 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
     },
     onSuccess: (updatedLead) => {
       setIsSaving(false);
+      
+      queryClient.setQueryData(['lead', updatedLead.id], updatedLead);
+      queryClient.setQueryData(['/api/leads'], (oldData: Lead[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.map((l: Lead) => l.id === updatedLead.id ? updatedLead : l);
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
+      queryClient.invalidateQueries({ queryKey: ['lead', updatedLead.id] });
+      
       toast({
         title: 'Success',
         description: 'Configuration saved',
@@ -79,9 +116,9 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
     },
   });
 
-  const handleSave = (config: BuildingConfig, buildingSpecs: BuildingSpecs, totalPrice: string) => {
+  const handleSave = (config: BuildingConfig, buildingSpecs: BuildingSpecs, _totalPrice: string) => {
     setIsSaving(true);
-    updateMutation.mutate({ config, buildingSpecs, totalPrice });
+    updateMutation.mutate({ config, buildingSpecs });
   };
 
   return (
