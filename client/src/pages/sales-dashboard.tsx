@@ -8,9 +8,7 @@ import { Lead, Activity, Deal } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 
-const LazyLeadDetailSheet = lazy(() =>
-  import("@/components/lead-detail-sheet").then((m) => ({ default: m.LeadDetailSheet }))
-);
+const LazyLeadDetailSheet = lazy(() => import("@/components/lead-detail-sheet").then(m => ({ default: m.LeadDetailSheet })));
 
 const prefetchConfigurator = () => {
   import("@/configurator/BuilderPage");
@@ -19,39 +17,25 @@ const prefetchConfigurator = () => {
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-
-  // ⭐ Instead of storing the entire stale lead object,
-  // we store ONLY the leadId.
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { toast } = useToast();
 
-  // Load ALL leads (table)
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads"],
-    queryFn: () => fetch("/api/leads").then((r) => r.json()),
+    queryFn: () => fetch("/api/leads").then(r => r.json()),
   });
 
-  // ⭐ Load the selected lead FRESH from the server
-  const { data: selectedLead } = useQuery({
-    queryKey: ["/api/leads", selectedLeadId],
-    queryFn: () => fetch(`/api/leads/${selectedLeadId}`).then((r) => r.json()),
-    enabled: !!selectedLeadId,
-  });
-
-  // Load activities for selected lead
   const { data: activities = [] } = useQuery<Activity[]>({
-    queryKey: ["/api/activities", selectedLeadId],
-    enabled: !!selectedLeadId,
+    queryKey: ["/api/activities", selectedLead?.id],
+    enabled: !!selectedLead,
   });
 
-  // Load deals
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["/api/deals"],
-    enabled: !!selectedLeadId,
+    enabled: !!selectedLead,
   });
 
-  // Filtered table data
   const myLeads = useMemo(() => {
     let filtered = leads.filter((lead: any) =>
       lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -62,25 +46,20 @@ export default function SalesDashboard() {
     return filtered;
   }, [leads, searchTerm, statusFilter]);
 
-  const stats = useMemo(
-    () => ({
-      total: leads.length,
-      new: leads.filter((l: any) => l.status === "new").length,
-      inProgress: leads.filter((l: any) => l.status === "in_progress").length,
-      sold: leads.filter((l: any) => l.status === "sold").length,
-    }),
-    [leads]
-  );
+  const stats = useMemo(() => ({
+    total: leads.length,
+    new: leads.filter((l: any) => l.status === "new").length,
+    inProgress: leads.filter((l: any) => l.status === "in_progress").length,
+    sold: leads.filter((l: any) => l.status === "sold").length,
+  }), [leads]);
 
-  // ⭐ The fixed click handler
   const handleLeadClick = (lead: Lead) => {
-    setSelectedLeadId(lead.id);
+    setSelectedLead(lead);
     setSheetOpen(true);
   };
 
-  // ⭐ Selected Deal derived from CURRENT selectedLeadId
-  const selectedDeal = selectedLeadId
-    ? deals.find((d) => d.leadId === selectedLeadId)
+  const selectedDeal = selectedLead
+    ? deals.find((d) => d.leadId === selectedLead.id)
     : undefined;
 
   return (
@@ -158,11 +137,7 @@ export default function SalesDashboard() {
             </thead>
             <tbody>
               {myLeads.map((lead: any) => (
-                <tr
-                  key={lead.id}
-                  className="border-b border-border/50 hover:bg-card/30 transition"
-                  onMouseEnter={prefetchConfigurator}
-                >
+                <tr key={lead.id} className="border-b border-border/50 hover:bg-card/30 transition" onMouseEnter={prefetchConfigurator}>
                   <td className="py-3 px-3 sm:px-4">
                     <div>
                       <p className="font-medium truncate">{lead.companyName}</p>
@@ -170,24 +145,17 @@ export default function SalesDashboard() {
                     </div>
                   </td>
                   <td className="py-3 px-3 sm:px-4">
-                    <Badge
-                      variant={lead.status === "sold" ? "default" : "outline"}
-                      className="text-xs"
-                    >
+                    <Badge variant={lead.status === "sold" ? "default" : "outline"} className="text-xs">
                       {lead.status}
                     </Badge>
                   </td>
                   <td className="py-3 px-3 sm:px-4">
-                    $
-                    {parseFloat(lead.totalPrice || "0").toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    ${parseFloat(lead.totalPrice || "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                   <td className="py-3 px-3 sm:px-4 text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
                       data-testid={`button-view-lead-${lead.id}`}
                       onClick={() => handleLeadClick(lead)}
                     >
@@ -201,7 +169,7 @@ export default function SalesDashboard() {
         </div>
       )}
 
-      {sheetOpen && selectedLead && (
+      {sheetOpen && (
         <Suspense fallback={null}>
           <LazyLeadDetailSheet
             lead={selectedLead}
@@ -221,12 +189,12 @@ export default function SalesDashboard() {
                 description: "Analyzing deal obstacles and generating suggestions...",
               });
             }}
-            onLeadUpdate={() => {
+            onLeadUpdate={(updatedLead) => {
+              setSelectedLead(updatedLead);
               queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-              queryClient.invalidateQueries({ queryKey: ["/api/leads", selectedLeadId] });
               toast({
                 title: "Lead Updated",
-                description: "Configuration saved successfully.",
+                description: "Configuration has been saved successfully.",
               });
             }}
           />
