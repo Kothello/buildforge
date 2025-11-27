@@ -102,6 +102,8 @@ export function LeadDetailSheet({
                         height: deal.buildingHeight || undefined,
                         roofStyle: deal.roofStyle || undefined,
                       } : undefined}
+                      configuration={lead.configuration as any}
+                      totalPrice={lead.totalPrice || undefined}
                       cost={deal?.cost ? parseFloat(deal.cost) : undefined}
                       price={deal?.price ? parseFloat(deal.price) : undefined}
                       margin={deal?.margin ? parseFloat(deal.margin) : undefined}

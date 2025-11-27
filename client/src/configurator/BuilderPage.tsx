@@ -1279,49 +1279,51 @@ const BuilderPage = ({ initialConfig, onSave, isSaving }: BuilderPageProps = {})
         </div>
 
         <div 
-          className="w-full md:w-[38%] lg:w-[38%] mt-1 md:mt-0 lg:mt-0 md:h-full lg:h-full md:overflow-y-auto lg:overflow-y-auto md:border-l lg:border-l"
+          className="w-full md:w-[38%] lg:w-[38%] mt-1 md:mt-0 lg:mt-0 md:h-full lg:h-full flex flex-col md:border-l lg:border-l"
           style={{ 
             background: 'hsl(var(--background))',
             borderColor: 'hsl(var(--border))'
           }}
         >
-          <ConfigPanel
-            width={width}
-            length={length}
-            height={height}
-            wallColor={wallColor}
-            roofColor={roofColor}
-            trimColor={trimColor}
-            roofStyle={roofStyle}
-            roofPitch={roofPitch}
-            onWidthChange={setWidth}
-            onLengthChange={setLength}
-            onHeightChange={setHeight}
-            onWallColorChange={setWallColor}
-            onRoofColorChange={setRoofColor}
-            onTrimColorChange={setTrimColor}
-            onRoofStyleChange={setRoofStyle}
-            onRoofPitchChange={(value) => setRoofPitch(value[0])}
-            onAddRollupDoor={() => handleAddRollupDoor((window as any).__cameraAngle)}
-            onAddPersonnelDoor={() => handleAddPersonnelDoor((window as any).__cameraAngle)}
-            onAddWindow={() => handleAddWindow((window as any).__cameraAngle)}
-            editMode={editMode}
-            onToggleEditMode={() => setEditMode(!editMode)}
-            wallEnclosure={wallEnclosure}
-            onWallEnclosureChange={setWallEnclosure}
-            customWalls={customWalls}
-            onCustomWallsChange={setCustomWalls}
-            doors={doors}
-            windows={windows}
-            leanTos={leanTos}
-            onLeanTosChange={handleLeanTosChange}
-            editingLeanToId={editingLeanToId}
-            onEditingLeanToIdChange={setEditingLeanToId}
-            onTotalChange={setCurrentTotalPrice}
-          />
+          <div className="flex-1 overflow-y-auto">
+            <ConfigPanel
+              width={width}
+              length={length}
+              height={height}
+              wallColor={wallColor}
+              roofColor={roofColor}
+              trimColor={trimColor}
+              roofStyle={roofStyle}
+              roofPitch={roofPitch}
+              onWidthChange={setWidth}
+              onLengthChange={setLength}
+              onHeightChange={setHeight}
+              onWallColorChange={setWallColor}
+              onRoofColorChange={setRoofColor}
+              onTrimColorChange={setTrimColor}
+              onRoofStyleChange={setRoofStyle}
+              onRoofPitchChange={(value) => setRoofPitch(value[0])}
+              onAddRollupDoor={() => handleAddRollupDoor((window as any).__cameraAngle)}
+              onAddPersonnelDoor={() => handleAddPersonnelDoor((window as any).__cameraAngle)}
+              onAddWindow={() => handleAddWindow((window as any).__cameraAngle)}
+              editMode={editMode}
+              onToggleEditMode={() => setEditMode(!editMode)}
+              wallEnclosure={wallEnclosure}
+              onWallEnclosureChange={setWallEnclosure}
+              customWalls={customWalls}
+              onCustomWallsChange={setCustomWalls}
+              doors={doors}
+              windows={windows}
+              leanTos={leanTos}
+              onLeanTosChange={handleLeanTosChange}
+              editingLeanToId={editingLeanToId}
+              onEditingLeanToIdChange={setEditingLeanToId}
+              onTotalChange={setCurrentTotalPrice}
+            />
+          </div>
           
           {onSave && (
-            <div className="p-4 border-t" style={{ borderColor: 'hsl(var(--border))' }}>
+            <div className="shrink-0 p-4 border-t bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
