@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@shared/schema';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useMutation } from '@tanstack/react-query';
 import type { BuildingSpecs } from './BuilderPage';
 import type { BuildingConfig } from './types';
@@ -63,6 +63,22 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
     },
     onSuccess: (updatedLead) => {
       setIsSaving(false);
+      
+      // Update the specific lead in cache
+      queryClient.setQueryData(['/api/leads', lead.id], updatedLead);
+      
+      // Update paginated lists containing this lead
+      queryClient.setQueryData(['/api/leads'], (old: Lead[] | undefined) => {
+        if (!old) return old;
+        return old.map((l: Lead) => l.id === updatedLead.id ? updatedLead : l);
+      });
+      
+      // Invalidate queries to ensure freshness
+      queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/leads', lead.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pipeline'] });
+      
       toast({
         title: 'Success',
         description: 'Configuration saved',
