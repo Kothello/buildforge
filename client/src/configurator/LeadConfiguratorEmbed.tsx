@@ -65,11 +65,11 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
       const response = await apiRequest('PATCH', `/api/leads/${lead.id}`, payload);
       return response.json();
     },
-    onSuccess: (updatedLead) => {
+    onSuccess: async (updatedLead) => {
       setIsSaving(false);
       
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/leads", lead.id] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/leads", lead.id] });
       
       toast({
         title: 'Success',

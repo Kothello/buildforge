@@ -1,0 +1,65 @@
+Important constraints:
+
+Do not change backend code or DB schema.
+
+Keep the routing as it is now: /sales (list) and /sales/leads/:id (edit page).
+
+The Save Changes mutation on the edit page should remain the single source of truth for updating the lead.
+
+Context:
+
+On /sales/leads/:id, the Save Changes button successfully updates the lead and navigates back to /sales.
+
+However, when /sales loads after navigation, the My Leads table still shows the old price until I manually refresh the browser.
+
+This means React Query is serving stale cached data for the leads query instead of refetching.
+
+sales-dashboard.tsx uses useQuery for the leads list; the mutation on the edit page uses queryClient and navigation (wouter) to go back to /sales.
+
+Goal:
+
+After Save Changes completes, /sales must show the updated price immediately, with no manual reload. That requires correctly invalidating/refetching the leads query and/or forcing a refetch on mount.
+
+Task:
+
+Open client/src/pages/sales-dashboard.tsx and locate the useQuery call that loads the leads list.
+
+Identify the exact query key used for leads (for example ["leads"], ["leads", ...], or a named constant).
+
+Check the query options: staleTime, refetchOnMount, refetchOnWindowFocus, etc.
+
+Update this leads query so that coming back to /sales after navigation will always show fresh data:
+
+Either set refetchOnMount: "always" (or equivalent) and staleTime: 0,
+
+Or ensure that when the query is invalidated, a refetch will occur automatically the next time /sales mounts.
+
+Open the component that handles Save Changes on /sales/leads/:id (likely LeadConfiguratorEmbed or the edit page component):
+
+In the React Query mutation’s onSuccess callback, ensure you:
+
+First call queryClient.invalidateQueries(<leads query key>) using the same key as in sales-dashboard.tsx.
+
+Optionally, call queryClient.refetchQueries(<leads query key>) to force an immediate refetch.
+
+Only after invalidation/refetch, perform the navigation back to /sales using wouter. The order should be:
+
+invalidate/refetch,
+
+then setLocation("/sales").
+
+Make sure there is no local state in sales-dashboard.tsx that overrides the React Query result for the leads list after navigation. The table should render directly from the query data so the updated totalPrice shows as soon as the query refetches.
+
+At the end, summarize:
+
+The leads query key and options now used in sales-dashboard.tsx.
+
+Where you call invalidateQueries / refetchQueries in the Save Changes mutation and in what order relative to navigation.
+
+Confirmation that the manual test now works:
+
+/sales → View → /sales/leads/:id
+
+Change config → Save Changes
+
+Automatically return to /sales and see the updated price for that lead without manual page refresh.

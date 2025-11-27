@@ -20,6 +20,8 @@ export default function SalesDashboard() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads"],
     queryFn: () => fetch("/api/leads").then(r => r.json()),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const myLeads = useMemo(() => {
