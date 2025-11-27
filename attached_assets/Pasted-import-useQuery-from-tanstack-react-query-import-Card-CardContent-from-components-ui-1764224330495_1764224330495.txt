@@ -21,7 +21,7 @@ export default function SalesDashboard() {
 
   // ⭐ Instead of storing the entire stale lead object,
   // we store ONLY the leadId.
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { toast } = useToast();
 
