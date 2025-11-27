@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -7,29 +8,37 @@ import Dashboard from "@/pages/dashboard";
 import Pipeline from "@/pages/pipeline";
 import Automation from "@/pages/automation";
 import Settings from "@/pages/settings";
-import AdminDashboard from "@/pages/admin";
-import PricingAdminPage from "@/admin/PricingAdminPage";
-import SalesDashboard from "@/pages/sales-dashboard";
 import ProjectsPage from "@/pages/projects";
 import CallbackCalendar from "@/pages/callback-calendar";
-import BuilderPage from "@/configurator/BuilderPage";
 import NotFound from "@/pages/not-found";
+
+const LazyAdminDashboard = lazy(() => import("@/pages/admin"));
+const LazyPricingAdminPage = lazy(() => import("@/admin/PricingAdminPage"));
+const LazySalesDashboard = lazy(() => import("@/pages/sales-dashboard"));
+const LazyBuilderPage = lazy(() => import("@/configurator/BuilderPage"));
+
+const AdminDashboardWrapper = () => <LazyAdminDashboard />;
+const PricingAdminPageWrapper = () => <LazyPricingAdminPage />;
+const SalesDashboardWrapper = () => <LazySalesDashboard />;
+const BuilderPageWrapper = () => <LazyBuilderPage />;
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/builder" component={BuilderPage} />
-      <Route path="/" component={Dashboard} />
-      <Route path="/admin" component={AdminDashboard} />
-      <Route path="/admin/pricing" component={PricingAdminPage} />
-      <Route path="/sales" component={SalesDashboard} />
-      <Route path="/projects" component={ProjectsPage} />
-      <Route path="/callbacks" component={CallbackCalendar} />
-      <Route path="/pipeline" component={Pipeline} />
-      <Route path="/automation" component={Automation} />
-      <Route path="/settings" component={Settings} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <Switch>
+        <Route path="/builder" component={BuilderPageWrapper} />
+        <Route path="/" component={Dashboard} />
+        <Route path="/admin" component={AdminDashboardWrapper} />
+        <Route path="/admin/pricing" component={PricingAdminPageWrapper} />
+        <Route path="/sales" component={SalesDashboardWrapper} />
+        <Route path="/projects" component={ProjectsPage} />
+        <Route path="/callbacks" component={CallbackCalendar} />
+        <Route path="/pipeline" component={Pipeline} />
+        <Route path="/automation" component={Automation} />
+        <Route path="/settings" component={Settings} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
