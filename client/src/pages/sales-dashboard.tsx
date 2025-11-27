@@ -191,6 +191,12 @@ export default function SalesDashboard() {
             }}
             onLeadUpdate={(updatedLead) => {
               setSelectedLead(updatedLead);
+              queryClient.setQueryData(["/api/leads"], (oldLeads: Lead[] | undefined) => {
+                if (!oldLeads) return oldLeads;
+                return oldLeads.map(lead => 
+                  lead.id === updatedLead.id ? updatedLead : lead
+                );
+              });
               queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
               toast({
                 title: "Lead Updated",
