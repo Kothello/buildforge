@@ -17,7 +17,7 @@ const prefetchConfigurator = () => {
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { toast } = useToast();
 
@@ -26,14 +26,20 @@ export default function SalesDashboard() {
     queryFn: () => fetch("/api/leads").then(r => r.json()),
   });
 
+  const { data: selectedLead } = useQuery<Lead>({
+    queryKey: ["/api/leads", selectedLeadId],
+    queryFn: () => fetch(`/api/leads/${selectedLeadId}`).then(r => r.json()),
+    enabled: !!selectedLeadId,
+  });
+
   const { data: activities = [] } = useQuery<Activity[]>({
-    queryKey: ["/api/activities", selectedLead?.id],
-    enabled: !!selectedLead,
+    queryKey: ["/api/activities", selectedLeadId],
+    enabled: !!selectedLeadId,
   });
 
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["/api/deals"],
-    enabled: !!selectedLead,
+    enabled: !!selectedLeadId,
   });
 
   const myLeads = useMemo(() => {
@@ -54,7 +60,7 @@ export default function SalesDashboard() {
   }), [leads]);
 
   const handleLeadClick = (lead: Lead) => {
-    setSelectedLead(lead);
+    setSelectedLeadId(Number(lead.id));
     setSheetOpen(true);
   };
 
@@ -172,7 +178,7 @@ export default function SalesDashboard() {
       {sheetOpen && (
         <Suspense fallback={null}>
           <LazyLeadDetailSheet
-            lead={selectedLead}
+            lead={selectedLead ?? null}
             deal={selectedDeal}
             activities={activities}
             open={sheetOpen}
@@ -189,9 +195,9 @@ export default function SalesDashboard() {
                 description: "Analyzing deal obstacles and generating suggestions...",
               });
             }}
-            onLeadUpdate={(updatedLead) => {
-              setSelectedLead(updatedLead);
+            onLeadUpdate={() => {
               queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/leads", selectedLeadId] });
               toast({
                 title: "Lead Updated",
                 description: "Configuration has been saved successfully.",
