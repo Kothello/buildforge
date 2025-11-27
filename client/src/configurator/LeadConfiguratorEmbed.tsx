@@ -37,7 +37,7 @@ function ConfiguratorSkeleton() {
 
 interface LeadConfiguratorEmbedProps {
   lead: Lead;
-  onSave?: () => void;
+  onSave?: (updatedLead: Lead) => void;
 }
 
 export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedProps) {
@@ -61,13 +61,13 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
       const response = await apiRequest('PATCH', `/api/leads/${lead.id}`, payload);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedLead) => {
       setIsSaving(false);
       toast({
         title: 'Success',
         description: 'Configuration saved',
       });
-      onSave?.();
+      onSave?.(updatedLead);
     },
     onError: () => {
       setIsSaving(false);
