@@ -1,0 +1,109 @@
+Important constraints:
+
+Do not modify backend routes or DB schema.
+
+Keep the existing routing: /sales (My Leads list) and /sales/leads/:id (lead edit page).
+
+The Save Changes mutation on the edit page already works for updating the backend; you are fixing frontend state / React Query cache only.
+
+Context:
+
+/sales shows the My Leads list using React Query useQuery and displays lead.totalPrice. After Save Changes on /sales/leads/:id, the list now shows the updated price correctly.
+
+/sales/leads/:id shows the full lead detail + configurator and has a Save Changes button.
+
+Problem:
+
+When I change the configuration and click Save Changes, the backend and /sales list are updated.
+
+But if I click View again for that lead (go back to /sales/leads/:id), the edit page still shows the old configuration/price until I hard-refresh the browser.
+
+This means the single-lead data and/or local state on the edit page are stale and not being refreshed from the updated lead.
+
+Desired behavior:
+
+When Save Changes is clicked on /sales/leads/:id and the PATCH succeeds:
+
+The React Query cache for that lead is updated.
+
+The React Query cache for the leads list stays in sync.
+
+If I later click View on that lead again, the /sales/leads/:id page shows the latest configuration and totalPrice without a manual browser refresh.
+
+Task:
+
+Find how the edit page fetches its lead
+
+Open the component that renders the /sales/leads/:id page (lead detail + configurator).
+
+Identify the React Query useQuery (or equivalent) that fetches the single lead.
+
+Note its query key, e.g. ["lead", leadId] or similar.
+
+Confirm it is actually used as the source of truth for the UI (i.e., the configurator and header read from this query’s data).
+
+Eliminate stale local copies of the lead
+
+In the same component (and in LeadConfiguratorEmbed if necessary), look for patterns like:
+
+const [localLead, setLocalLead] = useState(leadFromProps);
+
+const [configState, setConfigState] = useState(lead.configuration); that never resync when lead changes.
+
+Either:
+
+Remove such “one-time initialization” state and derive directly from the query data, or
+
+Add a useEffect that updates the local state whenever the query’s lead data changes.
+
+The goal is: when the React Query cache for this lead is updated, the UI on /sales/leads/:id responds to that change.
+
+Update the Save Changes mutation to sync React Query caches
+
+Open the file where the Save Changes mutation is defined (likely in LeadConfiguratorEmbed.tsx or the lead edit page).
+
+In the mutation’s onSuccess handler, use the updatedLead returned from the PATCH response (or refetch the lead after PATCH) to:
+
+Call queryClient.setQueryData(<single-lead query key>, updatedLead) using the same key from step 1 (e.g. ["lead", leadId]).
+
+Also update the leads list cache so /sales stays in sync:
+
+Either use queryClient.setQueryData(<leads list key>, old => old with that lead replaced by updatedLead),
+
+Or call queryClient.invalidateQueries(<leads list key>) to trigger a refetch. Use the exact leads list key from sales-dashboard.tsx.
+
+Do not navigate away from /sales/leads/:id in this handler; the user should remain on the page after a save.
+
+Ensure the single-lead query refetches correctly when revisiting the page
+
+In the single-lead useQuery on the edit page:
+
+Set staleTime: 0.
+
+Set refetchOnMount: "always" (or equivalent React Query option) so the query will refetch if its data is stale.
+
+Combined with the cache update from step 3, this guarantees:
+
+Immediately after Save, the UI reads the updated data you just put into the cache.
+
+When you navigate away and later come back to /sales/leads/:id, the query either uses the updated cache or refetches from the backend, so you never see the old version.
+
+Verify /sales still shows updated prices
+
+Confirm that sales-dashboard.tsx still uses React Query useQuery for the leads list and that its query key matches what you invalidated/updated in step 3.
+
+Ensure the Price column is reading lead.totalPrice from the query data (no extra local state masking it).
+
+At the end, summarize:
+
+The single-lead query key and options used on the /sales/leads/:id page.
+
+The leads list query key used on /sales.
+
+The exact setQueryData / invalidateQueries calls you added in the Save Changes mutation.
+
+Confirmation from a manual test that now:
+
+After changing a lead and clicking Save Changes, the /sales/leads/:id page shows the updated configuration and price without a full refresh, and
+
+When you go back to /sales and then click View again, the edited lead still shows the latest configuration/price.

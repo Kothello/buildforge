@@ -38,6 +38,8 @@ export default function LeadEditPage() {
     queryKey: ["/api/leads", leadId],
     queryFn: () => fetch(`/api/leads/${leadId}`).then(r => r.json()),
     enabled: !!leadId,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: activities = [] } = useQuery<Activity[]>({
@@ -226,7 +228,11 @@ export default function LeadEditPage() {
         </div>
         <div className="flex-1 overflow-hidden w-full">
           <Suspense fallback={<ConfiguratorSkeleton />}>
-            <LeadConfiguratorEmbed lead={lead} onSave={handleLeadUpdate} />
+            <LeadConfiguratorEmbed 
+              key={`${lead.id}-${lead.totalPrice}`} 
+              lead={lead} 
+              onSave={handleLeadUpdate} 
+            />
           </Suspense>
         </div>
       </div>
