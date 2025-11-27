@@ -28,7 +28,7 @@ interface LeadDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   onGenerateContract?: () => void;
   onUnstickDeal?: () => void;
-  onLeadUpdate?: (updatedLead: Lead) => void;
+  onLeadUpdate?: () => void;
 }
 
 export function LeadDetailSheet({

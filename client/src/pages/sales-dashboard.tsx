@@ -17,49 +17,53 @@ const prefetchConfigurator = () => {
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | number | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { toast } = useToast();
 
-  const { data: leads = [], isLoading } = useQuery({
+  const { data: leads = [], isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
     queryFn: () => fetch("/api/leads").then(r => r.json()),
   });
 
+  const selectedLead = selectedLeadId 
+    ? leads.find((l) => l.id === selectedLeadId) || null 
+    : null;
+
   const { data: activities = [] } = useQuery<Activity[]>({
-    queryKey: ["/api/activities", selectedLead?.id],
-    enabled: !!selectedLead,
+    queryKey: ["/api/activities", selectedLeadId],
+    enabled: !!selectedLeadId,
   });
 
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["/api/deals"],
-    enabled: !!selectedLead,
+    enabled: !!selectedLeadId,
   });
 
   const myLeads = useMemo(() => {
-    let filtered = leads.filter((lead: any) =>
+    let filtered = leads.filter((lead) =>
       lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
     );
     if (statusFilter !== "all") {
-      filtered = filtered.filter((lead: any) => lead.status === statusFilter);
+      filtered = filtered.filter((lead) => lead.status === statusFilter);
     }
     return filtered;
   }, [leads, searchTerm, statusFilter]);
 
   const stats = useMemo(() => ({
     total: leads.length,
-    new: leads.filter((l: any) => l.status === "new").length,
-    inProgress: leads.filter((l: any) => l.status === "in_progress").length,
-    sold: leads.filter((l: any) => l.status === "sold").length,
+    new: leads.filter((l) => l.status === "new").length,
+    inProgress: leads.filter((l) => l.status === "in_progress").length,
+    sold: leads.filter((l) => l.status === "sold").length,
   }), [leads]);
 
   const handleLeadClick = (lead: Lead) => {
-    setSelectedLead(lead);
+    setSelectedLeadId(lead.id);
     setSheetOpen(true);
   };
 
-  const selectedDeal = selectedLead
-    ? deals.find((d) => d.leadId === selectedLead.id)
+  const selectedDeal = selectedLeadId
+    ? deals.find((d) => d.leadId === selectedLeadId)
     : undefined;
 
   return (
@@ -189,8 +193,7 @@ export default function SalesDashboard() {
                 description: "Analyzing deal obstacles and generating suggestions...",
               });
             }}
-            onLeadUpdate={(updatedLead) => {
-              setSelectedLead(updatedLead);
+            onLeadUpdate={() => {
               queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
               toast({
                 title: "Lead Updated",
