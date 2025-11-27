@@ -191,7 +191,7 @@ export default function SalesDashboard() {
             }}
             onLeadUpdate={(updatedLead) => {
               setSelectedLead(updatedLead);
-              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+              queryClient.refetchQueries({ queryKey: ["/api/leads"] });
               toast({
                 title: "Lead Updated",
                 description: "Configuration has been saved successfully.",
