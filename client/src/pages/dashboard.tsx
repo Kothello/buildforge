@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Lead, Activity, Deal } from "@shared/schema";
 import { MorningBriefCard } from "@/components/morning-brief-card";
-import { LeadDetailSheet } from "@/components/lead-detail-sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles } from "lucide-react";
+
+const LazyLeadDetailSheet = lazy(() => import("@/components/lead-detail-sheet").then(m => ({ default: m.LeadDetailSheet })));
+
+const prefetchConfigurator = () => {
+  import("@/configurator/BuilderPage");
+};
 
 export default function Dashboard() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -116,6 +121,7 @@ export default function Dashboard() {
                   aiScript={lead.aiFirstMessage || undefined}
                   onSend={() => handleSendMessage(lead)}
                   onView={() => handleViewLead(lead)}
+                  onHover={prefetchConfigurator}
                 />
               ))}
             </div>
@@ -123,13 +129,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <LeadDetailSheet
-        lead={selectedLead}
-        deal={selectedDeal}
-        activities={activities}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-      />
+      {sheetOpen && (
+        <Suspense fallback={null}>
+          <LazyLeadDetailSheet
+            lead={selectedLead}
+            deal={selectedDeal}
+            activities={activities}
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

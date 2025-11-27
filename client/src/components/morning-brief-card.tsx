@@ -11,6 +11,7 @@ interface MorningBriefCardProps {
   aiScript?: string;
   onSend?: () => void;
   onView?: () => void;
+  onHover?: () => void;
 }
 
 export function MorningBriefCard({
@@ -19,12 +20,14 @@ export function MorningBriefCard({
   aiScript,
   onSend,
   onView,
+  onHover,
 }: MorningBriefCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: priority * 0.05 }}
+      onMouseEnter={onHover}
     >
       <Card className="hover-elevate active-elevate-2 transition-all">
         <CardHeader className="pb-3">

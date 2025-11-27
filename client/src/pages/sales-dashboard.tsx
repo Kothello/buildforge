@@ -1,13 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Lead, Activity, Deal } from "@shared/schema";
-import { LeadDetailSheet } from "@/components/lead-detail-sheet";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+
+const LazyLeadDetailSheet = lazy(() => import("@/components/lead-detail-sheet").then(m => ({ default: m.LeadDetailSheet })));
+
+const prefetchConfigurator = () => {
+  import("@/configurator/BuilderPage");
+};
 
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -125,7 +130,7 @@ export default function SalesDashboard() {
             </thead>
             <tbody>
               {myLeads.map((lead: any) => (
-                <tr key={lead.id} className="border-b border-border/50 hover:bg-card/30 transition">
+                <tr key={lead.id} className="border-b border-border/50 hover:bg-card/30 transition" onMouseEnter={prefetchConfigurator}>
                   <td className="py-3 px-3 sm:px-4">
                     <div>
                       <p className="font-medium truncate">{lead.companyName}</p>
@@ -157,33 +162,37 @@ export default function SalesDashboard() {
         </div>
       )}
 
-      <LeadDetailSheet
-        lead={selectedLead}
-        deal={selectedDeal}
-        activities={activities}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onGenerateContract={() => {
-          toast({
-            title: "Generating Contract",
-            description: "AI is creating a custom contract...",
-          });
-        }}
-        onUnstickDeal={() => {
-          toast({
-            title: "AI Analysis",
-            description: "Analyzing deal obstacles and generating suggestions...",
-          });
-        }}
-        onLeadUpdate={(updatedLead) => {
-          setSelectedLead(updatedLead);
-          queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-          toast({
-            title: "Lead Updated",
-            description: "Configuration has been saved successfully.",
-          });
-        }}
-      />
+      {sheetOpen && (
+        <Suspense fallback={null}>
+          <LazyLeadDetailSheet
+            lead={selectedLead}
+            deal={selectedDeal}
+            activities={activities}
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
+            onGenerateContract={() => {
+              toast({
+                title: "Generating Contract",
+                description: "AI is creating a custom contract...",
+              });
+            }}
+            onUnstickDeal={() => {
+              toast({
+                title: "AI Analysis",
+                description: "Analyzing deal obstacles and generating suggestions...",
+              });
+            }}
+            onLeadUpdate={(updatedLead) => {
+              setSelectedLead(updatedLead);
+              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+              toast({
+                title: "Lead Updated",
+                description: "Configuration has been saved successfully.",
+              });
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
