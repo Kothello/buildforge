@@ -1,0 +1,104 @@
+Important constraints:
+
+Do not change backend routes or schema.
+
+Do not add new features or UI. Fix only the stale Pricing Breakdown data problem on /sales/leads/:id.
+
+Treat the Lead record as the single source of truth for stored pricing on this page.
+
+Current behavior:
+
+On /sales/leads/:id, after I adjust the config and click Save Changes, the toast says “Saved”, the configurator reflects the new quote, and the /sales list shows the updated totalPrice.
+
+The Pricing Breakdown panel on the left still shows the old totals and margin until I hard-refresh.
+
+In your last summary you said:
+
+PricingBreakdown receives props from lead.configuration and lead.totalPrice, and also from deal data.
+
+Lead + list caches are updated via React Query, but the panel is still stale.
+
+Goal:
+
+Make the Pricing Breakdown panel render only from the updated lead data (and/or the latest pricing snapshot), so that when Save Changes updates the lead cache, the panel updates immediately with no browser refresh.
+
+Task:
+
+Identify the Pricing Breakdown component and its inputs
+
+Open the component that renders the “Pricing Breakdown / Building Size / Steel Frame / Labor & Installation / Total Cost / Quote Total / Margin” panel on the lead edit page.
+
+Inspect its props and internal state:
+
+Note whether it takes both lead and deal props.
+
+Note any React state that is initialized once from those props (e.g. const [pricing, setPricing] = useState(props.deal) etc.).
+
+Remove deal as a second source of truth for pricing on this page
+
+If the component (or its parent in lead-edit.tsx) fetches a separate deal via useQuery and uses that to drive the Pricing Breakdown, remove that separate query and prop from this page’s pricing view.
+
+Instead, wire the Pricing Breakdown to depend only on the lead data (and any pricing snapshot stored on the lead, such as lead.totalPrice, lead.configuration, or lead.pricingBreakdown if present).
+
+If you still need deal elsewhere in the app, do not delete the model entirely — just stop using it as the live pricing source for this particular Pricing Breakdown panel on /sales/leads/:id.
+
+Make Pricing Breakdown derive directly from the current lead prop
+
+Refactor the component so that all values it shows (building size, roof style, steel / labor / total cost, quote total, margin) are derived from:
+
+The lead object passed as a prop (e.g. lead.configuration, lead.buildingSpecs, lead.totalPrice, or any pricing snapshot on the lead), and/or
+
+The latest pricing result already available in the configurator state that is tied to the same lead.
+
+Eliminate any “one-time initialization” state that never syncs when lead changes. For example, change patterns like:
+
+const [localLead, setLocalLead] = useState(lead);
+
+const [localPricing, setLocalPricing] = useState(props.lead);
+into direct usage of lead from props, or add a useEffect that updates local state whenever lead changes. The simplest is: no extra state, use props directly.
+
+Ensure the lead prop for this page is the updated React Query lead
+
+In client/src/pages/lead-edit.tsx (or the page component for /sales/leads/:id):
+
+Confirm that it gets the lead from a useQuery with a key like ["/api/leads", leadId] and passes that lead object straight down into both:
+
+The configurator (LeadConfiguratorEmbed), and
+
+The Pricing Breakdown component.
+
+In LeadConfiguratorEmbed (or wherever the Save Changes mutation lives):
+
+Confirm that on success you call queryClient.setQueryData(["/api/leads", leadId], updatedLead) with the exact same key and id type as the useQuery in lead-edit.tsx.
+
+Keep invalidating the list query ["/api/leads"] as you already do, but do not invalidate the single-lead key so the updated lead stays in cache.
+
+Wire the page to react to updated lead data
+
+Ensure the lead edit page does not store a separate copy of the lead that never changes. It should render directly from the useQuery’s data object (or sync its local state in useEffect when that data changes).
+
+After these changes, when setQueryData(["/api/leads", leadId], updatedLead) runs, React Query should notify subscribers and lead-edit.tsx should re-render with the updated lead, which then flows into the Pricing Breakdown panel.
+
+Manual test (must pass):
+
+Go to /sales/leads/:id.
+
+Note the Quote Total in the Pricing Breakdown panel.
+
+Change the building via the configurator so its quote total changes.
+
+Click Save Changes.
+
+Without refreshing the browser:
+
+Verify that the Pricing Breakdown panel now shows the new Quote Total and matching numbers.
+
+Go back to /sales and confirm the My Leads list shows the same updated price.
+
+At the end, summarize only:
+
+Which component renders the Pricing Breakdown and how it now derives its data (from lead only, no deal).
+
+The exact single-lead query key used in lead-edit.tsx and the setQueryData call used in the Save Changes mutation.
+
+Confirmation from your manual test that the Pricing Breakdown updates instantly after Save, with no browser refresh.

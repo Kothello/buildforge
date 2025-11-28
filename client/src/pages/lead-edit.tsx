@@ -142,17 +142,8 @@ export default function LeadEditPage() {
                 )}
 
                 <PricingBreakdown
-                  buildingSpecs={deal?.buildingWidth ? {
-                    width: deal.buildingWidth,
-                    length: deal.buildingLength || undefined,
-                    height: deal.buildingHeight || undefined,
-                    roofStyle: deal.roofStyle || undefined,
-                  } : undefined}
                   configuration={lead.configuration as any}
                   totalPrice={lead.totalPrice || undefined}
-                  cost={deal?.cost ? parseFloat(deal.cost) : undefined}
-                  price={deal?.price ? parseFloat(deal.price) : undefined}
-                  margin={deal?.margin ? parseFloat(deal.margin) : undefined}
                 />
 
                 <div className="flex gap-3">
