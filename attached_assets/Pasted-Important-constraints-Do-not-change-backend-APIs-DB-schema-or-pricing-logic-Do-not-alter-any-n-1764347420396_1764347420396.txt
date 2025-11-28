@@ -1,0 +1,73 @@
+Important constraints:
+
+Do not change backend APIs, DB schema, or pricing logic.
+
+Do not alter any non–lean-to dimensions. Only adjust the maximum width logic for gable lean-tos in the configurator UI.
+
+Keep existing UI components and styling; just change the allowed range/validation.
+
+Context:
+
+Diagnostics showed that both the original builder and the integrated CRM configurator currently use the same formula for lean-to width limits:
+
+const wallDimension = (leanTo.wall === "left" || leanTo.wall === "right")
+  ? buildingLength
+  : buildingWidth;
+const maxWidth = Math.min(wallDimension, 120);
+
+
+This means gable lean-tos are hard-capped at 120 ft, even if the wall segment is longer.
+
+In our original builder usage, we conceptually treat gable lean-tos as allowed to run the full length of the wall they’re on, not arbitrarily capped at 120 ft.
+
+I want the integrated configurator to follow that rule: maximum width = full wall span (length or width, depending on wall), not limited by 120 ft.
+
+Goal:
+
+Update the configurator so that gable lean-to width can go all the way to the full wall dimension it’s attached to, removing the 120 ft artificial cap, while keeping the orientation logic (left/right → buildingLength, front/back → buildingWidth).
+
+Task:
+
+Open client/src/configurator/LeanToConfig.tsx and locate the section where lean-to width limits are computed. You already identified logic like:
+
+const wallDimension = (leanTo.wall === "left" || leanTo.wall === "right")
+  ? buildingLength
+  : buildingWidth;
+const maxWidth = Math.min(wallDimension, 120);
+
+
+Change the max-width rule for gable lean-tos so that:
+
+maxWidth is equal to the full wallDimension (no 120 ft clamp) when leanTo.type === "gable".
+
+Other lean-to types (if any rely on this same logic and you want to keep their 120 ft cap) can keep the Math.min(wallDimension, 120) behavior, but gable lean-tos must be allowed to reach the full wall dimension.
+
+If the logic currently does not distinguish by type, add a simple conditional so gable lean-tos use maxWidth = wallDimension and others keep the old rule.
+
+Ensure the UI control that edits lean-to width (slider/select/input) uses the new maxWidth value:
+
+The displayed range and validation should now allow widths up to wallDimension for gable lean-tos.
+
+Do not change the step size or minimum unless absolutely necessary.
+
+Confirm that the configuration object stores the larger widths and the 3D model already respects them (the gable lean-to visually extends to the longer value). No changes to BuildingModel.tsx should be needed if it already uses leanTo.width/length directly.
+
+Manually test in both contexts:
+
+/builder:
+
+Place a gable lean-to on each wall (left, right, front, back) and push width to max.
+
+Verify the max width equals the full wall length in each case and no longer stops at 120 ft when the wall is longer.
+
+/sales/leads/:id:
+
+Open a lead with a gable lean-to, increase its width to the new max, Save Changes, reload the page, and confirm the stored configuration and 3D view use the new wider value.
+
+At the end, summarize:
+
+The exact code change made to maxWidth (old expression vs new).
+
+Whether any non-gable lean-to types still use the 120 ft cap.
+
+Results of your manual tests showing that gable lean-tos now can run the full wall span.
