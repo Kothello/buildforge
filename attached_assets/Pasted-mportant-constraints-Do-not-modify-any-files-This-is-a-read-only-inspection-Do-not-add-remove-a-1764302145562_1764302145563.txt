@@ -1,0 +1,59 @@
+mportant constraints:
+
+Do not modify any files. This is a read-only inspection.
+
+Do not add/remove any UI. Only search and report.
+
+Context:
+
+In the original standalone configurator, the Lean-To UI had a “Wraparound Length” dropdown/selector (see screenshot).
+
+In the integrated CRM configurator, lean-tos now have side + wrap logic, but this specific Wraparound Length UI control is missing.
+
+The original codebase is still present under the imported configurator folder (e.g. configurator/iron-builder-studio-*/client/src).
+
+Goal:
+
+Locate the original Wraparound Length UI implementation in the old configurator code and describe exactly where it lives, how it is wired, and what props/state it uses, so we can re-use or port it.
+
+Task:
+
+Search the entire repo for the strings:
+
+"Wraparound Length"
+
+"wraparoundLength"
+
+"wraparound" (in Lean-To related components)
+
+Focus first on the original configurator path (for example):
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src
+
+For each hit related to Lean-Tos:
+
+Identify the component and file path (e.g. components/LeanToConfig.tsx, components/LeanToForm.tsx, etc.).
+
+Copy out (describe, don’t modify) how the Wraparound Length control is built:
+
+What UI element is used (select, slider, buttons, etc.).
+
+Which props/state fields it reads/writes (e.g. wrapLength, wraparoundLength, leanTo.wrap.length).
+
+Any conditions it checks (e.g. only show when cornerPosition set, or wraparoundPorch === "On").
+
+Compare that with the current Lean-To UI in the integrated configurator (client/src/configurator/LeanToConfig.tsx):
+
+Note which of those fields still exist in the types (LeanTo interface) and which are missing.
+
+Note whether any of the original Wraparound Length props are still present but unused.
+
+In your final answer, provide a concise status report (no code changes):
+
+Exact file + component name where the original Wraparound Length control lives.
+
+The prop/state field names it uses.
+
+Whether those fields still exist in the new LeanTo type and config state.
+
+A brief note on what would be required to re-enable that same UI in the current LeanToConfig.tsx (purely as guidance, not implementation).
