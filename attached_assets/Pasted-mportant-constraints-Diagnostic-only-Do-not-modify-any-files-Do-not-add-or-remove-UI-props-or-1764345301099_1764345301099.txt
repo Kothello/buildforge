@@ -1,0 +1,121 @@
+mportant constraints:
+
+Diagnostic only. Do not modify any files.
+
+Do not add or remove UI, props, or logic. Only inspect and report.
+
+Compare the original configurator code under the imported folder with the new integrated configurator in client/src/configurator/.
+
+Issues to investigate:
+
+Hip roof on gable lean-tos disappeared
+
+In the old builder, gable lean-tos had a “Hip” roof option. In the integrated version this option appears to be missing.
+
+Gable lean-to max width limitation
+
+In the old builder, gable lean-tos could go as wide as the wall they are attached to.
+
+In the integrated version, gable lean-tos appear capped incorrectly (only as wide as the building width, or otherwise constrained).
+
+Goal:
+
+For each of the two items above, identify what the original behavior and code were, what the current integrated behavior and code are, and exactly what changed or is missing. No fixes yet, just a clear diff.
+
+Task:
+
+Locate Lean-To roof type logic (original vs integrated)
+
+In the original configurator path, e.g.:
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src
+
+Find:
+
+The Lean-To type / interface definition.
+
+The component that renders Lean-To roof options (tabs/buttons like “Single Slope”, “Gable”, “Hip”).
+
+Note for the original version:
+
+All allowed roof types for lean-tos (enum values like "single-slope", "gable", "hip", etc.).
+
+Any conditions that restrict “Hip” to only certain configurations (e.g. only for gable lean-tos).
+
+Do the same in the integrated version under client/src/configurator/ (LeanToConfig, types, etc.), and report:
+
+Which roof types are currently exposed in the UI.
+
+Whether "hip" still exists in the Lean-To type but is not shown, or was removed from the type completely.
+
+Diagnose “Hip roof on gable lean-tos disappeared”
+
+Compare original vs integrated:
+
+Original Lean-To roof type enum / union.
+
+Integrated Lean-To roof type enum / union.
+
+Original UI control that allowed selecting Hip on a gable lean-to.
+
+Integrated UI control (what options it presents now).
+
+Clearly state:
+
+Is the “hip” value still present in types but hidden in UI?
+
+Or was it removed from the data model during integration?
+
+Any 3D rendering code in BuildingModel that references a hip roof for lean-tos (does it still exist?).
+
+Locate Lean-To width / max-width logic (original vs integrated)
+
+In the original configurator, find where the width/length constraints for gable lean-tos are defined:
+
+Search for Lean-To dimension validation, something like maxWidth, maxLength, Math.min(...), or explicit constraints tied to the parent wall length.
+
+Confirm how the max width for a gable lean-to is calculated:
+
+Based on the wall segment it’s attached to (e.g. building length on that side)?
+
+Based on building width, or some other dimension?
+
+In the integrated configurator (client/src/configurator/LeanToConfig.tsx and any shared validators/helpers):
+
+Find the current logic that sets min/max for gable lean-to width/length.
+
+Note any differences: hard-coded caps, use of building.width instead of the wall segment length, etc.
+
+Diagnose “Gable lean-tos can only go as wide as the width”
+
+Clearly compare original vs integrated width rules for gable lean-tos:
+
+Original: what formula or rule was used? (e.g. max = parentWallLength.)
+
+Integrated: what formula or rule is used now? (e.g. max = buildingWidth or some constant.)
+
+Indicate whether the wrong cap comes from:
+
+A different dimension variable being used (width vs length),
+
+A missing reference to the wall’s full span,
+
+Or a truncated range in the UI control.
+
+Final diagnostic summary (no code changes)
+
+For Hip roof on gable lean-tos:
+
+Original type values and UI behavior.
+
+Current type values and UI behavior.
+
+Exact cause of disappearance (removed type, hidden option, missing mapping, etc.).
+
+For Gable lean-to max width:
+
+Original constraint formula and where it lives (file + function).
+
+Current constraint formula in the integrated version (file + function).
+
+Clear statement of what would need to change to restore the “as wide as the wall” behavior (purely as guidance, not implementation).
