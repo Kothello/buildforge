@@ -1,0 +1,103 @@
+Important constraints:
+
+Do not change backend APIs or DB schema.
+
+Keep the current routing and behavior: /sales/leads/:id stays mounted after Save Changes (no redirect to /sales).
+
+The Save Changes mutation already recalculates pricing and updates the lead; you are fixing the frontend state / React Query wiring for the Pricing Breakdown panel.
+
+Context:
+
+On /sales/leads/:id, I see:
+
+At the top/right: the 3D configurator with Save Changes and a Quote Total that updates live.
+
+Further down the page: a Pricing Breakdown section (Building Size, Roof Style, Steel Frame, Labor & Installation, Total Cost, Quote Total, Margin, Generate Contract, etc.).
+
+When I change the building and click Save Changes:
+
+The configurator and the /sales leads list show the new price correctly.
+
+But the Pricing Breakdown section still shows the old numbers until I refresh the browser.
+
+This means the component(s) that render the Pricing Breakdown are reading from stale data (an old React Query cache entry or a local copy) that doesn’t get updated on Save.
+
+Desired behavior:
+
+After Save Changes succeeds on /sales/leads/:id, the Pricing Breakdown section on that same page must immediately reflect the updated configuration and pricing (Quote Total, Margin, etc.) without a manual browser reload.
+
+Task:
+
+Find the Pricing Breakdown component and its data source
+
+Locate the React component that renders the Pricing Breakdown UI shown in the screenshot (it will be on the same /sales/leads/:id page and likely named something like PricingSummary, DealPricingPanel, or similar).
+
+Determine how it gets its data:
+
+Does it use a React Query useQuery (e.g. for a deal or quote record)?
+
+Or does it receive a lead / deal object as props from the parent?
+
+Or does it hold its own local state initialized from props?
+
+Make the Pricing Breakdown react to updated lead/pricing data
+
+If it uses React Query:
+
+Note the exact query key for that data (e.g. ["deal", dealId], ["lead", leadId, "pricing"], etc.).
+
+Ensure it reads directly from the query’s data (no “one-time” copy into local state that never syncs). If it does copy into local state, either:
+
+Remove the extra state and derive from the query result, or
+
+Add a useEffect that updates local state whenever the query data changes.
+
+If it receives a lead / deal as props:
+
+Ensure the parent component updates that prop when the Save Changes mutation completes (see step 3).
+
+Extend the Save Changes mutation to update the Pricing Breakdown data source
+
+Open the file that defines the Save Changes mutation for /sales/leads/:id (likely LeadConfiguratorEmbed.tsx or the lead edit page).
+
+In the mutation’s onSuccess handler, you already recalc price and update the lead via PATCH. Now also:
+
+Use the updated lead/deal returned from the PATCH response (or from a follow-up refetch) to update the React Query cache that the Pricing Breakdown uses:
+
+If the Pricing Breakdown uses its own query key (e.g. ["deal", dealId]), call queryClient.setQueryData(<that key>, updatedData) or queryClient.invalidateQueries(<that key>) so it refetches.
+
+If it just uses the same single-lead query as the rest of the page (e.g. ["lead", leadId]), make sure you already call setQueryData(["lead", leadId], updatedLead) and that the Pricing Breakdown reads from that query.
+
+Keep the user on /sales/leads/:id; do not navigate away.
+
+Ensure the edit page is wired to the updated cache
+
+On the /sales/leads/:id page, confirm that:
+
+The lead/deal shown in the header, configurator, and Pricing Breakdown all derive from the same up-to-date source (React Query query data and/or a prop that is updated when the cache changes).
+
+The single-lead query uses a stable key (e.g. ["lead", leadId]) with staleTime: 0 and refetchOnMount: "always" so repeated visits see fresh data too.
+
+Do not break existing behavior
+
+Saving must still:
+
+Recalculate price via /api/pricing/calculate.
+
+PATCH /api/leads/:id with configuration, buildingSpecs, and totalPrice.
+
+Keep /sales/leads/:id mounted.
+
+Ensure that when navigating back to /sales, the My Leads list shows the new price (via existing leads list invalidation).
+
+At the end, summarize:
+
+The component/file name that renders the Pricing Breakdown and how it now gets its data.
+
+The query key(s) or prop path(s) that are updated on Save Changes to keep this section in sync.
+
+Confirmation from a manual test that:
+
+After changing configuration and clicking Save Changes on /sales/leads/:id, the Pricing Breakdown Quote Total and Margin update immediately without a browser refresh, and
+
+Going back to /sales still shows the updated price in the My Leads list.
