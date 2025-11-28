@@ -1,0 +1,121 @@
+Do not add any new features or UI. No side ideas, no extra buttons.
+
+Do not touch backend routes or the DB schema.
+
+Only fix one thing: after clicking Save Changes on /sales/leads/:id, the Pricing Breakdown panel on that same page must show the new price and numbers immediately, without a browser refresh.
+
+Current behavior:
+
+On /sales/leads/:id the configurator on the right shows a new “Quote Total” after I adjust the building.
+
+I click Save Changes → toast says “Saved – Configuration updated successfully”.
+
+The My Leads list (/sales) shows the new price correctly.
+
+The Pricing Breakdown box on the left of /sales/leads/:id still shows the old Quote Total and breakdown until I hard-refresh the page.
+
+I already know from your last summary that:
+
+There is a single-lead query and a leads list query.
+
+LeadConfiguratorEmbed.tsx calls setQueryData(["/api/leads", lead.id], updatedLead) and invalidateQueries({ queryKey: ["/api/leads"], exact: true }).
+
+You said PricingBreakdown receives props from lead.configuration, lead.totalPrice, and also deal data.
+
+Despite that, the Pricing Breakdown is still not updating, so something is still wrong with where the data comes from or with the exact query keys / types.
+
+Goal (be precise):
+
+After Save Changes succeeds on /sales/leads/:id:
+
+The single-lead data that powers every part of this page (header, configurator, Pricing Breakdown) must be updated in React Query.
+
+The Pricing Breakdown component must render using that updated data, not a stale copy.
+
+I must NOT have to refresh the browser to see the new Quote Total and breakdown.
+
+Task:
+
+Lock down the single-lead query key and types
+
+Open client/src/pages/lead-edit.tsx (or whatever file defines the /sales/leads/:id page).
+
+Find the useQuery that fetches the lead for this page.
+
+Write down the exact query key it uses, including the type of leadId (string vs number), e.g.:
+
+["/api/leads", leadId] where leadId is a string from the URL params, or
+
+["/api/leads", Number(leadId)].
+
+Make sure that everywhere we refer to the single-lead query key (including in LeadConfiguratorEmbed.tsx) we use the same key and the same type for the id. For example, if the query uses ["/api/leads", leadIdAsString], then setQueryData must also use ["/api/leads", leadIdAsString] — not a number. Fix any mismatch.
+
+Ensure LeadConfiguratorEmbed updates the same single-lead query
+
+In client/src/configurator/LeadConfiguratorEmbed.tsx (or the file that defines the Save Changes mutation):
+
+Confirm the mutation’s onSuccess receives the updated lead from the PATCH response. If not, refetch it once and use that result.
+
+Call queryClient.setQueryData(<exact single-lead key from step 1>, updatedLead) with the correct id type.
+
+Keep invalidateQueries({ queryKey: ["/api/leads"], exact: true }) for the list. Do not invalidate the single-lead key there.
+
+The point: after Save, the single-lead query data used by the page must already be the new lead object.
+
+Remove or fix any stale local state around the lead/pricing
+
+In lead-edit.tsx and the Pricing Breakdown component, search for code like:
+
+const [localLead, setLocalLead] = useState(lead);
+
+const [pricing, setPricing] = useState(props.lead)
+
+any state initialized once from props and never updated when props change.
+
+If such patterns exist:
+
+Either remove the extra state and render directly from the latest useQuery data / props, or
+
+Add a useEffect that updates that local state whenever the lead / deal props change.
+
+The Pricing Breakdown must be driven by something that changes when the React Query cache for that lead changes.
+
+Make sure Pricing Breakdown uses updated lead/deal data
+
+Open the component that renders the Pricing Breakdown panel (the one showing “Building Size, Steel Frame, Labor & Installation, Total Cost, Quote Total, Margin”).
+
+Confirm where it reads the Quote Total and breakdown from. It should ultimately come from the same updated lead/deal object that is stored in React Query:
+
+If it uses a separate deal query (["/api/deals", dealId]), then in the Save Changes mutation onSuccess, also update or invalidate that deal query key with the new pricing data.
+
+If it uses lead.totalPrice and other lead fields, then after step 2, it should get the updated values automatically — as long as it is not holding a stale copy.
+
+Re-test with strict focus on this page
+
+Manual test you must pass after your changes:
+
+Go to /sales/leads/:id.
+
+Note the Quote Total in the Pricing Breakdown.
+
+Change the building in the configurator so the right-side Quote Total changes.
+
+Click Save Changes.
+
+Stay on the same page and verify:
+
+The Pricing Breakdown Quote Total and Margin now match the new price, with no browser refresh.
+
+If you click Back to My Leads → /sales, the list already shows the same new price.
+
+At the end, summarize only:
+
+The exact single-lead query key (with type) and leads list query key.
+
+The setQueryData / invalidateQueries calls you are now using in the Save Changes mutation.
+
+What you changed in the Pricing Breakdown / lead-edit components to remove stale state.
+
+Confirmation that the manual test above now behaves correctly.
+
+Do not propose or implement new features, experiments, or UI enhancements — only fix the stale Pricing Breakdown data issue as described.

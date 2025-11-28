@@ -37,10 +37,11 @@ function ConfiguratorSkeleton() {
 
 interface LeadConfiguratorEmbedProps {
   lead: Lead;
+  leadId: string;
   onSave?: (updatedLead: Lead) => void;
 }
 
-export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedProps) {
+export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfiguratorEmbedProps) {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   
@@ -68,7 +69,7 @@ export function LeadConfiguratorEmbed({ lead, onSave }: LeadConfiguratorEmbedPro
     onSuccess: async (updatedLead) => {
       setIsSaving(false);
       
-      queryClient.setQueryData(["/api/leads", lead.id], updatedLead);
+      queryClient.setQueryData(["/api/leads", leadId], updatedLead);
       
       queryClient.invalidateQueries({ queryKey: ["/api/leads"], exact: true });
       

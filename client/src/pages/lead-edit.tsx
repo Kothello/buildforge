@@ -230,7 +230,8 @@ export default function LeadEditPage() {
           <Suspense fallback={<ConfiguratorSkeleton />}>
             <LeadConfiguratorEmbed 
               key={`${lead.id}-${lead.totalPrice}`} 
-              lead={lead} 
+              lead={lead}
+              leadId={leadId!}
               onSave={handleLeadUpdate} 
             />
           </Suspense>
