@@ -1,0 +1,91 @@
+Important constraints:
+
+Do not change backend APIs, pricing, or the configuration schema.
+
+Do not change the visible UI controls. Fix only the 3D geometry/positioning in BuildingModel.
+
+Keep the existing visual style (same materials, pitches, etc.). Goal is to remove the gap where the lean-to roof meets the main building roof.
+
+Context:
+
+I’m seeing a visible gap between the main building roof and a gable/lean-to roof in the 3D view (screenshot provided).
+
+Diagnostics show that the “hip” / gable behavior and width limits are basically identical to the original builder, so the bug is likely in how the lean-to roof mesh is positioned or sized, not in high-level config.
+
+The original configurator source still exists under:
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+The integrated configurator uses:
+
+client/src/configurator/BuildingModel.tsx
+
+Goal:
+
+Make the gable/lean-to roof visually meet the main building roof with no gap in between, in the integrated BuildingModel.tsx, matching the original behavior as closely as possible.
+
+Task:
+
+Compare original vs integrated BuildingModel lean-to roof code
+
+Open the original BuildingModel.tsx under the configurator folder and locate the code that:
+
+Builds the lean-to roof mesh (especially for gable and hip cases).
+
+Positions it relative to the main building roof (Y/Z offsets, eave height, ridge height, etc.).
+
+Open client/src/configurator/BuildingModel.tsx (integrated version) and find the corresponding code.
+
+Note any differences in:
+
+Vertex positions / geometry construction for lean-to roofs.
+
+Offsets / translations along Y/Z (height) where the lean-to roof is attached to the main building.
+
+Any “gap” offsets added to avoid z-fighting.
+
+Identify the cause of the visible gap
+
+Determine why the lean-to roof plane no longer meets the main roof:
+
+Is the lean-to roof starting too low or too high relative to the main eave?
+
+Is its length/overhang slightly shorter than in the original code?
+
+Is there a safety offset in the integrated version that pushes the roof away from the main building?
+
+Write down the exact delta (e.g. “in the new version the lean-to roof Y is eaveHeight - 0.5 instead of eaveHeight”).
+
+Adjust geometry so surfaces meet cleanly
+
+In client/src/configurator/BuildingModel.tsx, adjust the lean-to roof’s geometry and/or transform so that:
+
+Along the connection line with the main building, the lean-to roof vertices sit flush with the main roof surface or eave line (no visible slit).
+
+For hip/gable lean-tos, ensure the hip triangles also close the intersection with no gap.
+
+Use the original BuildingModel.tsx as the reference for correct math. If necessary, copy the original vertex/offset math for the lean-to roof into the integrated version and adapt only type imports.
+
+Be careful not to “bury” the lean-to roof inside the main roof; the goal is a clean join, not overlapping meshes.
+
+Test multiple cases (describe the manual tests you run):
+
+Gable lean-to on a side wall (where the gap currently shows).
+
+Different roof pitches and heights.
+
+A hip case where the original auto-hip logic kicks in.
+
+Confirm that in all these cases, the lean-to roof visually meets the main roof with no gap.
+
+Do not change non-roof geometry
+
+Walls, posts, and other structural members should remain where they are unless the lean-to roof alignment absolutely requires a tiny shared adjustment.
+
+At the end, summarize:
+
+Which specific lines/expressions in client/src/configurator/BuildingModel.tsx you changed (height offsets, vertex positions, etc.).
+
+What the old vs new values are (e.g. previous Y offset vs new Y offset).
+
+The test configurations you used to confirm that the gap is gone and that no new visual artifacts were introduced.

@@ -1892,14 +1892,17 @@ export const BuildingModel = ({
                     // Ridge cap extends from front of lean-to until it meets the main roof
                     const ridgeCapLength = effectiveWidth + hipHorizontalRun;
                     
+                    // Extra extension to ensure roof panels meet main building flush (no gap)
+                    const roofExtension = 0.4;
+                    
                     return (
                       <>
                         {/* Left lean-to gable panel */}
                         <mesh 
-                          position={[0, hipMidHeight, -attachWallLength / 4]} 
+                          position={[-roofExtension / 2, hipMidHeight, -attachWallLength / 4]} 
                           rotation={[-roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[effectiveWidth + 0.2, 0.15, roofPanelLength + 0.2]} />
+                          <boxGeometry args={[effectiveWidth + 0.2 + roofExtension, 0.15, roofPanelLength + 0.2]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -1911,10 +1914,10 @@ export const BuildingModel = ({
                         
                         {/* Right lean-to gable panel */}
                         <mesh 
-                          position={[0, hipMidHeight, attachWallLength / 4]} 
+                          position={[-roofExtension / 2, hipMidHeight, attachWallLength / 4]} 
                           rotation={[roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[effectiveWidth + 0.2, 0.15, roofPanelLength + 0.2]} />
+                          <boxGeometry args={[effectiveWidth + 0.2 + roofExtension, 0.15, roofPanelLength + 0.2]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -1925,12 +1928,12 @@ export const BuildingModel = ({
                         </mesh>
                         
                         {/* Hip roof extensions - simple box geometry with mirrored rotations */}
-                        {/* Front hip panel */}
+                        {/* Front hip panel - extended inward to meet main building flush */}
                         <mesh 
-                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2, hipMidHeight, -attachWallLength / 4]} 
+                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2 - roofExtension / 2, hipMidHeight, -attachWallLength / 4]} 
                           rotation={[-roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[hipHorizontalRun, 0.15, hipPanelDepth]} />
+                          <boxGeometry args={[hipHorizontalRun + roofExtension, 0.15, hipPanelDepth]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -1940,12 +1943,12 @@ export const BuildingModel = ({
                           />
                         </mesh>
                         
-                        {/* Back hip panel - mirrored rotation */}
+                        {/* Back hip panel - mirrored rotation, extended inward to meet main building flush */}
                         <mesh 
-                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2, hipMidHeight, attachWallLength / 4]} 
+                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2 - roofExtension / 2, hipMidHeight, attachWallLength / 4]} 
                           rotation={[roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[hipHorizontalRun, 0.15, hipPanelDepth]} />
+                          <boxGeometry args={[hipHorizontalRun + roofExtension, 0.15, hipPanelDepth]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -1959,14 +1962,17 @@ export const BuildingModel = ({
                     );
                   } else {
                     // Standard gable roof below eave height
+                    // Extra extension to ensure roof panels meet main building flush (no gap)
+                    const roofExtension = 0.4;
+                    
                     return (
                       <>
-                        {/* Left roof panel - ridge parallel to building */}
+                        {/* Left roof panel - ridge parallel to building, extended inward */}
                         <mesh 
-                          position={[0, leanToHeight + effectiveRoofRise / 2, -attachWallLength / 4]} 
+                          position={[-roofExtension / 2, leanToHeight + effectiveRoofRise / 2, -attachWallLength / 4]} 
                           rotation={[-roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[effectiveWidth + 0.2, 0.15, roofPanelLength + 0.2]} />
+                          <boxGeometry args={[effectiveWidth + 0.2 + roofExtension, 0.15, roofPanelLength + 0.2]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -1976,12 +1982,12 @@ export const BuildingModel = ({
                           />
                         </mesh>
                         
-                        {/* Right roof panel - ridge parallel to building */}
+                        {/* Right roof panel - ridge parallel to building, extended inward */}
                         <mesh 
-                          position={[0, leanToHeight + effectiveRoofRise / 2, attachWallLength / 4]} 
+                          position={[-roofExtension / 2, leanToHeight + effectiveRoofRise / 2, attachWallLength / 4]} 
                           rotation={[roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[effectiveWidth + 0.2, 0.15, roofPanelLength + 0.2]} />
+                          <boxGeometry args={[effectiveWidth + 0.2 + roofExtension, 0.15, roofPanelLength + 0.2]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -2295,14 +2301,17 @@ export const BuildingModel = ({
                   const roofAngle = Math.atan(effectivePitch / 12);
                   const roofPanelWidth = effectiveWidth / Math.cos(roofAngle);
                   
+                  // Extra extension to ensure roof panel meets main building flush (no gap)
+                  const roofExtension = 0.4;
+                  
                   return (
                     <>
-                      {/* Main roof panel */}
+                      {/* Main roof panel - extended inward to meet main building flush */}
                       <mesh 
-                        position={[0, leanToHeight + effectiveRoofRise / 2, 0]} 
+                        position={[-roofExtension / 2, leanToHeight + effectiveRoofRise / 2, 0]} 
                         rotation={[0, 0, -roofAngle]}
                       >
-                        <boxGeometry args={[roofPanelWidth + 0.2, 0.15, attachWallLength + 0.5]} />
+                        <boxGeometry args={[roofPanelWidth + 0.2 + roofExtension, 0.15, attachWallLength + 0.5]} />
                         <meshStandardMaterial 
                           color={resolveColor(roofColor)}
                           metalness={0.9}
