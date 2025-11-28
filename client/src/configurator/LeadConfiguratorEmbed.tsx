@@ -79,6 +79,9 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
       });
       
       onSave?.(updatedLead);
+      
+      // Hard refresh the page to ensure all data including Pricing Breakdown is up-to-date
+      window.location.reload();
     },
     onError: (error) => {
       setIsSaving(false);

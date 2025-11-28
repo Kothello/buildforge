@@ -1,0 +1,49 @@
+mportant constraints:
+
+Do not change backend routes or schema.
+
+Do not change the /sales and /sales/leads/:id routing structure.
+
+Do not add any new features or UI elements. Only change what happens after Save Changes succeeds.
+
+Context:
+
+On /sales/leads/:id, I edit a lead’s building in the configurator and click Save Changes.
+
+The backend is updated correctly, and if I manually refresh the browser, the Pricing Breakdown panel shows the correct new totals.
+
+I want the app to perform that refresh automatically after a successful save, so the user never has to hit the browser refresh button.
+
+Goal:
+
+When the Save Changes mutation succeeds on /sales/leads/:id, programmatically reload the current page (hard refresh) so that all data on the page, including the Pricing Breakdown, is re-fetched and updated immediately.
+
+Task:
+
+Open the file that defines the Save Changes behavior for the lead edit page (likely client/src/configurator/LeadConfiguratorEmbed.tsx or the lead-edit page).
+
+Locate the React Query useMutation used for Save Changes.
+
+Find its onSuccess handler where we currently update caches and/or show the “Saved” toast.
+
+In that onSuccess handler, after the PATCH has succeeded and any cache updates you already have are done, add a full page reload call so the browser reloads the current URL:
+
+Use window.location.reload(); (or location.reload();) inside the onSuccess block.
+
+Ensure this reload runs only on success, not on error.
+
+Do not change the mutation’s request body (it must still send configuration, buildingSpecs, and totalPrice).
+
+Do not change any existing navigation logic for other pages; the only new behavior should be the forced reload of the current /sales/leads/:id page after Save succeeds.
+
+At the end, summarize:
+
+Which mutation you updated (file and function name).
+
+Where exactly window.location.reload() is called.
+
+Confirmation from a manual test that:
+
+On /sales/leads/:id, after clicking Save Changes, the page reloads automatically, and
+
+After reload, the Pricing Breakdown panel shows the updated Quote Total and numbers without any manual browser refresh.
