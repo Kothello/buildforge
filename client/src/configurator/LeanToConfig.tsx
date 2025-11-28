@@ -613,6 +613,49 @@ export const LeanToConfig = ({
                   </Select>
                 </div>
               </div>
+            ) : leanTo.wraparound ? (
+              <div onClick={(e) => e.stopPropagation()}>
+                <Label className="mb-1 block text-xs">Wraparound Length</Label>
+                <Select 
+                  value={(() => {
+                    const leftSide = getWraparoundSideLeanTo(leanTo, 'left');
+                    const rightSide = getWraparoundSideLeanTo(leanTo, 'right');
+                    return (leftSide?.length || rightSide?.length || 30).toString();
+                  })()} 
+                  onValueChange={(value) => {
+                    const connectedWalls: string[] = [];
+                    if (leanTo.wraparoundCorner === 'left' || leanTo.wraparoundCorner === 'both') {
+                      connectedWalls.push('left');
+                    }
+                    if (leanTo.wraparoundCorner === 'right' || leanTo.wraparoundCorner === 'both') {
+                      connectedWalls.push('right');
+                    }
+
+                    onLeanTosChange(leanTos.map(lt => {
+                      if (connectedWalls.includes(lt.wall) && lt.wraparound) {
+                        return { ...lt, length: Number(value) };
+                      }
+                      return lt;
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    {(() => {
+                      const wallDimension = buildingLength;
+                      const maxLength = Math.min(wallDimension, 500);
+                      return Array.from(
+                        { length: Math.floor(maxLength / 5) - 1 }, 
+                        (_, i) => 10 + i * 5
+                      ).map((l) => (
+                        <SelectItem key={l} value={l.toString()}>{l} ft</SelectItem>
+                      ));
+                    })()}
+                  </SelectContent>
+                </Select>
+              </div>
             ) : null}
 
             {leanTo.type === 'gable' && !leanTo.wraparound && (

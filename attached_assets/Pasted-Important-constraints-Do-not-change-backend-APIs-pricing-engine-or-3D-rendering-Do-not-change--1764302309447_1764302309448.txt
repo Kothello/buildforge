@@ -1,0 +1,115 @@
+Important constraints:
+
+Do not change backend APIs, pricing engine, or 3D rendering.
+
+Do not change the Lean-To data model fields that already exist; only restore the missing UI controls.
+
+Keep the current layout/styling of the new LeanToConfig consistent with the rest of the configurator.
+
+Context (from your previous analysis):
+
+The original configurator’s Wraparound Length UI lives at:
+
+./configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/LeanToConfig.tsx
+
+Lines 559–682.
+
+That block renders:
+
+When leanTo.wraparoundCorner === "both": two selects, Left Length and Right Length.
+
+When leanTo.wraparound === true and wraparoundCorner !== "both": one Wraparound Length select.
+
+Both variants use:
+
+leanTo.wraparound (boolean)
+
+leanTo.wraparoundCorner ("left" | "right" | "both")
+
+side lean-to .length properties via getWraparoundSideLeanTo(leanTo, "left" | "right")
+
+select options 10–500 ft in 5 ft increments.
+
+In the new integrated configurator:
+
+client/src/configurator/LeanToConfig.tsx already defines leanTo.wraparound, leanTo.wraparoundCorner, parentId, and getWraparoundSideLeanTo().
+
+But the entire JSX block for Wraparound Length / Left Length / Right Length is missing.
+
+Goal:
+
+Restore the original Wraparound Length UI behavior in client/src/configurator/LeanToConfig.tsx so that:
+
+When leanTo.wraparound is enabled and wraparoundCorner === "both", users see Left Length and Right Length selects.
+
+When leanTo.wraparound is enabled and wraparoundCorner !== "both", users see a single Wraparound Length select.
+
+These controls update the side lean-to .length values exactly as they did in the original file.
+
+Task:
+
+Open the original file:
+
+./configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/LeanToConfig.tsx
+
+Locate the JSX block for Wraparound Length / Left Length / Right Length (lines 559–682).
+
+Open the new file:
+
+client/src/configurator/LeanToConfig.tsx
+
+Identify the appropriate place to insert the Wraparound Length UI. Use your previous note:
+
+Insert it after the Height select / dimension controls (around where the lean-to dimensions are configured) so the flow matches the original UX.
+
+Port the original logic into the new component:
+
+Recreate the conditional rendering using the existing fields in the new file:
+
+leanTo.wraparound
+
+leanTo.wraparoundCorner
+
+getWraparoundSideLeanTo(leanTo, "left" | "right")
+
+Preserve behavior:
+
+wraparoundCorner === "both" → show Left Length and Right Length selects, each bound to its side’s .length.
+
+wraparound === true && wraparoundCorner !== "both" → show a single Wraparound Length select that updates the appropriate side’s .length using the same logic as the original.
+
+Use the same 10–500 ft range in 5 ft increments for the select options.
+
+Adapt styling (labels, spacing) to match the current design system used in client/src/configurator/LeanToConfig.tsx (use existing components like the other selects in this file).
+
+Make sure state updates correctly:
+
+Updates must go through the same handler used elsewhere in the new LeanToConfig (e.g. whatever function updates the leanTo in parent state).
+
+Do not introduce duplicate state; reuse the existing configuration update pattern.
+
+Verify behavior in both contexts (no need for automated tests, just describe manual checks):
+
+/builder:
+
+Enable a lean-to, turn on wraparound, toggle wraparoundCorner between "left", "right", and "both".
+
+Confirm:
+
+For "both" → two length selects appear.
+
+For single corners → one Wraparound Length select appears.
+
+Changing values updates the 3D model length appropriately.
+
+/sales/leads/:id:
+
+Open an existing lead with a lean-to, adjust wraparound settings and lengths, Save Changes, then re-open the lead and confirm the values persist.
+
+At the end, summarize:
+
+Where in client/src/configurator/LeanToConfig.tsx you inserted the Wraparound Length UI block.
+
+The exact conditions under which each of the two variants (Left/Right Length vs single Wraparound Length) render.
+
+Confirmation from manual testing that the lengths update and persist as expected.
