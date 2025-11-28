@@ -1,0 +1,109 @@
+Important constraints:
+
+Do not modify backend APIs or database schema. All changes stay in the configurator front-end and shared config types.
+
+Do not change existing pricing math in pricingEngine except where it already uses lean-to fields; just pass it more accurate data if needed.
+
+Keep current UX layout and styling consistent with the configurator; we are adding controls, not redesigning the app.
+
+Context (from your previous analysis):
+
+Wraparound corners: Wrap logic exists and works, but the UI gate-keeps it behind corner detection. It currently only shows wrap options when “both” sides are selected.
+
+Gable attachment side: There is no field or UI; would require adding a gableAttachmentSide or similar field + control.
+
+Wall enclosure: Data structure is robust (per-wall booleans), but the component initializes all walls to true and never exposes controls to change them (so lean-tos are always treated as fully enclosed).
+
+These features existed in the original configurator and were partially migrated; we now want them fully exposed and editable in this integrated CRM configurator.
+
+Desired behavior:
+
+Wraparound length on single-side lean-tos
+
+When a user chooses a lean-to on a single side (left, right, front, or back), they can still configure wrap length options (wrap a partial length along the adjacent side(s)), not only when “both” sides are selected.
+
+Gable lean-to attachment side
+
+For gable-style lean-tos, the user can choose which side it attaches to (left, right, front, back, etc.) via a clear control.
+
+Open vs fully enclosed lean-to walls
+
+For each lean-to (or at least as a group setting), the user can set walls as: fully enclosed, fully open, or per-wall toggles using the existing wall booleans.
+
+These settings must actually persist in the configuration object and influence pricing if pricing already looks at those fields.
+
+Task:
+
+Locate lean-to UI + config model
+
+Identify the main React components for lean-to editing (e.g. LeanToEditor, LeanToOptions, etc.) and the config types where lean-tos are defined (configuration type’s leanTos array, lean-to interface).
+
+Confirm the current shape of a lean-to object (side, length, wrap, wall flags, etc.).
+
+Expose wraparound length options for single-side lean-tos
+
+Find the existing wraparound logic that is currently only shown when some “corner” or “both sides” condition is true.
+
+Adjust the UI condition so that:
+
+When the user selects a single side for a lean-to, they still see the wrap length controls (using the existing wrap logic).
+
+The same underlying fields used for “both” now work for single-side as well; do not duplicate the data model.
+
+Ensure any validation/limits still apply (wrap length cannot exceed building length/width, etc.).
+
+Add gable attachment side field + control
+
+Extend the lean-to config type to include a gableAttachmentSide (or similarly named) field if it doesn’t already exist. Use the same enum/string union the rest of the configurator uses for sides, e.g. "left" | "right" | "front" | "back".
+
+In the lean-to UI, when the user selects a gable-style lean-to:
+
+Show a control (e.g. segmented buttons or a dropdown) to choose which side the gable lean-to attaches to.
+
+Store this value in the lean-to config object.
+
+Make sure the 3D viewer and any layout logic that positions lean-tos uses gableAttachmentSide so the visualization matches the selected side (reuse any existing side positioning helpers).
+
+Wire open vs fully enclosed lean-to wall options
+
+In the lean-to config type, identify the wall enclosure fields (e.g. walls: { left: boolean; right: boolean; front: boolean; back: boolean; } or similar).
+
+Replace the current “always true” initialization in the component with user-controlled settings:
+
+Provide at least:
+
+A quick toggle (e.g. buttons) for Fully Enclosed (all walls true) and Fully Open (all walls false).
+
+Optionally a “Customize by Wall” mode that exposes per-wall toggles using the existing wall booleans.
+
+When a user changes these controls, update the lean-to config object and ensure this persists in the overall configuration state.
+
+Make sure that when a lead is loaded from the CRM, any stored lean-to wall settings are reflected correctly in the UI, not overwritten to all true.
+
+Persist + integrate with pricing
+
+Confirm that updates to lean-to config (wrap options, gableAttachmentSide, wall enclosure) are included in the configuration object sent when:
+
+Calculating pricing via /api/pricing/calculate.
+
+Creating/updating a lead (POST /api/leads, PATCH /api/leads/:id).
+
+If pricing logic already considers these lean-to fields, no changes to the engine are required; just ensure the fields are populated. If pricing ignores them, leave pricing as is (do not add new pricing rules in this step).
+
+UI/UX checks
+
+Keep the layout compact and consistent with the existing configurator styling.
+
+Ensure new controls behave well on both /builder and /sales/leads/:id when editing an existing lead.
+
+Final summary
+
+List all files you changed.
+
+For each of the three feature areas, confirm:
+
+Wraparound options now appear and work for single-side lean-tos.
+
+Gable lean-tos now have a side selector and the config/3D viewer reflects it.
+
+Lean-to wall enclosure options (open/fully enclosed/per-wall) are controllable via the UI and are saved in the configuration object.

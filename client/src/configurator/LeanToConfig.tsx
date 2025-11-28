@@ -19,6 +19,8 @@ interface LeanTo {
   wraparound: boolean;
   wraparoundCorner?: 'left' | 'right' | 'both';
   parentId?: string;
+  gableAttachmentSide?: 'front' | 'back' | 'left' | 'right';
+  enclosure?: 'fully-enclosed' | 'fully-open' | 'customize';
 }
 
 interface LeanToConfigProps {
@@ -85,6 +87,8 @@ export const LeanToConfig = ({
       position: 0.5,
       wraparound: false,
       parentId: undefined,
+      gableAttachmentSide: undefined,
+      enclosure: 'fully-enclosed',
     };
     onLeanTosChange([...leanTos, newLeanTo]);
   };
@@ -611,53 +615,63 @@ export const LeanToConfig = ({
               </div>
             ) : null}
 
+            {leanTo.type === 'gable' && !leanTo.wraparound && (
+              <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
+                <Label className="mb-2 block text-xs">Gable Attachment Side</Label>
+                <Select
+                  value={leanTo.gableAttachmentSide || leanTo.wall}
+                  onValueChange={(value) => {
+                    handleUpdateLeanTo(leanTo.id, { 
+                      gableAttachmentSide: value as 'front' | 'back' | 'left' | 'right'
+                    });
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    <SelectItem value="front">Front</SelectItem>
+                    <SelectItem value="back">Back</SelectItem>
+                    <SelectItem value="left">Left</SelectItem>
+                    <SelectItem value="right">Right</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {leanTo.type !== 'gable' && !leanTo.wraparound && (
               <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
-                <Label className="mb-2 block text-xs">Wraparound Corner</Label>
-                {(() => {
-                  const availableCorners = getAvailableWraparoundCorners(leanTo);
-                  if (availableCorners.length === 0) {
-                    return (
-                      <p className="text-xs text-muted-foreground">
-                        Position lean-to at a corner to enable wraparound
-                      </p>
-                    );
-                  }
-                  return (
-                    <div className="grid grid-cols-3 gap-2">
-                      {availableCorners.includes('left') && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleWraparound(leanTo, true, 'left')}
-                          className="h-7 text-xs"
-                        >
-                          Left
-                        </Button>
-                      )}
-                      {availableCorners.includes('right') && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleWraparound(leanTo, true, 'right')}
-                          className="h-7 text-xs"
-                        >
-                          Right
-                        </Button>
-                      )}
-                      {availableCorners.includes('left') && availableCorners.includes('right') && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleWraparound(leanTo, true, 'both')}
-                          className="h-7 text-xs"
-                        >
-                          Both
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })()}
+                <Label className="mb-2 block text-xs">Wraparound Length</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant={leanTo.wraparound && leanTo.wraparoundCorner === 'left' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleToggleWraparound(leanTo, true, 'left')}
+                    className="h-7 text-xs"
+                    data-testid={`button-wraparound-left-${leanTo.id}`}
+                  >
+                    Left
+                  </Button>
+                  <Button
+                    variant={leanTo.wraparound && leanTo.wraparoundCorner === 'right' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleToggleWraparound(leanTo, true, 'right')}
+                    className="h-7 text-xs"
+                    data-testid={`button-wraparound-right-${leanTo.id}`}
+                  >
+                    Right
+                  </Button>
+                  <Button
+                    variant={leanTo.wraparound && leanTo.wraparoundCorner === 'both' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleToggleWraparound(leanTo, true, 'both')}
+                    className="h-7 text-xs"
+                    data-testid={`button-wraparound-both-${leanTo.id}`}
+                  >
+                    Both
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1.5">Extends lean-to around building corners</p>
               </div>
             )}
 
@@ -668,11 +682,105 @@ export const LeanToConfig = ({
                   size="sm"
                   onClick={() => handleToggleWraparound(leanTo, false)}
                   className="w-full h-7 text-xs text-destructive hover:text-destructive"
+                  data-testid={`button-remove-wraparound-${leanTo.id}`}
                 >
                   Remove Wraparound
                 </Button>
               </div>
             )}
+
+            <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
+              <Label className="mb-2 block text-xs">Wall Enclosure</Label>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <Button
+                  variant={leanTo.enclosure === 'fully-enclosed' || leanTo.enclosure === undefined ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    if (leanTo.wraparound) {
+                      handleUpdateWraparoundGroup(leanTo, { 
+                        enclosure: 'fully-enclosed',
+                        walls: { front: true, back: true, left: true, right: true },
+                        isOpen: false
+                      });
+                    } else {
+                      handleUpdateLeanTo(leanTo.id, { 
+                        enclosure: 'fully-enclosed',
+                        walls: { front: true, back: true, left: true, right: true },
+                        isOpen: false
+                      });
+                    }
+                  }}
+                  className="h-7 text-xs"
+                  data-testid={`button-enclosure-closed-${leanTo.id}`}
+                >
+                  Closed
+                </Button>
+                <Button
+                  variant={leanTo.enclosure === 'fully-open' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    if (leanTo.wraparound) {
+                      handleUpdateWraparoundGroup(leanTo, { 
+                        enclosure: 'fully-open',
+                        walls: { front: false, back: false, left: false, right: false },
+                        isOpen: true
+                      });
+                    } else {
+                      handleUpdateLeanTo(leanTo.id, { 
+                        enclosure: 'fully-open',
+                        walls: { front: false, back: false, left: false, right: false },
+                        isOpen: true
+                      });
+                    }
+                  }}
+                  className="h-7 text-xs"
+                  data-testid={`button-enclosure-open-${leanTo.id}`}
+                >
+                  Open
+                </Button>
+                <Button
+                  variant={leanTo.enclosure === 'customize' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    if (leanTo.wraparound) {
+                      handleUpdateWraparoundGroup(leanTo, { enclosure: 'customize' });
+                    } else {
+                      handleUpdateLeanTo(leanTo.id, { enclosure: 'customize' });
+                    }
+                  }}
+                  className="h-7 text-xs"
+                  data-testid={`button-enclosure-custom-${leanTo.id}`}
+                >
+                  Custom
+                </Button>
+              </div>
+              {leanTo.enclosure === 'customize' && (
+                <div className="grid grid-cols-2 gap-2">
+                  {(['front', 'back', 'left', 'right'] as const).map((wall) => (
+                    <Button
+                      key={wall}
+                      variant={leanTo.walls[wall] ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        if (leanTo.wraparound) {
+                          handleUpdateWraparoundGroup(leanTo, {
+                            walls: { ...leanTo.walls, [wall]: !leanTo.walls[wall] }
+                          });
+                        } else {
+                          handleUpdateLeanTo(leanTo.id, {
+                            walls: { ...leanTo.walls, [wall]: !leanTo.walls[wall] }
+                          });
+                        }
+                      }}
+                      className="h-7 text-xs capitalize"
+                      data-testid={`button-wall-${wall}-${leanTo.id}`}
+                    >
+                      {wall}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between mb-1.5">

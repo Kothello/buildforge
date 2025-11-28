@@ -33,6 +33,8 @@ export interface LeanTo {
   wraparound: boolean;
   wraparoundCorner?: 'left' | 'right' | 'both';
   parentId?: string;
+  gableAttachmentSide?: 'front' | 'back' | 'left' | 'right';
+  enclosure?: 'fully-enclosed' | 'fully-open' | 'customize';
 }
 
 export interface BuildingConfig {
