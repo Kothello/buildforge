@@ -1,0 +1,57 @@
+mportant constraints:
+
+Do not change any UI options or pricing logic.
+
+Only add temporary logging/instrumentation to understand behavior of hip roofs and gable lean-to width in the integrated app.
+
+Context:
+
+Diagnostics show the code paths for auto hip roofs and gable width limits are identical between the original configurator and the integrated CRM version.
+
+In practice, it feels like:
+
+Hip roofs on gable lean-tos are not appearing.
+
+Gable lean-tos are not reaching the expected full wall width.
+
+I want to confirm whether the 3D renderer is actually hitting the hip branch and how it is computing max width at runtime.
+
+Goal:
+
+Add non-intrusive console.log diagnostics (or similar) to BuildingModel.tsx and Lean-To config logic so I can see, in the browser console, when:
+
+The hip roof branch is used for a lean-to, and what the geometry inputs are.
+
+The maxWidth for a gable lean-to is computed and what wallDimension and maxWidth values are in real configurations.
+
+Task:
+
+Open client/src/configurator/BuildingModel.tsx and locate the section where hip roofs for gable lean-tos are rendered (the branch you identified around line 1830+).
+
+Add a console.log (or small descriptive logger function) that prints when the hip branch is taken, including:
+
+Lean-to id / index
+
+leanTo.type, leanTo.wall
+
+Relevant height/eave values used in the condition.
+
+Open client/src/configurator/LeanToConfig.tsx and locate the logic that computes wallDimension and maxWidth for lean-to width (where it uses buildingLength vs buildingWidth).
+
+Add a console.log whenever maxWidth is calculated for a gable lean-to, logging:
+
+leanTo.wall
+
+buildingLength, buildingWidth
+
+wallDimension, maxWidth.
+
+Ensure these logs are only in development code paths (no noisy loops), but they should fire whenever I tweak a gable lean-to’s width / wall / height in the UI.
+
+Do not change any conditions, types, or UI controls—just add logging.
+
+At the end, summarize where you added logs and what to look for in the browser console when I:
+
+Create a tall gable lean-to on a side wall (where hip should appear).
+
+Push a gable lean-to to its maximum width on each wall.

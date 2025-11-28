@@ -1857,6 +1857,24 @@ export const BuildingModel = ({
                   // On sidewalls only: if lean-to ridge exceeds main eave, create hip extension
                   const needsHip = (leanTo.wall === 'left' || leanTo.wall === 'right') && cappedGableApexHeight > mainBuildingEaveHeight;
                   
+                  // DEBUG: Hip roof diagnostic logging
+                  console.log('[HIP ROOF DEBUG]', {
+                    leanToId: leanTo.id,
+                    leanToType: leanTo.type,
+                    leanToWall: leanTo.wall,
+                    leanToHeight: leanToHeight,
+                    leanToPitch: leanTo.pitch,
+                    attachWallLength: attachWallLength,
+                    gableRoofRise: gableRoofRise,
+                    rawGableApexHeight: rawGableApexHeight,
+                    mainBuildingEaveHeight: mainBuildingEaveHeight,
+                    mainRidgeHeight: mainRidgeHeight,
+                    cappedGableApexHeight: cappedGableApexHeight,
+                    needsHip: needsHip,
+                    isSideWall: leanTo.wall === 'left' || leanTo.wall === 'right',
+                    apexExceedsEave: cappedGableApexHeight > mainBuildingEaveHeight
+                  });
+                  
                   if (needsHip) {
                     const leanToRidgeHeight = cappedGableApexHeight;
                     const heightAboveEave = leanToRidgeHeight - mainBuildingEaveHeight;

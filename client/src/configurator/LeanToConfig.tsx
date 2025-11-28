@@ -445,6 +445,17 @@ export const LeanToConfig = ({
                             ? buildingLength 
                             : buildingWidth;
                           const maxWidth = Math.min(wallDimension, 120);
+                          // DEBUG: Gable width constraint logging
+                          console.log('[GABLE WIDTH DEBUG]', {
+                            leanToId: leanTo.id,
+                            leanToWall: leanTo.wall,
+                            buildingWidth: buildingWidth,
+                            buildingLength: buildingLength,
+                            wallDimension: wallDimension,
+                            maxWidth: maxWidth,
+                            hardCap: 120,
+                            widthOptions: Array.from({ length: Math.floor((maxWidth - 15) / 5) + 1 }, (_, i) => 15 + i * 5)
+                          });
                           return Array.from(
                             { length: Math.floor((maxWidth - 15) / 5) + 1 }, 
                             (_, i) => 15 + i * 5
