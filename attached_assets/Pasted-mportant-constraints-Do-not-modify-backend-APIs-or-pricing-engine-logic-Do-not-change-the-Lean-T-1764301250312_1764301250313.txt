@@ -1,0 +1,79 @@
+mportant constraints:
+
+Do not modify backend APIs or pricing engine logic.
+
+Do not change the Lean-To UI you just built; only update the 3D rendering side.
+
+Keep the existing visual style; we’re extending behavior, not redesigning the viewer.
+
+Context:
+
+Lean-To config has just been extended in client/src/configurator/types.ts with:
+
+gableAttachmentSide
+
+enclosure / per-wall settings
+
+Updated wraparound controls.
+
+client/src/configurator/LeanToConfig.tsx now correctly writes these values into the configuration object, and they are persisted when saving/leads/pricing.
+
+However, client/src/configurator/BuildingModel.tsx has not been updated:
+
+Its types for the building configuration / lean-tos are out of sync with the new LeanTo interface.
+
+The 3D viewer still ignores gableAttachmentSide and enclosure fields, so the visualization doesn’t reflect the new options.
+
+Goal:
+
+Update BuildingModel.tsx so that:
+
+Its props/types match the updated configuration and LeanTo interfaces.
+
+Gable lean-tos render on the correct side according to gableAttachmentSide.
+
+Lean-to walls render (or hide) according to the new enclosure settings (Closed/Open/Custom per wall).
+
+Task:
+
+Open client/src/configurator/types.ts:
+
+Inspect the current LeanTo and overall configuration types (including gableAttachmentSide, enclosure/wall fields, and wraparound-related fields).
+
+Open client/src/configurator/BuildingModel.tsx:
+
+Update its props/types so the building configuration type and lean-tos use the same LeanTo interface from types.ts.
+
+Fix any TypeScript errors by aligning the types instead of casting to any.
+
+In BuildingModel.tsx, find the code that renders lean-tos (e.g. a renderLeanTos function or a map over config.leanTos):
+
+Add logic so that when a lean-to has type = "Gable" (or equivalent), its position/orientation is determined by gableAttachmentSide (front/back/left/right).
+
+Reuse existing helpers or positioning logic for sides (whatever is currently used for non-gable lean-tos).
+
+Ensure that non-gable lean-tos still render correctly with wrap options; do not break existing positioning.
+
+Handle wall enclosure in 3D rendering:
+
+Use the enclosure/wall fields on each lean-to (e.g. walls.front, walls.back, walls.left, walls.right or equivalent) to decide which wall meshes to show.
+
+When a lean-to is set to “Closed”, render all walls; when “Open”, render no walls; when “Custom”, render only the walls that are set true.
+
+If there is existing code that already defines wall meshes for lean-tos, conditionally render/hide them based on these booleans instead of always showing all walls.
+
+Make sure these changes apply consistently in both contexts:
+
+/builder (public configurator)
+
+/sales/leads/:id (embedded configurator for a lead)
+
+Do not change how pricing is calculated; just ensure that whatever configuration is passed to pricing is the same configuration the 3D model is now visualizing.
+
+At the end, summarize:
+
+The updated prop/type definition used in BuildingModel.tsx for the building config and lean-tos.
+
+How gableAttachmentSide influences lean-to placement in the scene.
+
+How enclosure/wall flags now control which lean-to walls are rendered.
