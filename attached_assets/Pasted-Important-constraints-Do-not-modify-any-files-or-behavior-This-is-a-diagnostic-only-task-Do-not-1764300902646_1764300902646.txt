@@ -1,0 +1,87 @@
+Important constraints:
+
+Do not modify any files or behavior. This is a diagnostic-only task.
+
+Do not add, remove, or rename any components, props, or API endpoints.
+
+Only inspect the current Lean-To related UI and logic and report back.
+
+Context:
+
+The 3D building configurator has Lean-To options. From previous versions I expect these capabilities:
+
+Wraparound length options when you choose a single side for a lean-to (front, back, left, right). Currently, wrap length options seem to appear only when “both” sides are selected.
+
+Ability to change which side a gable lean-to attaches to (e.g., choose left/right/front/back for gable lean-tos). Right now it seems locked / not editable.
+
+Open vs fully enclosed options for lean-tos (or at least wall enclosure options) that may be missing or not exposed in the UI.
+
+I know the underlying logic for these features existed in the original configurator, but I’m not sure what made it into this integrated build.
+
+Goal:
+
+Get a clear status report of the current Lean-To feature set in this Repl: what exists in code, what is exposed in the UI, and what is missing or partially wired. No code changes yet.
+
+Task:
+
+Locate lean-to related code and components
+
+Find the components and types that represent lean-tos in the configurator (for example something like LeanToEditor, LeanToOptions, LeanToConfig, or leanTos inside the configuration type).
+
+Identify the main React component(s) that render the Lean-To controls in the current UI (buttons, side selectors, length/width options, enclosure options).
+
+Inspect wraparound length / side selection logic
+
+In the relevant components or reducers, find how side selection for lean-tos is represented (e.g. side: "left" | "right" | "front" | "back" | "both", etc.).
+
+Determine whether there is any logic for wraparound length options when only one side is selected versus both sides.
+
+Report:
+
+Does the code support wrap length for a single side but the UI doesn’t expose it?
+
+Or is the wraparound logic only implemented for “both” sides in this build?
+
+Inspect gable lean-to side attachment logic
+
+Find where gable lean-tos are defined/configured.
+
+Check if there are fields or enums for “gable side” / “attachSide” / similar.
+
+Report:
+
+Does the data model support changing which side a gable lean-to attaches to?
+
+Is there any UI control wired to that field? If not, note whether the code has stubs/placeholders for such controls.
+
+Inspect open vs fully enclosed options for lean-tos
+
+Search for lean-to-specific wall / enclosure options (e.g. leanToEnclosure, open, partial, fullyEnclosed on lean-tos).
+
+Determine whether:
+
+The underlying model has flags for open vs fully enclosed lean-tos.
+
+The UI currently exposes these options anywhere.
+
+Report whether the options exist in code but are hidden, or are not implemented at all.
+
+Summarize current behavior vs expectations (no code changes)
+
+In your final summary, list separately for each of the three items:
+
+Wraparound length options for single-side lean-tos.
+
+Ability to change which side a gable lean-to attaches to.
+
+Open vs fully enclosed lean-to options.
+
+For each item, clearly state:
+
+Data model status (field/enums present or missing).
+
+UI status (controls present, partially wired, or missing).
+
+Any obvious reasons why it currently doesn’t work as expected (for example: prop passed but not used, control commented out, feature flag off, etc.).
+
+Do not implement fixes; just describe what’s there and what would need to be wired in a follow-up step.
