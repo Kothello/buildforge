@@ -2026,6 +2026,11 @@ export const BuildingModel = ({
                     ? mainRidgeHeight - leanToHeight - 0.2 
                     : gableRoofRise;
                   
+                  // Create a separate geometry instance for the highlight to avoid rendering issues
+                  const highlightGeometry = highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'right'
+                    ? createLeanToGableEndCapGeometry(leanTo)
+                    : null;
+                  
                   return gableGeometry ? (
                     <>
                       <mesh 
@@ -2050,18 +2055,25 @@ export const BuildingModel = ({
                           side={THREE.DoubleSide}
                         />
                       </mesh>
-                      {/* Highlight for gable end wall (right) - uses same pentagon geometry */}
-                      {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'right' && gableGeometry && (
+                      {/* Highlight for gable end wall (right) - separate geometry instance */}
+                      {highlightGeometry && (
                         <mesh
                           key={`leanto-gable-endwall-highlight-${leanTo.id}`}
-                          position={[effectiveWidth / 2 + 0.1, 0, 0]}
+                          position={[effectiveWidth / 2, 0, 0]}
                           rotation={[0, Math.PI / 2, 0]}
                           castShadow={false}
                           receiveShadow={false}
-                          renderOrder={10}
+                          renderOrder={1}
                         >
-                          <primitive object={gableGeometry} />
-                          <primitive attach="material" object={leanToHighlightMaterial} />
+                          <primitive object={highlightGeometry} />
+                          <meshStandardMaterial 
+                            color="#3b82f6"
+                            transparent={true}
+                            opacity={0.35}
+                            side={THREE.DoubleSide}
+                            depthTest={true}
+                            depthWrite={false}
+                          />
                         </mesh>
                       )}
                     </>
