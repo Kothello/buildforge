@@ -1,0 +1,105 @@
+The new “Edit Building” toggle works, but after I click Save Changes on a lead, the left Pricing Breakdown card still shows the old Quote Total until I manually refresh the page.
+
+I want the page to look like it does after a refresh (updated Quote Total, costs, etc.) immediately when the save succeeds.
+
+Important context:
+
+The lead detail page lives at:
+client/src/pages/lead-edit.tsx
+
+It loads the lead with React Query:
+
+const { data: lead } = useQuery<Lead>({
+  queryKey: ["/api/leads", leadId],
+  queryFn: () => fetch(`/api/leads/${leadId}`).then(r => r.json()),
+  enabled: !!leadId,
+  staleTime: 0,
+  refetchOnMount: "always",
+});
+
+
+The configurator embed is lazy-loaded as LeadConfiguratorEmbed from:
+client/src/configurator/LeadConfiguratorEmbed.tsx
+
+In that file, I already have:
+
+interface LeadConfiguratorEmbedProps {
+  lead: Lead;
+  leadId: string;
+  onSave?: (updatedLead: Lead) => void;
+}
+
+
+and a React Query mutation that PATCHes the lead when the user clicks Save Changes (it sends updated buildingSpecs, configuration, and totalPrice).
+
+The parent passes leadId and uses a key={${lead.id}-${lead.totalPrice}} on LeadConfiguratorEmbed.
+
+Goal
+
+Make sure that when the mutation in LeadConfiguratorEmbed succeeds:
+
+The React Query cache for the detail query [ "/api/leads", leadId ] is updated with the new lead (including totalPrice, buildingSpecs, and configuration).
+
+The React Query cache for the list query [ "/api/leads" ] is also updated so the My Leads page stays in sync.
+
+The edit panel still closes (using the existing isEditing logic), and the Pricing Breakdown card immediately reflects the new values (as if I had refreshed the browser).
+
+Do not add a full page reload. This must be done with React Query’s setQueryData / invalidateQueries.
+
+Concrete steps
+
+Open client/src/configurator/LeadConfiguratorEmbed.tsx.
+
+Find the mutation used when saving (it’s currently declared as something like const updateMutation = useMutation({ ... }) and then called from a handleSave function that receives config, buildingSpecs, and totalPrice).
+
+In the mutation’s onSuccess handler:
+
+Make sure you have access to the updated lead returned from the server (or build it from the old lead + new fields). Call it updatedLead: Lead.
+
+Update both query caches:
+
+// 1) Detail query used by lead-edit.tsx
+queryClient.setQueryData<Lead>(["/api/leads", leadId], updatedLead);
+
+// 2) List query used on the My Leads page
+queryClient.setQueryData<Lead[]>(["/api/leads"], (old) => {
+  if (!old) return [updatedLead];
+  return old.map((l) => (l.id === updatedLead.id ? updatedLead : l));
+});
+
+
+Keep any existing invalidation you already have, but make sure it is not wiping out the setQueryData for the detail query.
+If you invalidate, use:
+
+queryClient.invalidateQueries({ queryKey: ["/api/leads"], exact: true });
+
+
+so it only refreshes the list and does not clobber ["/api/leads", leadId].
+
+Make sure you still:
+
+Call onSave?.(updatedLead); if that callback exists.
+
+Set isEditing(false); after the cache updates, so the panel closes and we drop back into view mode.
+
+Show the existing success toast/snackbar.
+
+Don’t change anything in lead-edit.tsx except if you need to adjust types; the query there should continue to use queryKey: ["/api/leads", leadId] because you’re now keeping that cache in sync.
+
+After the change, manually verify:
+
+Open /sales/leads/:id for a test lead.
+
+Click Edit Building, change the dimensions so the price clearly changes, and hit Save Changes.
+
+Confirm:
+
+The edit panel closes.
+
+The Pricing Breakdown card on the left immediately shows the new Building Size / Quote Total (no browser refresh).
+
+Navigating back to /sales (My Leads) shows the same new total for that lead.
+
+Finally, summarize exactly what you changed in LeadConfiguratorEmbed.tsx (especially the new setQueryData calls and the onSuccess flow).
+
+Don’t show full file contents in your response – just explain the changes and confirm that the pricing card now updates immediately after Save.

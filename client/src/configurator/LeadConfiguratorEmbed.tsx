@@ -80,8 +80,17 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
       const response = await apiRequest('PATCH', `/api/leads/${lead.id}`, payload);
       return response.json();
     },
-    onSuccess: async (updatedLead) => {
+    onSuccess: (updatedLead: Lead) => {
       setIsSaving(false);
+      
+      queryClient.setQueryData<Lead>(["/api/leads", leadId], updatedLead);
+      
+      queryClient.setQueryData<Lead[]>(["/api/leads"], (old) => {
+        if (!old) return [updatedLead];
+        return old.map((l) => (l.id === updatedLead.id ? updatedLead : l));
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"], exact: true });
       
       toast({
         title: 'Saved',
@@ -90,7 +99,7 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
       
       onSave?.(updatedLead);
       
-      window.location.reload();
+      setIsEditing(false);
     },
     onError: (error) => {
       setIsSaving(false);
