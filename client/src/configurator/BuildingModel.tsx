@@ -857,14 +857,15 @@ export const BuildingModel = ({
                 })()}
                 {highlightedWall.wall === 'back' && !highlightedWall.leanToId && showBack && (() => {
                   // For single-slope roofs, front/back walls are trapezoidal (sloped from low to high eave)
+                  // Back wall is rotated 180°, so we flip the slope direction (low on right, high on left when viewed from back)
                   if (roofStyle === 'single-slope') {
                     const lowEave = height;
                     const highEave = height + roofHeight;
                     const trapShape = new THREE.Shape();
                     trapShape.moveTo(-width / 2, 0);
                     trapShape.lineTo(width / 2, 0);
-                    trapShape.lineTo(width / 2, highEave);
-                    trapShape.lineTo(-width / 2, lowEave);
+                    trapShape.lineTo(width / 2, lowEave);  // Flipped: low on right
+                    trapShape.lineTo(-width / 2, highEave); // Flipped: high on left
                     trapShape.lineTo(-width / 2, 0);
                     const trapGeom = new THREE.ShapeGeometry(trapShape);
                     return (
