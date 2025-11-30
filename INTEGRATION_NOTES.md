@@ -5,6 +5,71 @@ Integration of canonical 3D building renderer (BuildingModel.tsx) from iron-buil
 
 ---
 
+## CLEAN REPLACEMENT (Latest Session)
+
+### Problem with Previous Hybrid Approach
+Previous integration attempts created a **hybrid file** that:
+- Copied iron-builder code but re-added CRM-specific enclosure logic
+- The CRM-only `shouldRenderWall('front'/'back')` and enclosure blocks were **causing bugs**
+- Resulted in roof gaps and unclickable gable lean-to walls
+
+### Solution: Verbatim Replacement with Minimal CRM Edits
+The CRM's `BuildingModel.tsx` was **completely replaced** with the iron-builder version, with only two changes:
+
+**Files involved:**
+- Source (canonical): `configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx`
+- Target (CRM): `client/src/configurator/BuildingModel.tsx`
+
+### Exact Diff (Only Allowed Changes)
+```diff
+4c4
+< import type { Door, Window } from '@/pages/Index';
+---
+> import type { Door, Window } from './types';
+41a42,43
+>     gableAttachmentSide?: 'front' | 'back' | 'left' | 'right';
+>     enclosure?: 'fully-enclosed' | 'fully-open' | 'customize';
+```
+
+### What This Means
+1. **Line 4:** Import path changed from iron-builder's `'@/pages/Index'` to CRM's `'./types'`
+2. **Lines 42-43:** Two optional CRM-specific fields added to LeanTo type interface
+
+### What Was NOT Done
+- ❌ No `shouldRenderWall('front'/'back')` logic reintroduced
+- ❌ No CRM-only enclosure block added
+- ❌ No `roofExtension` tweaks added
+- ❌ No custom lean-to wall rendering code
+
+### Commands Used
+```bash
+# 1. Copy canonical file
+cp "configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx" \
+   "client/src/configurator/BuildingModel.tsx"
+
+# 2. Edit import path (line 4)
+# Change: import type { Door, Window } from '@/pages/Index';
+# To:     import type { Door, Window } from './types';
+
+# 3. Add optional CRM fields to LeanTo type (after line 41)
+#     gableAttachmentSide?: 'front' | 'back' | 'left' | 'right';
+#     enclosure?: 'fully-enclosed' | 'fully-open' | 'customize';
+
+# 4. Verify diff
+diff "configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx" \
+     "client/src/configurator/BuildingModel.tsx"
+```
+
+### Result
+- CRM now uses **exact same 3D behavior** as standalone iron-builder
+- Gable lean-to walls use updated left/right mapping
+- No roof gaps at lean-to joins
+- All walls should be clickable
+
+---
+
+## Previous Session Fixes (For Reference)
+
 ## FIX #1: Single-Slope Lean-To Wall Visibility (Line 2298)
 
 ### Problem
