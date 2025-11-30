@@ -109,8 +109,13 @@ export const ConfigPanel = ({
   onTotalChange
 }: ConfigPanelProps) => {
   const [colorTab, setColorTab] = useState<'walls' | 'roof' | 'trim'>('walls');
+  // Generate width options: 35-120ft in 5ft increments
   const widthOptions = Array.from({ length: (120 - 35) / 5 + 1 }, (_, i) => 35 + i * 5);
+  
+  // Generate length options: 30-500ft in 10ft increments
   const lengthOptions = Array.from({ length: (500 - 30) / 10 + 1 }, (_, i) => 30 + i * 10);
+  
+  // Generate height options: 10-32ft in 1ft increments
   const heightOptions = Array.from({ length: (32 - 10) + 1 }, (_, i) => 10 + i);
 
   const colorOptions = [
@@ -129,20 +134,19 @@ export const ConfigPanel = ({
   ];
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
+    <div className="h-full overflow-y-auto px-3 py-2 space-y-3">
       <Card className="p-4 space-y-2">
         <div>
           <h3 className="text-sm font-semibold mb-3 text-foreground">Dimensions</h3>
           
-          <div className="grid grid-cols-3 gap-2 relative z-40">
-            <div className="relative">
+          <div className="grid grid-cols-3 gap-2">
+            <div>
               <Label className="mb-1.5 block text-xs">Width</Label>
               <Select value={width.toString()} onValueChange={(value) => onWidthChange(Number(value))}>
-                <SelectTrigger data-testid="select-width">
+                <SelectTrigger>
                   <SelectValue placeholder="Select width" />
                 </SelectTrigger>
-                <SelectContent className="bg-background">
+                <SelectContent className="z-50 bg-background">
                   {widthOptions.map((w) => (
                     <SelectItem key={w} value={w.toString()}>
                       {w} ft
@@ -152,13 +156,13 @@ export const ConfigPanel = ({
               </Select>
             </div>
 
-            <div className="relative">
+            <div>
               <Label className="mb-1.5 block text-xs">Length</Label>
               <Select value={length.toString()} onValueChange={(value) => onLengthChange(Number(value))}>
-                <SelectTrigger data-testid="select-length">
+                <SelectTrigger>
                   <SelectValue placeholder="Select length" />
                 </SelectTrigger>
-                <SelectContent className="bg-background">
+                <SelectContent className="z-50 bg-background">
                   {lengthOptions.map((l) => (
                     <SelectItem key={l} value={l.toString()}>
                       {l} ft
@@ -168,13 +172,13 @@ export const ConfigPanel = ({
               </Select>
             </div>
 
-            <div className="relative">
+            <div>
               <Label className="mb-1.5 block text-xs">Height</Label>
               <Select value={height.toString()} onValueChange={(value) => onHeightChange(Number(value))}>
-                <SelectTrigger data-testid="select-height">
+                <SelectTrigger>
                   <SelectValue placeholder="Select height" />
                 </SelectTrigger>
-                <SelectContent className="bg-background">
+                <SelectContent className="z-50 bg-background">
                   {heightOptions.map((h) => (
                     <SelectItem key={h} value={h.toString()}>
                       {h} ft
@@ -193,7 +197,6 @@ export const ConfigPanel = ({
                   variant={roofStyle === 'gable' ? 'default' : 'outline'}
                   onClick={() => onRoofStyleChange('gable')}
                   className="w-full h-8 text-xs"
-                  data-testid="button-roof-gable"
                 >
                   Gable
                 </Button>
@@ -201,7 +204,6 @@ export const ConfigPanel = ({
                   variant={roofStyle === 'single-slope' ? 'default' : 'outline'}
                   onClick={() => onRoofStyleChange('single-slope')}
                   className="w-full h-8 text-xs"
-                  data-testid="button-roof-single-slope"
                 >
                   Single Slope
                 </Button>
@@ -219,7 +221,6 @@ export const ConfigPanel = ({
                 min={1}
                 max={4}
                 step={1}
-                data-testid="slider-roof-pitch"
               />
             </div>
           </div>
@@ -233,7 +234,6 @@ export const ConfigPanel = ({
           borderColor: editMode ? 'hsl(var(--primary))' : 'hsl(var(--border))',
           backgroundColor: editMode ? 'hsl(var(--primary) / 0.1)' : 'transparent',
         }}
-        data-testid="card-edit-mode"
       >
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -254,7 +254,6 @@ export const ConfigPanel = ({
               style={{
                 borderColor: 'hsl(var(--border))',
               }}
-              data-testid="button-add-rollup-door"
             >
               <DoorOpen className="h-6 w-6 text-muted-foreground" />
               <span className="text-[10px] text-center text-muted-foreground">Rollup</span>
@@ -266,7 +265,6 @@ export const ConfigPanel = ({
               style={{
                 borderColor: 'hsl(var(--border))',
               }}
-              data-testid="button-add-personnel-door"
             >
               <RectangleVertical className="h-6 w-6 text-muted-foreground" />
               <span className="text-[10px] text-center text-muted-foreground">Personnel</span>
@@ -278,7 +276,6 @@ export const ConfigPanel = ({
               style={{
                 borderColor: 'hsl(var(--border))',
               }}
-              data-testid="button-add-window"
             >
               <Square className="h-6 w-6 text-muted-foreground" />
               <span className="text-[10px] text-center text-muted-foreground">Window</span>
@@ -305,7 +302,6 @@ export const ConfigPanel = ({
                     onClick={() => onWallColorChange(color.value)}
                     className="group relative rounded-full transition-all hover:scale-110"
                     title={color.name}
-                    data-testid={`button-wall-color-${color.name.toLowerCase().replace(/\s/g, '-')}`}
                   >
                     <div
                       className="w-10 h-10 rounded-full transition-all"
@@ -329,7 +325,6 @@ export const ConfigPanel = ({
                     onClick={() => onRoofColorChange(color.value)}
                     className="group relative rounded-full transition-all hover:scale-110"
                     title={color.name}
-                    data-testid={`button-roof-color-${color.name.toLowerCase().replace(/\s/g, '-')}`}
                   >
                     <div
                       className="w-10 h-10 rounded-full transition-all"
@@ -353,7 +348,6 @@ export const ConfigPanel = ({
                     onClick={() => onTrimColorChange(color.value)}
                     className="group relative rounded-full transition-all hover:scale-110"
                     title={color.name}
-                    data-testid={`button-trim-color-${color.name.toLowerCase().replace(/\s/g, '-')}`}
                   >
                     <div
                       className="w-10 h-10 rounded-full transition-all"
@@ -372,6 +366,7 @@ export const ConfigPanel = ({
         </div>
       </Card>
 
+      {/* Lean-To Options */}
       <LeanToConfig
         leanTos={leanTos}
         onLeanTosChange={onLeanTosChange}
@@ -384,6 +379,7 @@ export const ConfigPanel = ({
         roofPitch={roofPitch}
       />
 
+      {/* Wall Enclosure Options */}
       <Card className="p-4 space-y-3">
         <div>
           <h3 className="text-sm font-semibold mb-3 text-foreground">Walls</h3>
@@ -393,7 +389,6 @@ export const ConfigPanel = ({
               variant={wallEnclosure === 'fully-enclosed' ? 'default' : 'outline'}
               onClick={() => onWallEnclosureChange('fully-enclosed')}
               className="w-full h-8 text-xs"
-              data-testid="button-wall-fully-enclosed"
             >
               Fully Enclosed
             </Button>
@@ -401,7 +396,6 @@ export const ConfigPanel = ({
               variant={wallEnclosure === 'fully-open' ? 'default' : 'outline'}
               onClick={() => onWallEnclosureChange('fully-open')}
               className="w-full h-8 text-xs"
-              data-testid="button-wall-fully-open"
             >
               Fully Open
             </Button>
@@ -409,7 +403,6 @@ export const ConfigPanel = ({
               variant={wallEnclosure === 'gable-ends' ? 'default' : 'outline'}
               onClick={() => onWallEnclosureChange('gable-ends')}
               className="w-full h-8 text-xs"
-              data-testid="button-wall-gable-ends"
             >
               Gable Ends
             </Button>
@@ -417,7 +410,6 @@ export const ConfigPanel = ({
               variant={wallEnclosure === 'customize' ? 'default' : 'outline'}
               onClick={() => onWallEnclosureChange('customize')}
               className="w-full h-8 text-xs"
-              data-testid="button-wall-customize"
             >
               Customize by Wall
             </Button>
@@ -432,7 +424,6 @@ export const ConfigPanel = ({
                   onClick={() => onCustomWallsChange({ ...customWalls, front: !customWalls.front })}
                   size="sm"
                   className="w-full h-7 text-xs"
-                  data-testid="button-custom-wall-front"
                 >
                   Front
                 </Button>
@@ -441,7 +432,6 @@ export const ConfigPanel = ({
                   onClick={() => onCustomWallsChange({ ...customWalls, back: !customWalls.back })}
                   size="sm"
                   className="w-full h-7 text-xs"
-                  data-testid="button-custom-wall-back"
                 >
                   Back
                 </Button>
@@ -450,7 +440,6 @@ export const ConfigPanel = ({
                   onClick={() => onCustomWallsChange({ ...customWalls, left: !customWalls.left })}
                   size="sm"
                   className="w-full h-7 text-xs"
-                  data-testid="button-custom-wall-left"
                 >
                   Left
                 </Button>
@@ -459,7 +448,6 @@ export const ConfigPanel = ({
                   onClick={() => onCustomWallsChange({ ...customWalls, right: !customWalls.right })}
                   size="sm"
                   className="w-full h-7 text-xs"
-                  data-testid="button-custom-wall-right"
                 >
                   Right
                 </Button>
@@ -469,6 +457,7 @@ export const ConfigPanel = ({
         </div>
       </Card>
 
+      {/* Pricing Box - Last on Panel */}
       <div className="pb-4" data-testid="pricing-section">
         <PricingHeader
           config={{
@@ -487,7 +476,6 @@ export const ConfigPanel = ({
           region="midwest"
           onTotalChange={onTotalChange}
         />
-      </div>
       </div>
     </div>
   );

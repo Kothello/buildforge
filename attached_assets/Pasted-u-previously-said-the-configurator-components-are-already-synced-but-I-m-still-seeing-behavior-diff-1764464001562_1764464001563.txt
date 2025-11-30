@@ -1,0 +1,99 @@
+u previously said the configurator components are already synced, but I’m still seeing behavior differences (for example: single-slope high-side door/window edit highlight, some lean-to updates).
+
+I want a strict, file-by-file sync, not a high-level statement.
+
+Context:
+
+Canonical, fixed configurator:
+iron-builder-studio-70695-74818-74577-9-62585/client/src
+
+CRM-integrated configurator:
+client/src/configurator
+
+CRM-specific wrappers that must not be replaced, only have imports/types adjusted if needed:
+
+client/src/configurator/BuilderPage.tsx
+
+client/src/configurator/LeadConfiguratorEmbed.tsx
+
+client/src/configurator/PricingDisplay.tsx
+
+Everything else in client/src/configurator that relates to 3D, lean-tos, doors/windows, or base types should be treated as core and made to match the iron-builder version.
+
+Hard requirements:
+
+For each core configurator file that exists in both trees (same component name), I want the CRM version’s implementation to be logically identical to the iron-builder version, not “similar”.
+
+If the CRM version has no real CRM-specific logic, simply replace it with the iron-builder version and fix imports.
+
+If the CRM version adds small extra props/hooks on top of the original logic, start from the iron-builder implementation and re-apply only those small CRM bits.
+
+Do not delete or rewrite the three CRM wrapper files above; only update them to use the updated core types/components if needed.
+
+Do not change backend routes, pricing engine, or lead APIs.
+
+Task:
+
+In the iron-builder folder (iron-builder-studio-70695-74818-74577-9-62585/client/src), list the main configurator core files and their paths, including at least:
+
+Scene3D.tsx
+
+BuildingModel.tsx
+
+LeanToConfig.tsx
+
+Doors/windows editor components
+
+Any other components that are part of the building configurator UI or 3D, not CRM pages.
+
+For each of those core files, find the corresponding file in client/src/configurator (same filename / component name).
+
+For each pair:
+
+Open both files and perform a real diff, not just a guess.
+
+If the CRM file contains only configurator logic and no lead/pricing/React-Query concerns:
+
+Replace the entire CRM file with the iron-builder version.
+
+Adjust imports so everything still points to client/src/configurator and its types.ts, not back into the iron-builder folder.
+
+If the CRM file does have CRM-specific additions (e.g. extra props, test IDs, callbacks):
+
+Start from the iron-builder version.
+
+Re-apply those CRM-specific additions on top of the iron-builder logic.
+
+End state: the core logic/geometry/UI exactly matches iron-builder; only the extra CRM bits differ.
+
+Make sure no runtime imports point into iron-builder-studio-.... That folder is only a source to copy from, not part of the bundle.
+
+After syncing:
+
+Confirm that client/src/configurator/BuildingModel.tsx and Scene3D.tsx now match the iron-builder versions except for import paths and any necessary CRM hooks.
+
+Confirm that client/src/configurator/LeanToConfig.tsx matches the iron-builder behavior for:
+
+wraparound length
+
+lean-to walls/enclosure
+
+gable attachment side
+
+Confirm that the Door/Window edit highlight logic in BuildingModel matches the iron-builder version (especially: single-slope high-side highlight uses the high-eave height).
+
+Run the app and manually test:
+
+/builder with the same scenarios I use in iron-builder (single slope, lean-tos, door/window edit).
+
+/sales/leads/:id with a single-slope lead.
+
+Verify the behavior is now identical to iron-builder for the configurator parts.
+
+At the end, give me a concrete list of:
+
+Every client/src/configurator/* file you replaced or edited.
+
+For any file that you claim is “already identical”, explicitly state that you compared it line-by-line to the iron-builder version and found no differences other than import paths.
+
+Any remaining known differences in behavior between the CRM configurator and the iron-builder configurator.

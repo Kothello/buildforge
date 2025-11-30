@@ -20,6 +20,7 @@ export function PricingHeader({ config, region = 'midwest', onTotalChange }: Pri
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Calculate pricing when config changes
   useEffect(() => {
     calculatePricing();
   }, [config, region]);
@@ -79,6 +80,7 @@ export function PricingHeader({ config, region = 'midwest', onTotalChange }: Pri
     return null;
   }
 
+  // Group breakdown by category
   const categories = new Map<string, any[]>();
   pricing.breakdown.forEach((item: any) => {
     if (!categories.has(item.category)) {
@@ -89,6 +91,7 @@ export function PricingHeader({ config, region = 'midwest', onTotalChange }: Pri
 
   return (
     <div className="w-full space-y-2" data-testid="pricing-header">
+      {/* Compact Header - Always Visible */}
       <Card
         className="p-3 cursor-pointer hover-elevate bg-secondary/50 border-secondary"
         onClick={() => !locked && setIsExpanded(!isExpanded)}
@@ -120,8 +123,10 @@ export function PricingHeader({ config, region = 'midwest', onTotalChange }: Pri
         </div>
       </Card>
 
+      {/* Expanded Breakdown */}
       {isExpanded && (
         <Card className="p-4 border-secondary space-y-3" data-testid="pricing-breakdown">
+          {/* Promo Code Section */}
           <div className="flex gap-2 pb-3 border-b">
             <Input
               placeholder="Enter promo code"
@@ -145,10 +150,11 @@ export function PricingHeader({ config, region = 'midwest', onTotalChange }: Pri
 
           {pricing.promoCodeApplied && (
             <p className="text-sm text-green-600 dark:text-green-400" data-testid="text-promo-applied">
-              Promo {pricing.promoCodeApplied} applied (-${pricing.promoDiscount.toFixed(2)})
+              ✓ Promo {pricing.promoCodeApplied} applied (-${pricing.promoDiscount.toFixed(2)})
             </p>
           )}
 
+          {/* Line Items */}
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {Array.from(categories.entries()).map(([category, items]) => (
               <div key={category} className="space-y-1" data-testid={`category-${category}`}>
@@ -164,7 +170,7 @@ export function PricingHeader({ config, region = 'midwest', onTotalChange }: Pri
                     className="flex justify-between text-xs px-2 py-1 bg-background rounded"
                     data-testid={`item-${item.id}`}
                   >
-                    <span className="text-muted-foreground truncate">{item.name}</span>
+                    <span className="text-tertiary-foreground truncate">{item.name}</span>
                     <span className="font-medium">${item.price.toFixed(2)}</span>
                   </div>
                 ))}
@@ -172,6 +178,7 @@ export function PricingHeader({ config, region = 'midwest', onTotalChange }: Pri
             ))}
           </div>
 
+          {/* Summary Totals */}
           <div className="space-y-1 text-sm border-t pt-3">
             <div className="flex justify-between">
               <span className="text-secondary-foreground">Subtotal:</span>
@@ -210,6 +217,7 @@ export function PricingHeader({ config, region = 'midwest', onTotalChange }: Pri
             </div>
           </div>
 
+          {/* Download Button */}
           <Button
             variant="outline"
             size="sm"

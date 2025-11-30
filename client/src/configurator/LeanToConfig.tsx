@@ -70,6 +70,7 @@ export const LeanToConfig = ({
       }
     }
 
+    // Auto-size length to max for the target wall
     const maxLength = (targetWall === 'left' || targetWall === 'right') 
       ? buildingLength 
       : buildingWidth;
@@ -97,10 +98,12 @@ export const LeanToConfig = ({
     const leanTo = leanTos.find(lt => lt.id === id);
 
     if (leanTo?.wraparound && !leanTo.parentId) {
+      // Removing main wraparound lean-to: remove its side children too
       onLeanTosChange(
         leanTos.filter(lt => lt.id !== id && lt.parentId !== id)
       );
     } else {
+      // Removing a normal or child lean-to: just remove that one
       onLeanTosChange(leanTos.filter(lt => lt.id !== id));
     }
   };
@@ -137,8 +140,11 @@ export const LeanToConfig = ({
       return [];
     }
 
+    // Check if the perpendicular wall is available
     const usedWalls = new Set(leanTos.map(lt => lt.wall));
     
+    // For front/back walls: corners wrap to left/right walls
+    // For left/right walls: corners wrap to front/back walls
     if (leanTo.wall === 'front' || leanTo.wall === 'back') {
       if (isAtRightCorner && !usedWalls.has('right')) {
         availableCorners.push('right');
@@ -147,6 +153,7 @@ export const LeanToConfig = ({
         availableCorners.push('left');
       }
     } else if (leanTo.wall === 'left' || leanTo.wall === 'right') {
+      // Wraparound disabled for side walls - coming back to this later
       return [];
     }
 
@@ -155,6 +162,7 @@ export const LeanToConfig = ({
 
   const handleToggleWraparound = (leanTo: LeanTo, enable: boolean, corner?: 'left' | 'right' | 'both') => {
     if (enable && corner) {
+      // Remove any existing side lean-tos for this main lean-to, then recreate cleanly
       const baseLeanTos = leanTos.filter(lt => lt.parentId !== leanTo.id);
       const newLeanTos = [...baseLeanTos];
       const mainIndex = newLeanTos.findIndex(lt => lt.id === leanTo.id);
@@ -165,20 +173,25 @@ export const LeanToConfig = ({
         ? buildingLength 
         : buildingWidth;
       
+      // Calculate position and length based on corner selection
       let position = leanTo.position;
       let length = leanTo.length;
       
       if (corner === 'both') {
+        // Center and lock to full wall length
         position = 0.5;
         length = wallDimension;
       } else if (corner === 'right') {
+        // Pin to right corner
         const halfSpan = (length / wallDimension) / 2;
         position = 1 - halfSpan;
       } else if (corner === 'left') {
+        // Pin to left corner
         const halfSpan = (length / wallDimension) / 2;
         position = halfSpan;
       }
       
+      // Update main lean-to
       newLeanTos[mainIndex] = { 
         ...leanTo, 
         wraparound: true, 
@@ -188,16 +201,20 @@ export const LeanToConfig = ({
         parentId: undefined,
       };
 
+      // Create side lean-to(s)
       const sideLeanToLength = 30;
 
       if (corner === 'left' || corner === 'both') {
+        // Determine child wall based on parent wall
         let childWall: 'front' | 'back' | 'left' | 'right';
         let childPosition: number;
         
         if (leanTo.wall === 'front' || leanTo.wall === 'back') {
+          // Front/back parent: left corner wraps to left wall
           childWall = 'left';
           childPosition = leanTo.wall === 'front' ? 0 : 1;
         } else {
+          // Left/right parent: left corner wraps to front wall
           childWall = 'front';
           childPosition = leanTo.wall === 'left' ? 1 : 0;
         }
@@ -216,18 +233,23 @@ export const LeanToConfig = ({
           wraparound: true,
           wraparoundCorner: 'left',
           parentId: leanTo.id,
+          gableAttachmentSide: leanTo.gableAttachmentSide,
+          enclosure: leanTo.enclosure,
         };
         newLeanTos.push(leftLeanTo);
       }
 
       if (corner === 'right' || corner === 'both') {
+        // Determine child wall based on parent wall
         let childWall: 'front' | 'back' | 'left' | 'right';
         let childPosition: number;
         
         if (leanTo.wall === 'front' || leanTo.wall === 'back') {
+          // Front/back parent: right corner wraps to right wall
           childWall = 'right';
           childPosition = leanTo.wall === 'front' ? 1 : 0;
         } else {
+          // Left/right parent: right corner wraps to back wall
           childWall = 'back';
           childPosition = leanTo.wall === 'left' ? 0 : 1;
         }
@@ -246,12 +268,15 @@ export const LeanToConfig = ({
           wraparound: true,
           wraparoundCorner: 'right',
           parentId: leanTo.id,
+          gableAttachmentSide: leanTo.gableAttachmentSide,
+          enclosure: leanTo.enclosure,
         };
         newLeanTos.push(rightLeanTo);
       }
 
       onLeanTosChange(newLeanTos);
     } else {
+      // Remove wraparound and any side lean-tos belonging to this main lean-to
       onLeanTosChange(
         leanTos.map(lt => 
           lt.id === leanTo.id 
@@ -271,16 +296,20 @@ export const LeanToConfig = ({
     let length = leanTo.length;
     
     if (corner === 'both') {
+      // Center and lock to full wall length
       position = 0.5;
       length = wallDimension;
     } else if (corner === 'right') {
+      // Pin to right corner
       const halfSpan = (length / wallDimension) / 2;
       position = 1 - halfSpan;
     } else if (corner === 'left') {
+      // Pin to left corner
       const halfSpan = (length / wallDimension) / 2;
       position = halfSpan;
     }
     
+    // Toggle wraparound to update corner and recreate side lean-tos
     handleToggleWraparound(leanTo, false);
     setTimeout(() => handleToggleWraparound({ ...leanTo, position, length }, true, corner), 100);
   };
@@ -301,19 +330,21 @@ export const LeanToConfig = ({
     const parent = leanTos.find(lt => lt.id === mainId);
     if (!parent) return undefined;
     
+    // Determine which wall the child should be on based on parent wall
     let childWall: 'front' | 'back' | 'left' | 'right';
     if (parent.wall === 'front' || parent.wall === 'back') {
-      childWall = side;
+      childWall = side; // Front/back parent: children are on left/right walls
     } else {
-      childWall = side === 'left' ? 'front' : 'back';
+      childWall = side === 'left' ? 'front' : 'back'; // Left/right parent: children are on front/back walls
     }
     
     return leanTos.find(lt => lt.parentId === mainId && lt.wall === childWall && lt.wraparound);
   };
 
+  // Filter out side lean-tos that are part of wraparound (they're controlled by main lean-to)
   const visibleLeanTos = leanTos.filter(lt => {
     if (lt.wraparound && lt.parentId) {
-      return false;
+      return false; // Hide all child wraparound lean-tos regardless of wall
     }
     return true;
   });
@@ -333,7 +364,6 @@ export const LeanToConfig = ({
               borderColor: isEditing ? 'hsl(var(--primary))' : 'hsl(var(--border))',
               backgroundColor: isEditing ? 'hsl(var(--primary) / 0.1)' : 'transparent',
             }}
-            data-testid={`card-leanto-${leanTo.id}`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -359,7 +389,6 @@ export const LeanToConfig = ({
                   handleRemoveLeanTo(leanTo.id);
                 }}
                 className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                data-testid={`button-remove-leanto-${leanTo.id}`}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
@@ -373,6 +402,7 @@ export const LeanToConfig = ({
                       type: leanTo.type === 'gable' ? 'enclosed' : leanTo.type,
                     });
                   } else {
+                    // Switching to single slope: set to max length
                     const wallDimension = (leanTo.wall === 'left' || leanTo.wall === 'right') 
                       ? buildingLength 
                       : buildingWidth;
@@ -390,18 +420,18 @@ export const LeanToConfig = ({
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
-                data-testid={`button-leanto-single-slope-${leanTo.id}`}
               >
                 Single Slope
               </button>
               
               <button
                 onClick={() => {
-                  if (leanTo.wraparound) return;
+                  if (leanTo.wraparound) return; // Can't change to gable when wraparound
                   
                   const wallDimension = (leanTo.wall === 'left' || leanTo.wall === 'right') 
                     ? buildingLength 
                     : buildingWidth;
+                  // Gable: 10ft shorter than max width, centered
                   const defaultWidth = Math.max(15, wallDimension - 10);
                   handleUpdateLeanTo(leanTo.id, { 
                     type: 'gable',
@@ -416,7 +446,6 @@ export const LeanToConfig = ({
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 disabled={leanTo.wraparound}
-                data-testid={`button-leanto-gable-${leanTo.id}`}
               >
                 Gable
               </button>
@@ -438,22 +467,13 @@ export const LeanToConfig = ({
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-background">
+                  <SelectContent className="z-50 bg-background">
                     {leanTo.type === 'gable'
                       ? (() => {
                           const wallDimension = (leanTo.wall === 'left' || leanTo.wall === 'right') 
                             ? buildingLength 
                             : buildingWidth;
-                          const maxWidth = wallDimension;
-                          console.log('[GABLE WIDTH DEBUG]', {
-                            leanToId: leanTo.id,
-                            leanToWall: leanTo.wall,
-                            buildingWidth: buildingWidth,
-                            buildingLength: buildingLength,
-                            wallDimension: wallDimension,
-                            maxWidth: maxWidth,
-                            widthOptions: Array.from({ length: Math.floor((maxWidth - 15) / 5) + 1 }, (_, i) => 15 + i * 5)
-                          });
+                          const maxWidth = Math.min(wallDimension, 120);
                           return Array.from(
                             { length: Math.floor((maxWidth - 15) / 5) + 1 }, 
                             (_, i) => 15 + i * 5
@@ -482,6 +502,7 @@ export const LeanToConfig = ({
                     let newPosition = leanTo.position;
                     
                     if (leanTo.wraparound && leanTo.wraparoundCorner !== 'both') {
+                      // Maintain corner pinning when length changes
                       const halfSpan = (newLength / wallDimension) / 2;
                       if (leanTo.wraparoundCorner === 'right') {
                         newPosition = 1 - halfSpan;
@@ -497,7 +518,7 @@ export const LeanToConfig = ({
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-background">
+                  <SelectContent className="z-50 bg-background">
                     {leanTo.type === 'gable'
                       ? Array.from({ length: 50 }, (_, i) => 10 + i * 10).map((l) => (
                           <SelectItem key={l} value={l.toString()}>{l} ft</SelectItem>
@@ -534,7 +555,7 @@ export const LeanToConfig = ({
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-background">
+                  <SelectContent className="z-50 bg-background">
                     {heightOptions.filter(h => h <= buildingHeight).map((h) => (
                       <SelectItem key={h} value={h.toString()}>{h} ft</SelectItem>
                     ))}
@@ -543,6 +564,7 @@ export const LeanToConfig = ({
               </div>
             </div>
 
+            {/* Wraparound Length Control */}
             {leanTo.wraparound && leanTo.wraparoundCorner === 'both' ? (
               <div className="grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
                 <div>
@@ -567,7 +589,7 @@ export const LeanToConfig = ({
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background">
+                    <SelectContent className="z-50 bg-background">
                       {(() => {
                         const wallDimension = (leanTo.wall === 'front' || leanTo.wall === 'back') 
                           ? buildingLength 
@@ -605,7 +627,7 @@ export const LeanToConfig = ({
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background">
+                    <SelectContent className="z-50 bg-background">
                       {(() => {
                         const wallDimension = (leanTo.wall === 'front' || leanTo.wall === 'back') 
                           ? buildingLength 
@@ -651,7 +673,7 @@ export const LeanToConfig = ({
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-background">
+                  <SelectContent className="z-50 bg-background">
                     {(() => {
                       const wallDimension = buildingLength;
                       const maxLength = Math.min(wallDimension, 500);
@@ -667,176 +689,9 @@ export const LeanToConfig = ({
               </div>
             ) : null}
 
-            {leanTo.type === 'gable' && !leanTo.wraparound && (
-              <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
-                <Label className="mb-2 block text-xs">Gable Attachment Side</Label>
-                <Select
-                  value={leanTo.gableAttachmentSide || leanTo.wall}
-                  onValueChange={(value) => {
-                    handleUpdateLeanTo(leanTo.id, { 
-                      gableAttachmentSide: value as 'front' | 'back' | 'left' | 'right'
-                    });
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background">
-                    <SelectItem value="front">Front</SelectItem>
-                    <SelectItem value="back">Back</SelectItem>
-                    <SelectItem value="left">Left</SelectItem>
-                    <SelectItem value="right">Right</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {leanTo.type !== 'gable' && !leanTo.wraparound && (
-              <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
-                <Label className="mb-2 block text-xs">Wraparound Length</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    variant={leanTo.wraparound && leanTo.wraparoundCorner === 'left' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handleToggleWraparound(leanTo, true, 'left')}
-                    className="h-7 text-xs"
-                    data-testid={`button-wraparound-left-${leanTo.id}`}
-                  >
-                    Left
-                  </Button>
-                  <Button
-                    variant={leanTo.wraparound && leanTo.wraparoundCorner === 'right' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handleToggleWraparound(leanTo, true, 'right')}
-                    className="h-7 text-xs"
-                    data-testid={`button-wraparound-right-${leanTo.id}`}
-                  >
-                    Right
-                  </Button>
-                  <Button
-                    variant={leanTo.wraparound && leanTo.wraparoundCorner === 'both' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handleToggleWraparound(leanTo, true, 'both')}
-                    className="h-7 text-xs"
-                    data-testid={`button-wraparound-both-${leanTo.id}`}
-                  >
-                    Both
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1.5">Extends lean-to around building corners</p>
-              </div>
-            )}
-
-            {leanTo.wraparound && (
-              <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleToggleWraparound(leanTo, false)}
-                  className="w-full h-7 text-xs text-destructive hover:text-destructive"
-                  data-testid={`button-remove-wraparound-${leanTo.id}`}
-                >
-                  Remove Wraparound
-                </Button>
-              </div>
-            )}
-
-            <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
-              <Label className="mb-2 block text-xs">Wall Enclosure</Label>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <Button
-                  variant={leanTo.enclosure === 'fully-enclosed' || leanTo.enclosure === undefined ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    if (leanTo.wraparound) {
-                      handleUpdateWraparoundGroup(leanTo, { 
-                        enclosure: 'fully-enclosed',
-                        walls: { front: true, back: true, left: true, right: true },
-                        isOpen: false
-                      });
-                    } else {
-                      handleUpdateLeanTo(leanTo.id, { 
-                        enclosure: 'fully-enclosed',
-                        walls: { front: true, back: true, left: true, right: true },
-                        isOpen: false
-                      });
-                    }
-                  }}
-                  className="h-7 text-xs"
-                  data-testid={`button-enclosure-closed-${leanTo.id}`}
-                >
-                  Closed
-                </Button>
-                <Button
-                  variant={leanTo.enclosure === 'fully-open' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    if (leanTo.wraparound) {
-                      handleUpdateWraparoundGroup(leanTo, { 
-                        enclosure: 'fully-open',
-                        walls: { front: false, back: false, left: false, right: false },
-                        isOpen: true
-                      });
-                    } else {
-                      handleUpdateLeanTo(leanTo.id, { 
-                        enclosure: 'fully-open',
-                        walls: { front: false, back: false, left: false, right: false },
-                        isOpen: true
-                      });
-                    }
-                  }}
-                  className="h-7 text-xs"
-                  data-testid={`button-enclosure-open-${leanTo.id}`}
-                >
-                  Open
-                </Button>
-                <Button
-                  variant={leanTo.enclosure === 'customize' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    if (leanTo.wraparound) {
-                      handleUpdateWraparoundGroup(leanTo, { enclosure: 'customize' });
-                    } else {
-                      handleUpdateLeanTo(leanTo.id, { enclosure: 'customize' });
-                    }
-                  }}
-                  className="h-7 text-xs"
-                  data-testid={`button-enclosure-custom-${leanTo.id}`}
-                >
-                  Custom
-                </Button>
-              </div>
-              {leanTo.enclosure === 'customize' && (
-                <div className="grid grid-cols-2 gap-2">
-                  {(['front', 'back', 'left', 'right'] as const).map((wall) => (
-                    <Button
-                      key={wall}
-                      variant={leanTo.walls[wall] ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => {
-                        if (leanTo.wraparound) {
-                          handleUpdateWraparoundGroup(leanTo, {
-                            walls: { ...leanTo.walls, [wall]: !leanTo.walls[wall] }
-                          });
-                        } else {
-                          handleUpdateLeanTo(leanTo.id, {
-                            walls: { ...leanTo.walls, [wall]: !leanTo.walls[wall] }
-                          });
-                        }
-                      }}
-                      className="h-7 text-xs capitalize"
-                      data-testid={`button-wall-${wall}-${leanTo.id}`}
-                    >
-                      {wall}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }} onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between mb-1.5">
-                <Label className="text-xs">Roof Pitch</Label>
+            <div onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between mb-1">
+                <Label className="text-xs">Pitch</Label>
                 <span className="text-xs font-medium">{leanTo.pitch}/12</span>
               </div>
               <Slider
@@ -849,22 +704,175 @@ export const LeanToConfig = ({
                   }
                 }}
                 min={1}
-                max={4}
+                max={Math.min(roofPitch, 12)}
                 step={1}
+                className="h-1.5"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+              <div>
+                <Label className="mb-1 block text-xs">Configuration</Label>
+                <div className="grid grid-cols-2 gap-1">
+                  <Button
+                    variant={leanTo.type === 'gable' ? (leanTo.isOpen ? 'outline' : 'default') : (leanTo.type === 'enclosed' ? 'default' : 'outline')}
+                    onClick={() => {
+                      if (leanTo.wraparound) {
+                        handleUpdateWraparoundGroup(leanTo, { 
+                          type: leanTo.type === 'gable' ? 'gable' : 'enclosed',
+                          isOpen: false
+                        });
+                      } else {
+                        handleUpdateLeanTo(leanTo.id, { 
+                          type: leanTo.type === 'gable' ? 'gable' : 'enclosed',
+                          isOpen: leanTo.type === 'gable' ? false : leanTo.isOpen
+                        });
+                      }
+                    }}
+                    size="sm"
+                    className="h-7 text-xs"
+                  >
+                    Enclosed
+                  </Button>
+                  <Button
+                    variant={leanTo.type === 'gable' ? (leanTo.isOpen ? 'default' : 'outline') : (leanTo.type === 'open' ? 'default' : 'outline')}
+                    onClick={() => {
+                      if (leanTo.wraparound) {
+                        handleUpdateWraparoundGroup(leanTo, {
+                          type: leanTo.type === 'gable' ? 'gable' : 'open',
+                          isOpen: true
+                        });
+                      } else {
+                        handleUpdateLeanTo(leanTo.id, {
+                          type: leanTo.type === 'gable' ? 'gable' : 'open',
+                          isOpen: leanTo.type === 'gable' ? true : leanTo.isOpen
+                        });
+                      }
+                    }}
+                    size="sm"
+                    className="h-7 text-xs"
+                  >
+                    Open
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label className="mb-1 block text-xs">{leanTo.wraparound ? 'Corner Position' : 'Wall'}</Label>
+                {leanTo.wraparound ? (
+                  <Select 
+                    value={leanTo.wraparoundCorner || 'both'} 
+                    onValueChange={(value: 'left' | 'right' | 'both') => handleCornerPositionChange(leanTo, value)}
+                  >
+                    <SelectTrigger className="h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-50 bg-background">
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                      <SelectItem value="both">Both</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Select 
+                    value={leanTo.wall} 
+                    onValueChange={(value: 'front' | 'back' | 'left' | 'right') => {
+                      // Calculate new dimensions based on wall and type
+                      const newWallDimension = (value === 'left' || value === 'right') 
+                        ? buildingLength 
+                        : buildingWidth;
+                      
+                      let newLength: number;
+                      let newWidth: number;
+                      let newPosition: number;
+                      
+                      if (leanTo.type === 'gable') {
+                        // Gable: 10ft shorter than max width, centered
+                        newWidth = Math.max(15, newWallDimension - 10);
+                        newLength = leanTo.length;
+                        newPosition = 0.5;
+                      } else {
+                        // Single slope: max length
+                        newLength = newWallDimension;
+                        newWidth = leanTo.width;
+                        newPosition = 0.5;
+                      }
+                      
+                      handleUpdateLeanTo(leanTo.id, { 
+                        wall: value, 
+                        length: newLength,
+                        width: newWidth,
+                        position: newPosition
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-50 bg-background">
+                      {(['front', 'back', 'left', 'right'] as const).map(wall => {
+                        const isUsed = leanTos.some(lt => lt.id !== leanTo.id && lt.wall === wall);
+                        return (
+                          <SelectItem key={wall} value={wall} disabled={isUsed}>
+                            {wall.charAt(0).toUpperCase() + wall.slice(1)} {isUsed ? '(Used)' : ''}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+
+            {/* Wraparound option */}
+            {(() => {
+              const availableCorners = getAvailableWraparoundCorners(leanTo);
+              if (availableCorners.length === 0) return null;
+
+              return (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Label className="mb-2 block text-xs">Wraparound Porch</Label>
+                  <div className="grid grid-cols-2 gap-1">
+                    <Button
+                      variant={!leanTo.wraparound ? 'default' : 'outline'}
+                      onClick={() => handleToggleWraparound(leanTo, false)}
+                      size="sm"
+                      className="h-7 text-xs"
+                    >
+                      Off
+                    </Button>
+                    <Button
+                      variant={leanTo.wraparound ? 'default' : 'outline'}
+                      onClick={() => {
+                        if (!leanTo.wraparound) {
+                          const defaultCorner = availableCorners.includes('right') ? 'right' : availableCorners[0];
+                          handleToggleWraparound(leanTo, true, defaultCorner);
+                        }
+                      }}
+                      size="sm"
+                      className="h-7 text-xs"
+                    >
+                      On
+                    </Button>
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Creates side lean-to at selected corner(s)
+                  </p>
+                </div>
+              );
+            })()}
           </Card>
         );
       })}
 
-      {getAvailableWalls().length > 0 && (
+      {leanTos.length < 4 && (
         <Button
           variant="outline"
           onClick={handleAddLeanTo}
-          className="w-full gap-2"
-          data-testid="button-add-leanto"
+          className="w-full h-9 text-xs"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4 mr-1" />
           Add {leanTos.length > 0 ? 'Another ' : ''}Lean-To
         </Button>
       )}

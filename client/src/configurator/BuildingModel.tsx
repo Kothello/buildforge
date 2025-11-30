@@ -1628,11 +1628,10 @@ export const BuildingModel = ({
 
       {/* Lean-To Structures */}
       {leanTos.map((leanTo) => {
-        // For gable lean-tos: use gableAttachmentSide if set, otherwise fall back to wall
-        const gableWall = leanTo.type === 'gable' && leanTo.gableAttachmentSide 
+        // For gable lean-tos: use gableAttachmentSide if set, otherwise fallback to wall
+        const attachmentWall = leanTo.type === 'gable' && leanTo.gableAttachmentSide 
           ? leanTo.gableAttachmentSide 
           : leanTo.wall;
-        const attachmentWall = leanTo.type === 'gable' ? gableWall : leanTo.wall;
         
         // For gable lean-tos: width is parallel to building, length is perpendicular
         // For other lean-tos: width is perpendicular to building, length is parallel
@@ -1649,20 +1648,7 @@ export const BuildingModel = ({
         
         const attachWallLength = effectiveLength;
         
-        // Determine which walls should be rendered based on enclosure settings
-        const shouldRenderWall = (wallName: 'front' | 'back' | 'left' | 'right'): boolean => {
-          // For open type lean-tos, never render walls
-          if (leanTo.type === 'open') return false;
-          
-          // Check enclosure mode
-          if (leanTo.enclosure === 'fully-open') return false;
-          if (leanTo.enclosure === 'fully-enclosed' || leanTo.enclosure === undefined) return true;
-          
-          // For 'customize' mode, use individual wall settings
-          return leanTo.walls[wallName];
-        };
-        
-        // Position lean-to based on which wall it's attached to
+        // Position lean-to based on which wall it's attached to (use attachmentWall for gable lean-tos)
         let leanToPosition: [number, number, number] = [0, 0, 0];
         let leanToRotation: [number, number, number] = [0, 0, 0];
         
@@ -1746,18 +1732,18 @@ export const BuildingModel = ({
           if (!leanToEditMode || !isDragging || !dragStartRef.current || dragStartRef.current.leanToId !== leanTo.id) return;
           e.stopPropagation();
           
-          // Get the axis we're moving along based on wall
-          const wallDimension = (leanTo.wall === 'front' || leanTo.wall === 'back') ? width : length;
+          // Get the axis we're moving along based on wall (use attachmentWall for gable lean-tos)
+          const wallDimension = (attachmentWall === 'front' || attachmentWall === 'back') ? width : length;
           const leanToLength = effectiveLength;
           const availableSpace = Math.max(1, wallDimension - leanToLength);
           
           // Calculate delta from start position
           let delta = 0;
-          if (leanTo.wall === 'right') {
+          if (attachmentWall === 'right') {
             delta = e.point.z - dragStartRef.current.pointerZ;
-          } else if (leanTo.wall === 'left') {
+          } else if (attachmentWall === 'left') {
             delta = dragStartRef.current.pointerZ - e.point.z;
-          } else if (leanTo.wall === 'front') {
+          } else if (attachmentWall === 'front') {
             delta = e.point.x - dragStartRef.current.pointerX;
           } else { // back
             delta = dragStartRef.current.pointerX - e.point.x;
@@ -1779,11 +1765,11 @@ export const BuildingModel = ({
           // Directly update the lean-to group position without triggering React state
           const leanToGroup = leanToGroupRefs.current.get(leanTo.id);
           if (leanToGroup) {
-            if (leanTo.wall === 'right') {
+            if (attachmentWall === 'right') {
               leanToGroup.position.z = centerOffset;
-            } else if (leanTo.wall === 'left') {
+            } else if (attachmentWall === 'left') {
               leanToGroup.position.z = -centerOffset;
-            } else if (leanTo.wall === 'front') {
+            } else if (attachmentWall === 'front') {
               leanToGroup.position.x = centerOffset;
             } else {
               leanToGroup.position.x = -centerOffset;
@@ -1915,24 +1901,6 @@ export const BuildingModel = ({
                   // On sidewalls only: if lean-to ridge exceeds main eave, create hip extension
                   const needsHip = (leanTo.wall === 'left' || leanTo.wall === 'right') && cappedGableApexHeight > mainBuildingEaveHeight;
                   
-                  // DEBUG: Hip roof diagnostic logging
-                  console.log('[HIP ROOF DEBUG]', {
-                    leanToId: leanTo.id,
-                    leanToType: leanTo.type,
-                    leanToWall: leanTo.wall,
-                    leanToHeight: leanToHeight,
-                    leanToPitch: leanTo.pitch,
-                    attachWallLength: attachWallLength,
-                    gableRoofRise: gableRoofRise,
-                    rawGableApexHeight: rawGableApexHeight,
-                    mainBuildingEaveHeight: mainBuildingEaveHeight,
-                    mainRidgeHeight: mainRidgeHeight,
-                    cappedGableApexHeight: cappedGableApexHeight,
-                    needsHip: needsHip,
-                    isSideWall: leanTo.wall === 'left' || leanTo.wall === 'right',
-                    apexExceedsEave: cappedGableApexHeight > mainBuildingEaveHeight
-                  });
-                  
                   if (needsHip) {
                     const leanToRidgeHeight = cappedGableApexHeight;
                     const heightAboveEave = leanToRidgeHeight - mainBuildingEaveHeight;
@@ -1950,17 +1918,14 @@ export const BuildingModel = ({
                     // Ridge cap extends from front of lean-to until it meets the main roof
                     const ridgeCapLength = effectiveWidth + hipHorizontalRun;
                     
-                    // Extra extension to ensure roof panels meet main building flush (no gap)
-                    const roofExtension = 0.4;
-                    
                     return (
                       <>
                         {/* Left lean-to gable panel */}
                         <mesh 
-                          position={[-roofExtension / 2, hipMidHeight, -attachWallLength / 4]} 
+                          position={[0, hipMidHeight, -attachWallLength / 4]} 
                           rotation={[-roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[effectiveWidth + 0.2 + roofExtension, 0.15, roofPanelLength + 0.2]} />
+                          <boxGeometry args={[effectiveWidth + 0.2, 0.15, roofPanelLength + 0.2]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -1972,10 +1937,10 @@ export const BuildingModel = ({
                         
                         {/* Right lean-to gable panel */}
                         <mesh 
-                          position={[-roofExtension / 2, hipMidHeight, attachWallLength / 4]} 
+                          position={[0, hipMidHeight, attachWallLength / 4]} 
                           rotation={[roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[effectiveWidth + 0.2 + roofExtension, 0.15, roofPanelLength + 0.2]} />
+                          <boxGeometry args={[effectiveWidth + 0.2, 0.15, roofPanelLength + 0.2]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -1986,12 +1951,12 @@ export const BuildingModel = ({
                         </mesh>
                         
                         {/* Hip roof extensions - simple box geometry with mirrored rotations */}
-                        {/* Front hip panel - extended inward to meet main building flush */}
+                        {/* Front hip panel */}
                         <mesh 
-                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2 - roofExtension / 2, hipMidHeight, -attachWallLength / 4]} 
+                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2, hipMidHeight, -attachWallLength / 4]} 
                           rotation={[-roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[hipHorizontalRun + roofExtension, 0.15, hipPanelDepth]} />
+                          <boxGeometry args={[hipHorizontalRun, 0.15, hipPanelDepth]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -2001,12 +1966,12 @@ export const BuildingModel = ({
                           />
                         </mesh>
                         
-                        {/* Back hip panel - mirrored rotation, extended inward to meet main building flush */}
+                        {/* Back hip panel - mirrored rotation */}
                         <mesh 
-                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2 - roofExtension / 2, hipMidHeight, attachWallLength / 4]} 
+                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2, hipMidHeight, attachWallLength / 4]} 
                           rotation={[roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[hipHorizontalRun + roofExtension, 0.15, hipPanelDepth]} />
+                          <boxGeometry args={[hipHorizontalRun, 0.15, hipPanelDepth]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -2020,17 +1985,14 @@ export const BuildingModel = ({
                     );
                   } else {
                     // Standard gable roof below eave height
-                    // Extra extension to ensure roof panels meet main building flush (no gap)
-                    const roofExtension = 0.4;
-                    
                     return (
                       <>
-                        {/* Left roof panel - ridge parallel to building, extended inward */}
+                        {/* Left roof panel - ridge parallel to building */}
                         <mesh 
-                          position={[-roofExtension / 2, leanToHeight + effectiveRoofRise / 2, -attachWallLength / 4]} 
+                          position={[0, leanToHeight + effectiveRoofRise / 2, -attachWallLength / 4]} 
                           rotation={[-roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[effectiveWidth + 0.2 + roofExtension, 0.15, roofPanelLength + 0.2]} />
+                          <boxGeometry args={[effectiveWidth + 0.2, 0.15, roofPanelLength + 0.2]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -2040,12 +2002,12 @@ export const BuildingModel = ({
                           />
                         </mesh>
                         
-                        {/* Right roof panel - ridge parallel to building, extended inward */}
+                        {/* Right roof panel - ridge parallel to building */}
                         <mesh 
-                          position={[-roofExtension / 2, leanToHeight + effectiveRoofRise / 2, attachWallLength / 4]} 
+                          position={[0, leanToHeight + effectiveRoofRise / 2, attachWallLength / 4]} 
                           rotation={[roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[effectiveWidth + 0.2 + roofExtension, 0.15, roofPanelLength + 0.2]} />
+                          <boxGeometry args={[effectiveWidth + 0.2, 0.15, roofPanelLength + 0.2]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -2060,8 +2022,8 @@ export const BuildingModel = ({
                   }
                 })()}
                 
-                {/* Gable end wall (front only - furthest from main building) - based on wall enclosure settings */}
-                {leanTo.type === 'gable' && shouldRenderWall('right') && (() => {
+                {/* Gable end wall (front only - furthest from main building) - only for enclosed type */}
+                {leanTo.type === 'gable' && !leanTo.isOpen && (() => {
                   const gableGeometry = createLeanToGableEndCapGeometry(leanTo);
                   return gableGeometry ? (
                     <mesh 
@@ -2160,86 +2122,81 @@ export const BuildingModel = ({
                   return beams;
                 })()}
                 
-                {/* Side walls for gable lean-to - based on wall enclosure settings */}
-                <>
-                  {/* Front local wall (z -effectiveLength/2) */}
-                  {shouldRenderWall('front') && (
-                    <>
-                      <mesh 
-                        key={`leanto-gable-sidewall-front-${leanTo.id}-${wallColor}`} 
-                        position={[0, leanToHeight / 2, -effectiveLength / 2]} 
+                {/* Side walls for gable lean-to - only when not open */}
+                {!leanTo.isOpen && (
+                  <>
+                    {/* Front local wall (z -effectiveLength/2) */}
+                    <mesh 
+                      key={`leanto-gable-sidewall-front-${leanTo.id}-${wallColor}`} 
+                      position={[0, leanToHeight / 2, -effectiveLength / 2]} 
+                      rotation={[0, 0, 0]}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isDragging && onWallClick) {
+                          onWallClick(leanTo.wall, leanTo.id, 'front');
+                        }
+                      }}
+                    >
+                      <boxGeometry args={[effectiveWidth - 0.4, leanToHeight, 0.2]} />
+                      <meshStandardMaterial 
+                        color={resolveColor(wallColor)}
+                        metalness={0.9}
+                        roughness={0.2}
+                        bumpMap={wallBump}
+                        bumpScale={0.3}
+                        side={THREE.DoubleSide}
+                      />
+                    </mesh>
+                    {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'front' && (
+                      <mesh
+                        key={`leanto-gable-sidewall-front-highlight-${leanTo.id}`}
+                        position={[0, leanToHeight / 2, -effectiveLength / 2 - 0.3]}
                         rotation={[0, 0, 0]}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isDragging && onWallClick) {
-                            onWallClick(leanTo.wall, leanTo.id, 'front');
-                          }
-                        }}
+                        castShadow={false}
+                        receiveShadow={false}
                       >
-                        <boxGeometry args={[effectiveWidth - 0.4, leanToHeight, 0.2]} />
-                        <meshStandardMaterial 
-                          color={resolveColor(wallColor)}
-                          metalness={0.9}
-                          roughness={0.2}
-                          bumpMap={wallBump}
-                          bumpScale={0.3}
-                          side={THREE.DoubleSide}
-                        />
+                        <planeGeometry args={[effectiveWidth, leanToHeight]} />
+                        <primitive attach="material" object={leanToHighlightMaterial} />
                       </mesh>
-                      {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'front' && (
-                        <mesh
-                          key={`leanto-gable-sidewall-front-highlight-${leanTo.id}`}
-                          position={[0, leanToHeight / 2, -effectiveLength / 2 - 0.3]}
-                          rotation={[0, 0, 0]}
-                          castShadow={false}
-                          receiveShadow={false}
-                        >
-                          <planeGeometry args={[effectiveWidth, leanToHeight]} />
-                          <primitive attach="material" object={leanToHighlightMaterial} />
-                        </mesh>
-                      )}
-                    </>
-                  )}
+                    )}
 
-                  {/* Back local wall (z +effectiveLength/2) */}
-                  {shouldRenderWall('back') && (
-                    <>
-                      <mesh 
-                        key={`leanto-gable-sidewall-back-${leanTo.id}-${wallColor}`} 
-                        position={[0, leanToHeight / 2, effectiveLength / 2]} 
+                    {/* Back local wall (z +effectiveLength/2) */}
+                    <mesh 
+                      key={`leanto-gable-sidewall-back-${leanTo.id}-${wallColor}`} 
+                      position={[0, leanToHeight / 2, effectiveLength / 2]} 
+                      rotation={[0, Math.PI, 0]}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isDragging && onWallClick) {
+                          onWallClick(leanTo.wall, leanTo.id, 'back');
+                        }
+                      }}
+                    >
+                      <boxGeometry args={[effectiveWidth - 0.4, leanToHeight, 0.2]} />
+                      <meshStandardMaterial 
+                        color={resolveColor(wallColor)}
+                        metalness={0.9}
+                        roughness={0.2}
+                        bumpMap={wallBump}
+                        bumpScale={0.3}
+                        side={THREE.DoubleSide}
+                      />
+                    </mesh>
+                    {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'back' && (
+                      <mesh
+                        key={`leanto-gable-sidewall-back-highlight-${leanTo.id}`}
+                        position={[0, leanToHeight / 2, effectiveLength / 2 + 0.3]}
                         rotation={[0, Math.PI, 0]}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isDragging && onWallClick) {
-                            onWallClick(leanTo.wall, leanTo.id, 'back');
-                          }
-                        }}
+                        castShadow={false}
+                        receiveShadow={false}
                       >
-                        <boxGeometry args={[effectiveWidth - 0.4, leanToHeight, 0.2]} />
-                        <meshStandardMaterial 
-                          color={resolveColor(wallColor)}
-                          metalness={0.9}
-                          roughness={0.2}
-                          bumpMap={wallBump}
-                          bumpScale={0.3}
-                          side={THREE.DoubleSide}
-                        />
+                        <planeGeometry args={[effectiveWidth, leanToHeight]} />
+                        <primitive attach="material" object={leanToHighlightMaterial} />
                       </mesh>
-                      {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'back' && (
-                        <mesh
-                          key={`leanto-gable-sidewall-back-highlight-${leanTo.id}`}
-                          position={[0, leanToHeight / 2, effectiveLength / 2 + 0.3]}
-                          rotation={[0, Math.PI, 0]}
-                          castShadow={false}
-                          receiveShadow={false}
-                        >
-                          <planeGeometry args={[effectiveWidth, leanToHeight]} />
-                          <primitive attach="material" object={leanToHighlightMaterial} />
-                        </mesh>
-                      )}
-                    </>
-                  )}
-                </>
+                    )}
+
+                  </>
+                )}
 
                 {/* Gable lean-to trim */}
                 {(() => {
@@ -2294,8 +2251,8 @@ export const BuildingModel = ({
                         <primitive attach="material" object={trimMaterial} />
                       </mesh>
                       
-                      {/* Corner posts - only at outer edge, not at attachment wall - based on enclosure settings */}
-                      {(shouldRenderWall('front') || shouldRenderWall('back') || shouldRenderWall('right')) && (
+                      {/* Corner posts - only at outer edge, not at attachment wall - only when not open */}
+                      {!leanTo.isOpen && (
                         <>
                           <mesh key={`leanto-gable-corner-1-${trimColor}`} position={[effectiveWidth / 2, leanToHeight / 2, -attachWallLength / 2]}>
                             <boxGeometry args={[0.3, leanToHeight, 0.3]} />
@@ -2314,8 +2271,8 @@ export const BuildingModel = ({
             ) : (
               // Enclosed or Open lean-to - single slope roof
               <>
-                {/* Outer wall (front in lean-to space) - based on wall enclosure settings */}
-                {shouldRenderWall('front') && (
+                {/* Side walls (for enclosed type only) */}
+                {leanTo.type === 'enclosed' && (
                   <mesh 
                     position={[effectiveWidth / 2, leanToHeight / 2, 0]}
                     onClick={(e) => {
@@ -2359,17 +2316,14 @@ export const BuildingModel = ({
                   const roofAngle = Math.atan(effectivePitch / 12);
                   const roofPanelWidth = effectiveWidth / Math.cos(roofAngle);
                   
-                  // Extra extension to ensure roof panel meets main building flush (no gap)
-                  const roofExtension = 0.4;
-                  
                   return (
                     <>
-                      {/* Main roof panel - extended inward to meet main building flush */}
+                      {/* Main roof panel */}
                       <mesh 
-                        position={[-roofExtension / 2, leanToHeight + effectiveRoofRise / 2, 0]} 
+                        position={[0, leanToHeight + effectiveRoofRise / 2, 0]} 
                         rotation={[0, 0, -roofAngle]}
                       >
-                        <boxGeometry args={[roofPanelWidth + 0.2 + roofExtension, 0.15, attachWallLength + 0.5]} />
+                        <boxGeometry args={[roofPanelWidth + 0.2, 0.15, attachWallLength + 0.5]} />
                         <meshStandardMaterial 
                           color={resolveColor(roofColor)}
                           metalness={0.9}
@@ -2697,8 +2651,8 @@ export const BuildingModel = ({
                   
                 return (
                   <>
-                    {/* End walls based on wall enclosure settings */}
-                    {(() => {
+                    {/* Only show end walls if lean-to is enclosed */}
+                    {leanTo.type === 'enclosed' && (() => {
                       let hideNegZ = false;
                       let hidePosZ = false;
 
@@ -2750,8 +2704,8 @@ export const BuildingModel = ({
                       
                       return (
                         <>
-                          {/* End wall at local -Z (left wall in lean-to space) */}
-                          {!hideNegZ && shouldRenderWall('left') && (
+                          {/* End wall at local -Z */}
+                          {!hideNegZ && (
                             <mesh 
                               key={`leanto-front-end-${wallColor}`} 
                               position={[0, 0, -attachWallLength / 2]} 
@@ -2768,8 +2722,8 @@ export const BuildingModel = ({
                             </mesh>
                           )}
                           
-                          {/* End wall at local +Z (right wall in lean-to space) */}
-                          {!hidePosZ && shouldRenderWall('right') && (
+                          {/* End wall at local +Z */}
+                          {!hidePosZ && (
                             <mesh 
                               key={`leanto-back-end-${wallColor}`} 
                               position={[0, 0, attachWallLength / 2]} 
