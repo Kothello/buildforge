@@ -2291,8 +2291,8 @@ export const BuildingModel = ({
             ) : (
               // Enclosed or Open lean-to - single slope roof
               <>
-                {/* Side walls (for enclosed type only) */}
-                {leanTo.type === 'enclosed' && (
+                {/* Side walls (only when enclosed, not when open) */}
+                {!leanTo.isOpen && (
                   <mesh 
                     position={[effectiveWidth / 2, leanToHeight / 2, 0]}
                     onClick={(e) => {
