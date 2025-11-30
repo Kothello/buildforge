@@ -2324,9 +2324,9 @@ export const BuildingModel = ({
                         const cornerBackPos = attachWallLength / 2 - 0.875;
                         
                         // Calculate beam length - reduce inset for wider lean-tos to prevent sticking out
-                        // For widths over 16ft, increase the inset proportionally
-                        const baseInset = 0.5;
-                        const extraInset = effectiveWidth > 16 ? (effectiveWidth - 16) * 0.12 : 0;
+                        // For widths over 12ft, increase the inset proportionally to keep beams inside roof
+                        const baseInset = 1.5;
+                        const extraInset = effectiveWidth > 12 ? (effectiveWidth - 12) * 0.25 : 0;
                         const beamLength = roofPanelWidth - baseInset - extraInset;
                         
                         // Angled roof beam at front corner
