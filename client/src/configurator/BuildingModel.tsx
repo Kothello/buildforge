@@ -1908,6 +1908,10 @@ export const BuildingModel = ({
                     
                     const hipPanelDepth = attachWallLength / 2;
                     
+                    // Add extra overlap to close gap between lean-to and main building roof
+                    const overlapExtension = 2.0; // Extra width to ensure overlap with main panels
+                    const totalHipWidth = hipHorizontalRun + overlapExtension;
+                    
                     return (
                       <>
                         {/* Left lean-to gable panel */}
@@ -1940,13 +1944,13 @@ export const BuildingModel = ({
                           />
                         </mesh>
                         
-                        {/* Hip roof extensions - simple box geometry with mirrored rotations */}
-                        {/* Front hip panel */}
+                        {/* Hip roof extensions - extended to properly overlap with main roof */}
+                        {/* Front hip panel with extra width for overlap */}
                         <mesh 
-                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2, hipMidHeight, -attachWallLength / 4]} 
+                          position={[-effectiveWidth / 2 - totalHipWidth / 2, hipMidHeight, -attachWallLength / 4]} 
                           rotation={[-roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[hipHorizontalRun, 0.15, hipPanelDepth]} />
+                          <boxGeometry args={[totalHipWidth, 0.15, hipPanelDepth]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
@@ -1956,12 +1960,12 @@ export const BuildingModel = ({
                           />
                         </mesh>
                         
-                        {/* Back hip panel - mirrored rotation */}
+                        {/* Back hip panel - extended to properly overlap with main roof */}
                         <mesh 
-                          position={[-effectiveWidth / 2 - hipHorizontalRun / 2, hipMidHeight, attachWallLength / 4]} 
+                          position={[-effectiveWidth / 2 - totalHipWidth / 2, hipMidHeight, attachWallLength / 4]} 
                           rotation={[roofAngle, 0, 0]}
                         >
-                          <boxGeometry args={[hipHorizontalRun, 0.15, hipPanelDepth]} />
+                          <boxGeometry args={[totalHipWidth, 0.15, hipPanelDepth]} />
                           <meshStandardMaterial 
                             color={resolveColor(roofColor)}
                             metalness={0.9}
