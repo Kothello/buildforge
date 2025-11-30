@@ -1,0 +1,164 @@
+I need two concrete fixes. The last attempt changed some magic numbers and cookie logic but didn’t fix the real problems.
+
+1) Fix wraparound single-slope lean-to roof shape (no wedge, no posts)
+
+Current bug:
+
+In the configurator (both /builder and the embedded version on /sales/leads/:id), when I create a wraparound single-slope lean-to with a relatively small width (e.g. 16–30 ft), the roof near the corner looks wrong.
+
+There is a visible “wedge” / spike / misaligned plane where the wraparound roof meets the main building roof corner (see my screenshot).
+
+I also previously asked to hide the orange vertical posts on wraparound single-slope lean-tos. Those should still be hidden, but the roof surface must be clean.
+
+Files involved:
+
+Active CRM file:
+client/src/configurator/BuildingModel.tsx
+
+Canonical builder reference:
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+Goal for this step:
+
+For wraparound single-slope lean-tos:
+
+The wraparound roof must be a clean, continuous set of panels with no visible wedge/spike at any width (16 ft, 20 ft, 30 ft, etc.).
+
+The orange vertical I-beam posts for that lean-to must not be rendered at all.
+
+For non-wraparound lean-tos:
+
+Keep the current posts and roof behavior unchanged.
+
+What to do (be precise):
+
+Open both files:
+
+client/src/configurator/BuildingModel.tsx (CRM)
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx (reference)
+
+In each file, locate the section that renders the wraparound single-slope lean-to roof. You’ll see logic that:
+
+Handles leanTo.wraparound === true
+
+Computes lengths like wrapFrontLength, wrapBackLength or similar
+
+Creates roof meshes / panels for the wraparound lean-to.
+
+In the CRM file, for the wraparound single-slope lean-to roof, replace the entire geometry block (position/rotation/length/offset calculations and the mesh pushes for the wraparound roof) with the version from the canonical builder file, so that the CRM uses the exact same roof geometry as the standalone builder for that case.
+
+Keep CRM-specific types/imports as they are.
+
+Do not re-introduce any of the previous “beam length fixes” (inset 0.5→1.5, 0.12→0.25, etc.) that were added only in the CRM file; use the reference builder values.
+
+For the vertical posts on single-slope lean-tos in the CRM file:
+
+Find the meshes for the vertical columns of single-slope lean-tos (keys like leanto-single-column-front-outer, leanto-single-column-back-outer, leanto-single-column-outer-${i} etc.).
+
+Ensure all those vertical column beams.push(...) calls are wrapped in:
+
+if (!leanTo.wraparound) {
+  // existing column meshes here
+}
+
+
+i.e. vertical posts are rendered only when leanTo.wraparound === false.
+For wraparound lean-tos, no vertical posts at all.
+
+Run the app and verify visually:
+
+In /builder:
+
+Create a main building.
+
+Add a wraparound single-slope lean-to at the corner, with widths at 16 ft, 20 ft, 30 ft+.
+
+Confirm:
+
+The corner roof is smooth, no triangular wedge/spike.
+
+There are no orange posts on that wraparound lean-to.
+
+In /sales/leads/:id:
+
+Open a lead with a similar configuration and confirm the same clean roof and no posts.
+
+When you summarize, explicitly mention:
+
+Which block you copied from the canonical builder into the CRM file.
+
+The exact condition you used to disable the vertical posts for wraparound lean-tos.
+
+2) Sidebar / navigation pane default closed, no auto-open on refresh
+
+Current behavior:
+
+The left navigation sidebar (Dashboard / Admin / My Leads / etc.) can be toggled via the rectangular “sidebar” button.
+
+After a refresh (e.g. when the app reloads after workspaces restart, or after certain navigation), the sidebar pops open again even if I previously had it closed.
+
+I want the sidebar to be closed by default on initial load and only open when I explicitly click the toggle button.
+
+Goal:
+
+Default state: sidebar closed.
+
+It should not auto-open because of cookies or any other persisted state.
+
+The button continues to toggle it open/closed within the current session.
+
+What to do:
+
+Open the sidebar implementation file (in this project it should be something like):
+client/src/components/ui/sidebar.tsx
+and any related provider file, e.g. client/src/components/ui/sidebar-provider.tsx or similar (use search for SidebarProvider or the toggle button).
+
+Remove or disable any logic that reads sidebar state from cookies or any other persistent storage on initial load.
+
+If there is code reading document.cookie or sidebar_state, delete that read for now.
+
+Set the sidebar’s initial state to closed:
+
+Wherever the open/closed state is initialized (usually const [open, setOpen] = useState(true) or a defaultOpen prop), change that to false.
+
+Example:
+
+const [open, setOpen] = useState(false);
+// or
+<Sidebar defaultOpen={false} ... />
+
+
+Keep the existing toggle behavior:
+
+The button the user clicks should still flip the state from false → true and back.
+
+Don’t change the button icon or click handler, just the initial state and persistence behavior.
+
+After changes:
+
+Reload the app completely.
+
+Go to /sales:
+
+Confirm the sidebar starts closed.
+
+Click the toggle → it opens.
+
+Refresh the page:
+
+Confirm it starts closed again (no automatic re-open).
+
+In your summary, clearly state:
+
+Which sidebar file(s) you changed.
+
+How the initial open/defaultOpen state is now set.
+
+That you removed cookie-based re-opening logic.
+
+Please don’t show full file contents; just describe the edits and confirm both:
+
+Wraparound single-slope lean-tos: clean roof, no posts.
+
+Sidebar: closed by default, only opens when I click the toggle.
