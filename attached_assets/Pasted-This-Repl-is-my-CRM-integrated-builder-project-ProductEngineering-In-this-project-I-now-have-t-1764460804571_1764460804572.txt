@@ -1,0 +1,103 @@
+This Repl is my CRM + integrated builder project (ProductEngineering).
+
+In this project I now have two copies of the configurator:
+
+Fixed standalone builder (source of truth for 3D + UI behavior):
+iron-builder-studio-70695-74818-74577-9-62585/client/src
+
+CRM-integrated builder (used by /builder and /sales/leads/:id):
+client/src/configurator
+
+The standalone version has all the recent bugfixes (lean-tos, wraparound, door/window edit meshes, roof joins, etc.).
+
+The CRM version has the lead/pricing integration (BuilderPage.tsx, LeadConfiguratorEmbed.tsx, React Query, etc.) but some configurator core files are outdated.
+
+Goal:
+
+Use the standalone configurator under iron-builder-studio-70695-74818-74577-9-62585/client/src as the source of truth for core configurator behavior, while keeping all CRM integration code in client/src intact.
+
+Concretely:
+
+Sync/merge core configurator components (types, 3D model, lean-to UI, doors/windows UI) from the standalone project into client/src/configurator.
+
+Do not break or remove CRM-specific pieces (lead form, pricing panel, routes, React Query, etc.).
+
+Constraints:
+
+Do not modify backend routes (server/*) or DB/schema.
+
+Do not change CRM pages like client/src/pages/sales-dashboard.tsx, lead-edit.tsx, etc., except to fix imports if needed.
+
+Treat these as CRM-specific and must be preserved:
+
+client/src/configurator/BuilderPage.tsx
+
+client/src/configurator/LeadConfiguratorEmbed.tsx
+
+client/src/configurator/PricingDisplay.tsx
+
+All other files under client/src/configurator that correspond to pure configurator logic (3D, lean-tos, doors/windows, types) should be aligned with the standalone version.
+
+Task:
+
+Identify the “core configurator” files in both trees by matching names and component purposes, for example (non-exhaustive):
+
+types.ts (building configuration types)
+
+Scene3D.tsx
+
+BuildingModel.tsx
+
+LeanToConfig.tsx and any lean-to helper modules
+
+Doors/windows configuration/editor components
+
+Any other components under client/src/configurator that do not talk to leads/pricing/React Query.
+
+For each such core file:
+
+Open the standalone version under iron-builder-studio-70695-74818-74577-9-62585/client/src/....
+
+Open the matching CRM version under client/src/configurator/....
+
+Diff them and classify:
+
+a) Standalone has bug fixes / improved geometry / UI; CRM version has no additional CRM logic → replace CRM file with standalone file, then fix imports/paths as needed.
+
+b) CRM version adds small integration-only props or hooks (e.g. callbacks for selection, theming) on top of the original logic → merge: start from the standalone logic and re-apply the few CRM-specific additions.
+
+When copying/merging:
+
+Update import paths to point at client/src/configurator’s modules (not the old components folder).
+
+Ensure all types imported in client/src/configurator/* now come from the single shared client/src/configurator/types.ts.
+
+Do not introduce any references back into the iron-builder-studio-... folder; that folder should be used only as a source for copying, not as a runtime dependency.
+
+After syncing types and core components, verify compilation and fix any type errors by aligning CRM code to the new types, not by weakening types to any.
+
+If LeadConfiguratorEmbed or BuilderPage import types that changed slightly, update their imports to the new definitions in client/src/configurator/types.ts.
+
+Manual test plan (run these and make sure they work):
+
+/builder:
+
+Build scenarios you know work in the standalone builder (single-slope high wall, lean-to wraparound, gable lean-to width, openings on each wall).
+
+Confirm 3D + UI behavior matches the standalone project.
+
+/sales: open My Leads list; /sales/leads/:id:
+
+Open an existing lead, use the embedded configurator to change the building, Save Changes, and confirm:
+
+3D behavior matches the standalone builder.
+
+Pricing updates and totalPrice in the grid updates as before.
+
+At the end, summarize:
+
+Which client/src/configurator/* files were updated or replaced from the standalone project.
+
+Any CRM-specific hooks/props you preserved or re-applied.
+
+Any remaining differences between the standalone configurator and the CRM configurator that you intentionally did not change.
