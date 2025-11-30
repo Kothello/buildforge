@@ -1902,16 +1902,11 @@ export const BuildingModel = ({
                     
                     // Hip horizontal run based on lean-to's own pitch
                     const hipHorizontalRun = (heightAboveEave * 12) / leanTo.pitch;
-                    const hipPanelLength = Math.sqrt(hipHorizontalRun * hipHorizontalRun + heightAboveEave * heightAboveEave);
                     
                     // Calculate the midpoint height where hip panels meet at the capped ridge
                     const hipMidHeight = leanToHeight + effectiveRoofRise / 2;
                     
                     const hipPanelDepth = attachWallLength / 2;
-                    
-                    // Calculate where ridge cap should end (stop at main building roof intersection)
-                    // Ridge cap extends from front of lean-to until it meets the main roof
-                    const ridgeCapLength = effectiveWidth + hipHorizontalRun;
                     
                     return (
                       <>
@@ -2017,32 +2012,54 @@ export const BuildingModel = ({
                   }
                 })()}
                 
-                {/* Gable end wall (front only - furthest from main building) - only for enclosed type */}
-                {leanTo.type === 'gable' && !leanTo.isOpen && (() => {
+                {/* Gable end wall (front only - furthest from main building) - renders when not open OR when wall is explicitly enabled */}
+                {leanTo.type === 'gable' && (!leanTo.isOpen || leanTo.walls?.right === true) && (leanTo.walls?.right !== false) && (() => {
                   const gableGeometry = createLeanToGableEndCapGeometry(leanTo);
+                  const gableRoofRise = (leanTo.pitch / 12) * (effectiveLength / 2);
+                  const rawGableApexHeight = leanToHeight + gableRoofRise;
+                  const mainRidgeHeight = height + roofHeight;
+                  const effectiveRoofRise = rawGableApexHeight > mainRidgeHeight 
+                    ? mainRidgeHeight - leanToHeight - 0.2 
+                    : gableRoofRise;
+                  
                   return gableGeometry ? (
-                    <mesh 
-                      key={`leanto-gable-endwall-${leanTo.id}-${wallColor}`} 
-                      position={[effectiveWidth / 2, 0, 0]} 
-                      rotation={[0, Math.PI / 2, 0]}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isDragging && onWallClick) {
-                          // Local +X wall is the "right" wall in lean-to space
-                          onWallClick(leanTo.wall, leanTo.id, 'right');
-                        }
-                      }}
-                    >
-                      <primitive object={gableGeometry} />
-                      <meshStandardMaterial 
-                        color={resolveColor(wallColor)}
-                        metalness={0.9}
-                        roughness={0.2}
-                        bumpMap={wallBump}
-                        bumpScale={0.3}
-                        side={THREE.DoubleSide}
-                      />
-                    </mesh>
+                    <>
+                      <mesh 
+                        key={`leanto-gable-endwall-${leanTo.id}-${wallColor}`} 
+                        position={[effectiveWidth / 2, 0, 0]} 
+                        rotation={[0, Math.PI / 2, 0]}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isDragging && onWallClick) {
+                            // Local +X wall is the "right" wall in lean-to space
+                            onWallClick(leanTo.wall, leanTo.id, 'right');
+                          }
+                        }}
+                      >
+                        <primitive object={gableGeometry} />
+                        <meshStandardMaterial 
+                          color={resolveColor(wallColor)}
+                          metalness={0.9}
+                          roughness={0.2}
+                          bumpMap={wallBump}
+                          bumpScale={0.3}
+                          side={THREE.DoubleSide}
+                        />
+                      </mesh>
+                      {/* Highlight for gable end wall (right) */}
+                      {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'right' && (
+                        <mesh
+                          key={`leanto-gable-endwall-highlight-${leanTo.id}`}
+                          position={[effectiveWidth / 2 + 0.3, (leanToHeight + effectiveRoofRise / 2) / 2, 0]}
+                          rotation={[0, Math.PI / 2, 0]}
+                          castShadow={false}
+                          receiveShadow={false}
+                        >
+                          <planeGeometry args={[effectiveLength, leanToHeight + effectiveRoofRise / 2]} />
+                          <primitive attach="material" object={leanToHighlightMaterial} />
+                        </mesh>
+                      )}
+                    </>
                   ) : null;
                 })()}
 
@@ -2117,77 +2134,85 @@ export const BuildingModel = ({
                   return beams;
                 })()}
                 
-                {/* Side walls for gable lean-to - only when not open */}
-                {!leanTo.isOpen && (
+                {/* Side walls for gable lean-to - render when not open OR when wall is explicitly enabled */}
+                {(!leanTo.isOpen || leanTo.walls?.front === true || leanTo.walls?.back === true) && (
                   <>
-                    {/* Front local wall (z -effectiveLength/2) */}
-                    <mesh 
-                      key={`leanto-gable-sidewall-front-${leanTo.id}-${wallColor}`} 
-                      position={[0, leanToHeight / 2, -effectiveLength / 2]} 
-                      rotation={[0, 0, 0]}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isDragging && onWallClick) {
-                          onWallClick(leanTo.wall, leanTo.id, 'front');
-                        }
-                      }}
-                    >
-                      <boxGeometry args={[effectiveWidth - 0.4, leanToHeight, 0.2]} />
-                      <meshStandardMaterial 
-                        color={resolveColor(wallColor)}
-                        metalness={0.9}
-                        roughness={0.2}
-                        bumpMap={wallBump}
-                        bumpScale={0.3}
-                        side={THREE.DoubleSide}
-                      />
-                    </mesh>
-                    {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'front' && (
-                      <mesh
-                        key={`leanto-gable-sidewall-front-highlight-${leanTo.id}`}
-                        position={[0, leanToHeight / 2, -effectiveLength / 2 - 0.3]}
-                        rotation={[0, 0, 0]}
-                        castShadow={false}
-                        receiveShadow={false}
-                      >
-                        <planeGeometry args={[effectiveWidth, leanToHeight]} />
-                        <primitive attach="material" object={leanToHighlightMaterial} />
-                      </mesh>
+                    {/* Front local wall (z -effectiveLength/2) - respects leanTo.walls.front */}
+                    {(!leanTo.isOpen || leanTo.walls?.front === true) && (leanTo.walls?.front !== false) && (
+                      <>
+                        <mesh 
+                          key={`leanto-gable-sidewall-front-${leanTo.id}-${wallColor}`} 
+                          position={[0, leanToHeight / 2, -effectiveLength / 2]} 
+                          rotation={[0, 0, 0]}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isDragging && onWallClick) {
+                              onWallClick(leanTo.wall, leanTo.id, 'front');
+                            }
+                          }}
+                        >
+                          <boxGeometry args={[effectiveWidth - 0.4, leanToHeight, 0.2]} />
+                          <meshStandardMaterial 
+                            color={resolveColor(wallColor)}
+                            metalness={0.9}
+                            roughness={0.2}
+                            bumpMap={wallBump}
+                            bumpScale={0.3}
+                            side={THREE.DoubleSide}
+                          />
+                        </mesh>
+                        {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'front' && (
+                          <mesh
+                            key={`leanto-gable-sidewall-front-highlight-${leanTo.id}`}
+                            position={[0, leanToHeight / 2, -effectiveLength / 2 - 0.3]}
+                            rotation={[0, 0, 0]}
+                            castShadow={false}
+                            receiveShadow={false}
+                          >
+                            <planeGeometry args={[effectiveWidth, leanToHeight]} />
+                            <primitive attach="material" object={leanToHighlightMaterial} />
+                          </mesh>
+                        )}
+                      </>
                     )}
 
-                    {/* Back local wall (z +effectiveLength/2) */}
-                    <mesh 
-                      key={`leanto-gable-sidewall-back-${leanTo.id}-${wallColor}`} 
-                      position={[0, leanToHeight / 2, effectiveLength / 2]} 
-                      rotation={[0, Math.PI, 0]}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isDragging && onWallClick) {
-                          onWallClick(leanTo.wall, leanTo.id, 'back');
-                        }
-                      }}
-                    >
-                      <boxGeometry args={[effectiveWidth - 0.4, leanToHeight, 0.2]} />
-                      <meshStandardMaterial 
-                        color={resolveColor(wallColor)}
-                        metalness={0.9}
-                        roughness={0.2}
-                        bumpMap={wallBump}
-                        bumpScale={0.3}
-                        side={THREE.DoubleSide}
-                      />
-                    </mesh>
-                    {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'back' && (
-                      <mesh
-                        key={`leanto-gable-sidewall-back-highlight-${leanTo.id}`}
-                        position={[0, leanToHeight / 2, effectiveLength / 2 + 0.3]}
-                        rotation={[0, Math.PI, 0]}
-                        castShadow={false}
-                        receiveShadow={false}
-                      >
-                        <planeGeometry args={[effectiveWidth, leanToHeight]} />
-                        <primitive attach="material" object={leanToHighlightMaterial} />
-                      </mesh>
+                    {/* Back local wall (z +effectiveLength/2) - respects leanTo.walls.back */}
+                    {(!leanTo.isOpen || leanTo.walls?.back === true) && (leanTo.walls?.back !== false) && (
+                      <>
+                        <mesh 
+                          key={`leanto-gable-sidewall-back-${leanTo.id}-${wallColor}`} 
+                          position={[0, leanToHeight / 2, effectiveLength / 2]} 
+                          rotation={[0, Math.PI, 0]}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isDragging && onWallClick) {
+                              onWallClick(leanTo.wall, leanTo.id, 'back');
+                            }
+                          }}
+                        >
+                          <boxGeometry args={[effectiveWidth - 0.4, leanToHeight, 0.2]} />
+                          <meshStandardMaterial 
+                            color={resolveColor(wallColor)}
+                            metalness={0.9}
+                            roughness={0.2}
+                            bumpMap={wallBump}
+                            bumpScale={0.3}
+                            side={THREE.DoubleSide}
+                          />
+                        </mesh>
+                        {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'back' && (
+                          <mesh
+                            key={`leanto-gable-sidewall-back-highlight-${leanTo.id}`}
+                            position={[0, leanToHeight / 2, effectiveLength / 2 + 0.3]}
+                            rotation={[0, Math.PI, 0]}
+                            castShadow={false}
+                            receiveShadow={false}
+                          >
+                            <planeGeometry args={[effectiveWidth, leanToHeight]} />
+                            <primitive attach="material" object={leanToHighlightMaterial} />
+                          </mesh>
+                        )}
+                      </>
                     )}
 
                   </>
