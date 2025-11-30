@@ -3,15 +3,34 @@ import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useMutation } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Pencil } from 'lucide-react';
 import type { BuildingSpecs } from './BuilderPage';
 import type { BuildingConfig } from './types';
 
 const LazyBuilderPage = lazy(() => import('./BuilderPage'));
 
-function ConfiguratorSkeleton() {
+function ConfiguratorSkeleton({ isEditing }: { isEditing: boolean }) {
+  if (!isEditing) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-muted/20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading 3D view...</span>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="h-full w-full flex">
-      <div className="w-80 border-r border-border p-4 space-y-4">
+      <div className="flex-1 bg-muted/20 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading 3D view...</span>
+        </div>
+      </div>
+      <div className="w-80 border-l border-border p-4 space-y-4">
         <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
         <div className="h-8 bg-muted/30 rounded animate-pulse" />
         <div className="space-y-3">
@@ -23,12 +42,6 @@ function ConfiguratorSkeleton() {
         <div className="space-y-3">
           <div className="h-10 bg-muted/40 rounded animate-pulse" />
           <div className="h-10 bg-muted/40 rounded animate-pulse" />
-        </div>
-      </div>
-      <div className="flex-1 bg-muted/20 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-muted-foreground">Loading 3D view...</span>
         </div>
       </div>
     </div>
@@ -43,6 +56,7 @@ interface LeadConfiguratorEmbedProps {
 
 export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfiguratorEmbedProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
   
   const initialConfig = (lead.configuration as BuildingConfig) || undefined;
@@ -80,8 +94,7 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
       
       onSave?.(updatedLead);
       
-      // Hard refresh the page to ensure all data including Pricing Breakdown is up-to-date
-      window.location.reload();
+      setIsEditing(false);
     },
     onError: (error) => {
       setIsSaving(false);
@@ -99,12 +112,25 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
   };
 
   return (
-    <div className="h-full w-full">
-      <Suspense fallback={<ConfiguratorSkeleton />}>
+    <div className="h-full w-full relative">
+      {!isEditing && (
+        <div className="absolute top-4 right-4 z-10">
+          <Button
+            onClick={() => setIsEditing(true)}
+            className="gap-2"
+            data-testid="button-edit-building"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit Building
+          </Button>
+        </div>
+      )}
+      <Suspense fallback={<ConfiguratorSkeleton isEditing={isEditing} />}>
         <LazyBuilderPage
           initialConfig={initialConfig}
           onSave={handleSave}
           isSaving={isSaving}
+          showEditPanel={isEditing}
         />
       </Suspense>
     </div>

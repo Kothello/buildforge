@@ -1,0 +1,137 @@
+I want to change the lead detail building configurator UI so that:
+
+Default state = clean review mode: 3D model + pricing, no editing panel.
+
+There is an “Edit Building” button near the 3D model.
+
+Clicking “Edit Building” opens the full configuration panel (Dimensions, Doors & Windows, Colors, Save Changes) on the right, like it works now.
+
+Clicking Save Changes updates the lead and pricing, then closes the panel and returns to the clean review mode, with the new values showing in Pricing Breakdown and the 3D model.
+
+Do not change anything about how pricing is calculated or how the API calls work. Only change the UI flow around viewing vs editing.
+
+Files to update:
+
+client/src/configurator/LeadConfiguratorEmbed.tsx (main target)
+
+If needed, you can touch client/src/pages/lead-edit.tsx, but keep it minimal.
+
+Current behavior (for reference)
+
+On /sales/leads/:id the page shows:
+
+Left column: lead details + Pricing Breakdown card.
+
+Center: LeadConfiguratorEmbed with the 3D viewer and the full editing panel on the right.
+
+The editing panel (Dimensions, Doors & Windows, Colors, Save Changes) is always visible.
+
+Desired behavior
+
+Add an edit mode toggle in LeadConfiguratorEmbed
+
+In LeadConfiguratorEmbed.tsx, introduce a local React state:
+
+const [isEditing, setIsEditing] = useState(false); // default: review mode
+
+
+This state lives inside LeadConfiguratorEmbed, so the parent lead detail page does not need to know about it.
+
+Layout in review mode (isEditing === false)
+
+The component still mounts the 3D viewer (Scene3D / whatever you already use) exactly as before, in the central area.
+
+The right-hand configuration panel (Dimensions, Doors & Windows, Colors, Save Changes) is not rendered when isEditing === false.
+
+Add a single button labeled “Edit Building” associated with the configurator area.
+Requirements:
+
+Place it visually near the 3D viewer (for example, aligned to the top-right or bottom-right of the configurator card).
+
+Use the same button styles as existing primary buttons in the app (so it matches the design system).
+
+When clicked, it runs: setIsEditing(true);
+
+Layout in edit mode (isEditing === true)
+
+When isEditing === true:
+
+Show the current full editing panel (Dimensions, Doors & Windows, Colors, Doors & Windows edit toggle, etc.) to the right of the 3D viewer, just like the existing layout.
+
+The 3D viewer stays visible on the left within the same card; only the right side panel toggles.
+
+The existing Save Changes button remains in the edit panel, in the same place and with the same behavior (calling the mutation that PATCHes the lead, updates configuration, and recalculates pricing).
+
+While in edit mode, hide the “Edit Building” button (we don’t need both at once).
+
+Close the panel after successful save
+
+In LeadConfiguratorEmbed.tsx, find the mutation used for saving changes (the one called by the Save Changes button; it already updates the lead, totalPrice, configuration, etc.).
+
+In that mutation’s onSuccess handler:
+
+Keep all the existing behavior (React Query cache updates, onLeadUpdate calls, toast/snackbar, etc.).
+
+After those existing steps, add: setIsEditing(false);
+
+This ensures that:
+
+Once the save completes successfully, the UI automatically switches back to review mode.
+
+The right-hand editing panel disappears.
+
+Only the 3D viewer is visible again, with the updated building design.
+
+The Pricing Breakdown card on the left is already wired to the lead’s React Query data, so it should show the new Quote Total and costs immediately. Do not add a full-page reload; rely on the existing cache update.
+
+Initial state
+
+Make sure isEditing defaults to false when the component mounts.
+
+That means:
+
+When a sales rep opens /sales/leads/:id, they see:
+
+Left: lead details + Pricing Breakdown
+
+Center: 3D building only
+
+Right: no panel, just an “Edit Building” button within the configurator card.
+
+Only after they click “Edit Building” does the full control panel appear.
+
+Do not break the standalone /builder page
+
+The public builder at /builder uses BuilderPage.tsx and has its own layout.
+
+Do not change BuilderPage.tsx layout or the public configurator behavior.
+
+All changes for this task must be scoped to the lead detail embed (LeadConfiguratorEmbed.tsx) and, only if absolutely necessary, the surrounding layout in lead-edit.tsx.
+
+After implementing, verify
+
+Run the app and test with an existing lead that has a configuration:
+
+Open /sales/leads/:id.
+
+Confirm: you see Pricing Breakdown on the left and only the 3D model in the main card with an “Edit Building” button.
+
+Click Edit Building.
+
+Confirm: the side panel with Dimensions / Doors & Windows / Colors and Save Changes appears.
+
+Modify the building, click Save Changes.
+
+Confirm:
+
+The mutation succeeds.
+
+The side panel closes automatically.
+
+You are back in review mode (3D only + Edit Building button).
+
+The Pricing Breakdown updates to show the new Quote Total and margin without a manual refresh.
+
+Summarize exactly which lines/files you changed and how the new isEditing logic works.
+
+Don’t show me the full file; just explain what you changed and confirm that the new view/edit flow matches these requirements.
