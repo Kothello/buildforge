@@ -817,30 +817,82 @@ export const BuildingModel = ({
             {/* Wall highlighting overlays for edit mode - show main wall even when lean-to is clicked */}
             {highlightedWall && (
               <>
-                {highlightedWall.wall === 'front' && !highlightedWall.leanToId && showFront && (
-                  <group>
-                    <mesh position={[0, height / 2, -length / 2 - 0.3]} castShadow={false} receiveShadow={false}>
-                      <planeGeometry args={[width, height]} />
-                      <primitive attach="material" object={highlightMaterial} />
-                    </mesh>
-                    <lineSegments position={[0, height / 2, -length / 2 - 0.35]}>
-                      <edgesGeometry args={[new THREE.PlaneGeometry(width, height)]} />
-                      <lineBasicMaterial color="#1d4ed8" linewidth={3} />
-                    </lineSegments>
-                  </group>
-                )}
-                {highlightedWall.wall === 'back' && !highlightedWall.leanToId && showBack && (
-                  <group>
-                    <mesh position={[0, height / 2, length / 2 + 0.3]} rotation={[0, Math.PI, 0]} castShadow={false} receiveShadow={false}>
-                      <planeGeometry args={[width, height]} />
-                      <primitive attach="material" object={highlightMaterial} />
-                    </mesh>
-                    <lineSegments position={[0, height / 2, length / 2 + 0.35]} rotation={[0, Math.PI, 0]}>
-                      <edgesGeometry args={[new THREE.PlaneGeometry(width, height)]} />
-                      <lineBasicMaterial color="#1d4ed8" linewidth={3} />
-                    </lineSegments>
-                  </group>
-                )}
+                {highlightedWall.wall === 'front' && !highlightedWall.leanToId && showFront && (() => {
+                  // For single-slope roofs, front/back walls are trapezoidal (sloped from low to high eave)
+                  if (roofStyle === 'single-slope') {
+                    const lowEave = height;
+                    const highEave = height + roofHeight;
+                    const trapShape = new THREE.Shape();
+                    trapShape.moveTo(-width / 2, 0);
+                    trapShape.lineTo(width / 2, 0);
+                    trapShape.lineTo(width / 2, highEave);
+                    trapShape.lineTo(-width / 2, lowEave);
+                    trapShape.lineTo(-width / 2, 0);
+                    const trapGeom = new THREE.ShapeGeometry(trapShape);
+                    return (
+                      <group position={[0, 0, -length / 2 - 0.3]}>
+                        <mesh castShadow={false} receiveShadow={false}>
+                          <primitive object={trapGeom} />
+                          <primitive attach="material" object={highlightMaterial} />
+                        </mesh>
+                        <lineSegments position={[0, 0, -0.05]}>
+                          <edgesGeometry args={[trapGeom]} />
+                          <lineBasicMaterial color="#1d4ed8" linewidth={3} />
+                        </lineSegments>
+                      </group>
+                    );
+                  }
+                  return (
+                    <group>
+                      <mesh position={[0, height / 2, -length / 2 - 0.3]} castShadow={false} receiveShadow={false}>
+                        <planeGeometry args={[width, height]} />
+                        <primitive attach="material" object={highlightMaterial} />
+                      </mesh>
+                      <lineSegments position={[0, height / 2, -length / 2 - 0.35]}>
+                        <edgesGeometry args={[new THREE.PlaneGeometry(width, height)]} />
+                        <lineBasicMaterial color="#1d4ed8" linewidth={3} />
+                      </lineSegments>
+                    </group>
+                  );
+                })()}
+                {highlightedWall.wall === 'back' && !highlightedWall.leanToId && showBack && (() => {
+                  // For single-slope roofs, front/back walls are trapezoidal (sloped from low to high eave)
+                  if (roofStyle === 'single-slope') {
+                    const lowEave = height;
+                    const highEave = height + roofHeight;
+                    const trapShape = new THREE.Shape();
+                    trapShape.moveTo(-width / 2, 0);
+                    trapShape.lineTo(width / 2, 0);
+                    trapShape.lineTo(width / 2, highEave);
+                    trapShape.lineTo(-width / 2, lowEave);
+                    trapShape.lineTo(-width / 2, 0);
+                    const trapGeom = new THREE.ShapeGeometry(trapShape);
+                    return (
+                      <group position={[0, 0, length / 2 + 0.3]} rotation={[0, Math.PI, 0]}>
+                        <mesh castShadow={false} receiveShadow={false}>
+                          <primitive object={trapGeom} />
+                          <primitive attach="material" object={highlightMaterial} />
+                        </mesh>
+                        <lineSegments position={[0, 0, -0.05]}>
+                          <edgesGeometry args={[trapGeom]} />
+                          <lineBasicMaterial color="#1d4ed8" linewidth={3} />
+                        </lineSegments>
+                      </group>
+                    );
+                  }
+                  return (
+                    <group>
+                      <mesh position={[0, height / 2, length / 2 + 0.3]} rotation={[0, Math.PI, 0]} castShadow={false} receiveShadow={false}>
+                        <planeGeometry args={[width, height]} />
+                        <primitive attach="material" object={highlightMaterial} />
+                      </mesh>
+                      <lineSegments position={[0, height / 2, length / 2 + 0.35]} rotation={[0, Math.PI, 0]}>
+                        <edgesGeometry args={[new THREE.PlaneGeometry(width, height)]} />
+                        <lineBasicMaterial color="#1d4ed8" linewidth={3} />
+                      </lineSegments>
+                    </group>
+                  );
+                })()}
                 {highlightedWall.wall === 'left' && !highlightedWall.leanToId && showLeft && (
                   <group>
                     <mesh position={[-width / 2 - 0.3, height / 2, 0]} rotation={[0, -Math.PI / 2, 0]} castShadow={false} receiveShadow={false}>
