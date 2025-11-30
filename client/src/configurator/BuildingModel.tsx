@@ -608,8 +608,13 @@ export const BuildingModel = ({
     position: [number, number, number],
     rotation: [number, number, number]
   ) => {
+    // For gable lean-tos: use gableAttachmentSide if set, otherwise fallback to wall
+    const attachmentWall = leanTo.type === 'gable' && leanTo.gableAttachmentSide 
+      ? leanTo.gableAttachmentSide 
+      : leanTo.wall;
+    
     const effectiveWidth = leanTo.type === 'gable' ? leanTo.length : leanTo.width;
-    const effectiveLength = leanTo.type === 'gable' ? leanTo.width : (leanTo.length > 0 ? leanTo.length : ((leanTo.wall === 'front' || leanTo.wall === 'back') ? width : length));
+    const effectiveLength = leanTo.type === 'gable' ? leanTo.width : (leanTo.length > 0 ? leanTo.length : ((attachmentWall === 'front' || attachmentWall === 'back') ? width : length));
     const leanToHeight = leanTo.type === 'gable' 
       ? Math.min(leanTo.height, height)
       : Math.min(leanTo.height, height - 2);
@@ -1804,11 +1809,11 @@ export const BuildingModel = ({
 
                 // Match end-wall hiding logic so footer follows walls exactly
                 // 1) PARENT lean-to (front/back) – remove footer at wraparound corner
-                if (leanTo.wraparound && (leanTo.wall === 'front' || leanTo.wall === 'back')) {
+                if (leanTo.wraparound && (attachmentWall === 'front' || attachmentWall === 'back')) {
                   const hasRightCorner = leanTo.wraparoundCorner === 'right' || leanTo.wraparoundCorner === 'both';
                   const hasLeftCorner = leanTo.wraparoundCorner === 'left' || leanTo.wraparoundCorner === 'both';
 
-                  if (leanTo.wall === 'front') {
+                  if (attachmentWall === 'front') {
                     // Front wall reference: right => local -Z, left => local +Z
                     if (hasRightCorner) hideNegZ = true;
                     if (hasLeftCorner) hidePosZ = true;
@@ -1827,9 +1832,9 @@ export const BuildingModel = ({
                     parent.wraparound &&
                     (parent.type === 'enclosed' || parent.type === 'open') &&
                     (parent.wall === 'front' || parent.wall === 'back') &&
-                    (leanTo.wall === 'left' || leanTo.wall === 'right')
+                    (attachmentWall === 'left' || attachmentWall === 'right')
                   ) {
-                    const corner = leanTo.wall === 'right' ? 'right' : 'left';
+                    const corner = attachmentWall === 'right' ? 'right' : 'left';
                     const hasCorner =
                       parent.wraparoundCorner === corner || parent.wraparoundCorner === 'both';
 
@@ -1899,7 +1904,7 @@ export const BuildingModel = ({
                   const roofPanelLength = (attachWallLength / 2) / Math.cos(roofAngle);
                   
                   // On sidewalls only: if lean-to ridge exceeds main eave, create hip extension
-                  const needsHip = (leanTo.wall === 'left' || leanTo.wall === 'right') && cappedGableApexHeight > mainBuildingEaveHeight;
+                  const needsHip = (attachmentWall === 'left' || attachmentWall === 'right') && cappedGableApexHeight > mainBuildingEaveHeight;
                   
                   if (needsHip) {
                     const leanToRidgeHeight = cappedGableApexHeight;
@@ -2467,7 +2472,7 @@ export const BuildingModel = ({
                                   // Left/right parent: adjacent walls are front/back
                                   adjWall = cornerOption === 'right' ? 'back' : 'front';
                                 }
-                                return adjWall === leanTo.wall;
+                                return adjWall === attachmentWall;
                               });
                           
                           if (!isMainWraparound && !isAdjacentSide) return;
@@ -2486,7 +2491,12 @@ export const BuildingModel = ({
                             
                             // Get the other lean-to in the connection
                             const otherLeanTo = isMainWraparound 
-                              ? leanTos.find(lt => lt.wall === adjacentWall && (lt.type === 'enclosed' || lt.type === 'open'))
+                              ? leanTos.find(lt => {
+                                  const ltAttachmentWall = lt.type === 'gable' && lt.gableAttachmentSide 
+                                    ? lt.gableAttachmentSide 
+                                    : lt.wall;
+                                  return ltAttachmentWall === adjacentWall && (lt.type === 'enclosed' || lt.type === 'open');
+                                })
                               : wraparoundLeanTo;
                               
                             if (!otherLeanTo) return;
@@ -2657,11 +2667,11 @@ export const BuildingModel = ({
                       let hidePosZ = false;
 
                       // 1) PARENT lean-to (front/back) – remove end wall at wraparound corner
-                      if (leanTo.wraparound && (leanTo.wall === 'front' || leanTo.wall === 'back')) {
+                      if (leanTo.wraparound && (attachmentWall === 'front' || attachmentWall === 'back')) {
                         const hasRightCorner = leanTo.wraparoundCorner === 'right' || leanTo.wraparoundCorner === 'both';
                         const hasLeftCorner = leanTo.wraparoundCorner === 'left' || leanTo.wraparoundCorner === 'both';
 
-                        if (leanTo.wall === 'front') {
+                        if (attachmentWall === 'front') {
                           // Front wall reference: right => local -Z, left => local +Z
                           if (hasRightCorner) hideNegZ = true;
                           if (hasLeftCorner) hidePosZ = true;
@@ -2680,9 +2690,9 @@ export const BuildingModel = ({
                           parent.wraparound &&
                           (parent.type === 'enclosed' || parent.type === 'open') &&
                           (parent.wall === 'front' || parent.wall === 'back') &&
-                          (leanTo.wall === 'left' || leanTo.wall === 'right')
+                          (attachmentWall === 'left' || attachmentWall === 'right')
                         ) {
-                          const corner = leanTo.wall === 'right' ? 'right' : 'left';
+                          const corner = attachmentWall === 'right' ? 'right' : 'left';
                           const hasCorner =
                             parent.wraparoundCorner === corner || parent.wraparoundCorner === 'both';
 
@@ -2780,11 +2790,11 @@ export const BuildingModel = ({
                     const hasRightCorner = leanTo.wraparoundCorner === 'right' || leanTo.wraparoundCorner === 'both';
                     const hasLeftCorner = leanTo.wraparoundCorner === 'left' || leanTo.wraparoundCorner === 'both';
 
-                    if (leanTo.wall === 'front') {
+                    if (attachmentWall === 'front') {
                       // Front wall: right => local -Z, left => local +Z
                       if (hasRightCorner) hideNegZ = true;
                       if (hasLeftCorner) hidePosZ = true;
-                    } else if (leanTo.wall === 'back') {
+                    } else if (attachmentWall === 'back') {
                       // Back wall: right => local +Z, left => local -Z
                       if (hasRightCorner) hidePosZ = true;
                       if (hasLeftCorner) hideNegZ = true;
@@ -2798,8 +2808,8 @@ export const BuildingModel = ({
                     if (parent && parent.wraparound && (parent.type === 'enclosed' || parent.type === 'open')) {
                       
                       // Case A: Parent on front/back, child on left/right
-                      if ((parent.wall === 'front' || parent.wall === 'back') && (leanTo.wall === 'left' || leanTo.wall === 'right')) {
-                        const corner = leanTo.wall === 'right' ? 'right' : 'left';
+                      if ((parent.wall === 'front' || parent.wall === 'back') && (attachmentWall === 'left' || attachmentWall === 'right')) {
+                        const corner = attachmentWall === 'right' ? 'right' : 'left';
                         const hasCorner = parent.wraparoundCorner === corner || parent.wraparoundCorner === 'both';
 
                         if (hasCorner) {
@@ -2817,8 +2827,8 @@ export const BuildingModel = ({
                       }
                       
                       // Case B: Parent on left/right, child on front/back
-                      if ((parent.wall === 'left' || parent.wall === 'right') && (leanTo.wall === 'front' || leanTo.wall === 'back')) {
-                        const corner = leanTo.wall === 'front' ? 'left' : 'right';
+                      if ((parent.wall === 'left' || parent.wall === 'right') && (attachmentWall === 'front' || attachmentWall === 'back')) {
+                        const corner = attachmentWall === 'front' ? 'left' : 'right';
                         const hasCorner = parent.wraparoundCorner === corner || parent.wraparoundCorner === 'both';
 
                         if (hasCorner) {
@@ -2835,7 +2845,7 @@ export const BuildingModel = ({
                           const childXSign = baseXSign;
                           // For front/back children, -Z is one end, +Z is the other
                           // We need to determine which end connects to the parent
-                          if (leanTo.wall === 'front') {
+                          if (attachmentWall === 'front') {
                             if (childXSign > 0) hidePosZ = true; // Front child, positive X => right side (+Z)
                             else hideNegZ = true; // Front child, negative X => left side (-Z)
                           } else {
@@ -2911,7 +2921,7 @@ export const BuildingModel = ({
                   if (!leanTo.wraparound) return null;
 
                   const panels = [] as JSX.Element[];
-                  const parentWall = leanTo.wall;
+                  const parentWall = attachmentWall;
                   
                   // === FRONT/BACK WALL PARENTS ===
                   if (parentWall === 'front' || parentWall === 'back') {
