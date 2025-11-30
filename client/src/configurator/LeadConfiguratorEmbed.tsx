@@ -83,10 +83,6 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
     onSuccess: async (updatedLead) => {
       setIsSaving(false);
       
-      queryClient.setQueryData(["/api/leads", leadId], updatedLead);
-      
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"], exact: true });
-      
       toast({
         title: 'Saved',
         description: 'Configuration updated successfully',
@@ -94,7 +90,7 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
       
       onSave?.(updatedLead);
       
-      setIsEditing(false);
+      window.location.reload();
     },
     onError: (error) => {
       setIsSaving(false);
