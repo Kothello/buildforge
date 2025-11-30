@@ -2054,10 +2054,11 @@ export const BuildingModel = ({
                       {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'right' && gableGeometry && (
                         <mesh
                           key={`leanto-gable-endwall-highlight-${leanTo.id}`}
-                          position={[effectiveWidth / 2, 0, 0]}
+                          position={[effectiveWidth / 2 + 0.1, 0, 0]}
                           rotation={[0, Math.PI / 2, 0]}
                           castShadow={false}
                           receiveShadow={false}
+                          renderOrder={10}
                         >
                           <primitive object={gableGeometry} />
                           <primitive attach="material" object={leanToHighlightMaterial} />
