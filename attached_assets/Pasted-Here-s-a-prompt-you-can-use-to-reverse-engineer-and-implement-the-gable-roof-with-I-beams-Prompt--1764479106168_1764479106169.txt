@@ -1,0 +1,44 @@
+Here's a prompt you can use to reverse engineer and implement the gable roof with I-beams:
+
+Prompt: Implement Gable Roof with Structural I-Beams in Three.js React
+
+You're building a 3D metal building configurator. Implement a gable roof system with structural support beams for a rectangular building.
+
+Building Parameters:
+
+width: Building width in feet
+height: Base wall height in feet
+length: Building length in feet
+roofHeight: Rise from base wall to roof apex (in feet)
+roofPitch: Roof pitch ratio (e.g., 2/12, 4/12) - represents rise/run
+Visual Requirements:
+
+Gable Roof (two angled panels meeting at peak):
+
+Left panel: positioned at [-width/4, height + roofHeight/2, 0], rotated by Math.atan(roofPitch/12) on Z-axis
+Right panel: positioned at [width/4, height + roofHeight/2, 0], rotated by -Math.atan(roofPitch/12) on Z-axis
+Each panel width: width / 2 / Math.cos(Math.atan(roofPitch / 12)) + 0.2 feet
+Depth: length + 0.5 feet
+Thickness: 0.15 feet
+Structural I-Beams:
+
+Angled beams (2): Follow roof slope, positioned at left/right quarter-width points, rotated to match roof angle
+Vertical columns (2): Support posts at each end, truly vertical (no rotation), full height or adjusted height
+Beams repeat every 24.5 feet along the building length, with corner beams 0.875 feet inboard from walls
+Always include corner beams at front/back ends
+Material & Color:
+
+Use a metallic material with appropriate shading for realistic industrial look
+Roof and beams share the same material but can have different colors
+Implementation Notes:
+
+Use boxGeometry for all beam/panel geometry
+Position beams in a group that renders every 24.5 feet
+Add corner beams at ±(length/2 - 0.875)
+Calculate middle beam positions: Math.floor((length - 40) / 24.5) evenly spaced
+Use Math.atan(roofPitch / 12) to derive angle from pitch ratio
+All beams are 0.15 feet thick (representing steel I-beam cross-sections)
+Test Case:
+
+Width: 40 ft, Height: 12 ft, Length: 60 ft, Roof Pitch: 2/12
+Should render a gable roof with two angled panels meeting at peak, with red structural beams visible along the building length
