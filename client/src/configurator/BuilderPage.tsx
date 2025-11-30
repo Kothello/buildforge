@@ -4,13 +4,17 @@ import { ConfigPanel } from './ConfigPanel';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Save } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Save, Send } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle 
 } from '@/components/ui/dialog';
+import { apiRequest } from '@/lib/queryClient';
 import type { Door, Window, LeanTo, BuildingConfig } from './types';
 
 const ROLLUP_SIZES = [
@@ -112,6 +116,16 @@ const BuilderPage = ({ initialConfig, onSave, isSaving }: BuilderPageProps = {})
   const [isDraggingLeanTo, setIsDraggingLeanTo] = useState(false);
   const [currentTotalPrice, setCurrentTotalPrice] = useState<string>('0');
   
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitForm, setSubmitForm] = useState({
+    name: '',
+    company: '',
+    email: '',
+    phone: '',
+    notes: '',
+  });
+  
   const { toast } = useToast();
 
   const getCurrentConfig = (): BuildingConfig => ({
@@ -210,6 +224,103 @@ const BuilderPage = ({ initialConfig, onSave, isSaving }: BuilderPageProps = {})
     }
     
     onSave(config, buildingSpecs, totalPrice);
+  };
+
+  const handleSubmitDesign = async () => {
+    if (!submitForm.name || !submitForm.company || !submitForm.email) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const config = getCurrentConfig();
+      const buildingSpecs = getCurrentBuildingSpecs();
+      
+      let totalPrice = '0';
+      try {
+        const pricingResponse = await fetch('/api/pricing/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            config: {
+              width,
+              length,
+              height,
+              roofStyle,
+              roofPitch,
+              wallColor,
+              roofColor,
+              trimColor,
+              doors: doors.map(d => ({ id: d.id, doorType: d.type === 'personnel' ? 'walk' : d.type, position: d.position, width: d.width, height: d.height })),
+              windows: windows.map(w => ({ id: w.id, position: w.position, width: w.width, height: w.height })),
+              leanTos: leanTos.map(lt => ({
+                id: lt.id,
+                type: lt.type,
+                wall: lt.wall,
+                width: lt.width,
+                length: lt.length,
+                pitch: lt.pitch,
+                height: lt.height,
+              })),
+            }, 
+            region: 'midwest' 
+          })
+        });
+        if (pricingResponse.ok) {
+          const pricingData = await pricingResponse.json();
+          if (pricingData?.total) {
+            totalPrice = pricingData.total.toString();
+          }
+        }
+      } catch (e) {
+        console.error('Failed to calculate pricing:', e);
+      }
+
+      const leadData: Record<string, any> = {
+        companyName: submitForm.company,
+        contactName: submitForm.name,
+        email: submitForm.email,
+        source: 'builder',
+        temperature: 'warm',
+        stage: 'new',
+        status: 'new',
+        totalPrice,
+        buildingSpecs,
+        configuration: config,
+      };
+      
+      if (submitForm.phone) {
+        leadData.phone = submitForm.phone;
+      }
+      if (submitForm.notes) {
+        leadData.notes = submitForm.notes;
+      }
+
+      await apiRequest('POST', '/api/leads', leadData);
+
+      toast({
+        title: 'Design Submitted!',
+        description: 'Your building design has been sent to our team. We\'ll be in touch soon!',
+      });
+
+      setShowSubmitDialog(false);
+      setSubmitForm({ name: '', company: '', email: '', phone: '', notes: '' });
+    } catch (error) {
+      console.error('Failed to submit design:', error);
+      toast({
+        title: 'Submission Failed',
+        description: 'There was an error submitting your design. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const doorResolveTimers = useRef<Map<string, number>>(new Map());
@@ -1333,6 +1444,19 @@ const BuilderPage = ({ initialConfig, onSave, isSaving }: BuilderPageProps = {})
               </Button>
             </div>
           )}
+          
+          {!onSave && (
+            <div className="shrink-0 p-4 border-t bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
+              <Button
+                onClick={() => setShowSubmitDialog(true)}
+                className="w-full gap-2"
+                data-testid="button-submit-design"
+              >
+                <Send className="h-4 w-4" />
+                Submit Your Design
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1413,6 +1537,77 @@ const BuilderPage = ({ initialConfig, onSave, isSaving }: BuilderPageProps = {})
               data-testid="button-delete-window"
             >
               Delete Window
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Submit Your Design</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="submit-name">Name *</Label>
+              <Input
+                id="submit-name"
+                placeholder="Your name"
+                value={submitForm.name}
+                onChange={(e) => setSubmitForm(prev => ({ ...prev, name: e.target.value }))}
+                data-testid="input-submit-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="submit-company">Company *</Label>
+              <Input
+                id="submit-company"
+                placeholder="Company name"
+                value={submitForm.company}
+                onChange={(e) => setSubmitForm(prev => ({ ...prev, company: e.target.value }))}
+                data-testid="input-submit-company"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="submit-email">Email *</Label>
+              <Input
+                id="submit-email"
+                type="email"
+                placeholder="your@email.com"
+                value={submitForm.email}
+                onChange={(e) => setSubmitForm(prev => ({ ...prev, email: e.target.value }))}
+                data-testid="input-submit-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="submit-phone">Phone</Label>
+              <Input
+                id="submit-phone"
+                type="tel"
+                placeholder="(optional)"
+                value={submitForm.phone}
+                onChange={(e) => setSubmitForm(prev => ({ ...prev, phone: e.target.value }))}
+                data-testid="input-submit-phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="submit-notes">Notes</Label>
+              <Textarea
+                id="submit-notes"
+                placeholder="Any additional details (optional)"
+                value={submitForm.notes}
+                onChange={(e) => setSubmitForm(prev => ({ ...prev, notes: e.target.value }))}
+                className="min-h-[80px]"
+                data-testid="input-submit-notes"
+              />
+            </div>
+            <Button
+              onClick={handleSubmitDesign}
+              disabled={isSubmitting}
+              className="w-full"
+              data-testid="button-confirm-submit"
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Design'}
             </Button>
           </div>
         </DialogContent>
