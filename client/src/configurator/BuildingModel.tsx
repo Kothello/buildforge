@@ -2050,16 +2050,16 @@ export const BuildingModel = ({
                           side={THREE.DoubleSide}
                         />
                       </mesh>
-                      {/* Highlight for gable end wall (right) */}
-                      {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'right' && (
+                      {/* Highlight for gable end wall (right) - uses same pentagon geometry */}
+                      {highlightedWall && highlightedWall.leanToId === leanTo.id && highlightedWall.leanToWall === 'right' && gableGeometry && (
                         <mesh
                           key={`leanto-gable-endwall-highlight-${leanTo.id}`}
-                          position={[effectiveWidth / 2 + 0.3, (leanToHeight + effectiveRoofRise / 2) / 2, 0]}
+                          position={[effectiveWidth / 2, 0, 0]}
                           rotation={[0, Math.PI / 2, 0]}
                           castShadow={false}
                           receiveShadow={false}
                         >
-                          <planeGeometry args={[effectiveLength, leanToHeight + effectiveRoofRise / 2]} />
+                          <primitive object={gableGeometry} />
                           <primitive attach="material" object={leanToHighlightMaterial} />
                         </mesh>
                       )}
