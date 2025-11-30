@@ -965,17 +965,14 @@ export const BuildingModel = ({
         const angle = Math.atan(roofPitch / 12);
         const beamLength = (width / 2) / Math.cos(angle);
         const beamThickness = 0.15;
-        const roofPanelThickness = 0.15;
-        // Offset beams to sit under roof panels (half roof thickness + half beam thickness)
-        const beamYOffset = (roofPanelThickness / 2) + (beamThickness / 2);
         
         const renderBeamSet = (zPosition: number, key: string) => (
           <group key={key}>
             {roofStyle === 'gable' ? (
               <>
-                {/* Left angled beam - center on quarter-width line, under roof panel */}
+                {/* Left angled beam - endpoints at (-width/2, height) and (0, height+roofHeight) */}
                 <mesh 
-                  position={[-width / 4, height + roofHeight / 2 - beamYOffset, zPosition]} 
+                  position={[-width / 4, height + roofHeight / 2, zPosition]} 
                   rotation={[0, 0, angle]}
                   castShadow={false} receiveShadow={false}
                 >
@@ -983,9 +980,9 @@ export const BuildingModel = ({
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
                 
-                {/* Right angled beam - center on quarter-width line, under roof panel */}
+                {/* Right angled beam - endpoints at (0, height+roofHeight) and (width/2, height) */}
                 <mesh 
-                  position={[width / 4, height + roofHeight / 2 - beamYOffset, zPosition]} 
+                  position={[width / 4, height + roofHeight / 2, zPosition]} 
                   rotation={[0, 0, -angle]}
                   castShadow={false} receiveShadow={false}
                 >
@@ -993,13 +990,13 @@ export const BuildingModel = ({
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
                 
-                {/* Left vertical column - at quarter-width, from ground to eave, no rotation */}
+                {/* Left vertical column - from ground to eave height, no rotation */}
                 <mesh position={[-width / 4, height / 2, zPosition]}>
                   <boxGeometry args={[beamThickness, height, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
                 
-                {/* Right vertical column - at quarter-width, from ground to eave, no rotation */}
+                {/* Right vertical column - from ground to eave height, no rotation */}
                 <mesh position={[width / 4, height / 2, zPosition]}>
                   <boxGeometry args={[beamThickness, height, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
@@ -1009,7 +1006,7 @@ export const BuildingModel = ({
               <>
                 {/* Single slope angled beam following roof pitch */}
                 <mesh 
-                  position={[0, height + roofHeight / 2 - beamYOffset, zPosition]} 
+                  position={[0, height + roofHeight / 2, zPosition]} 
                   rotation={[0, 0, angle]}
                   castShadow={false} receiveShadow={false}
                 >
