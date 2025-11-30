@@ -2588,18 +2588,26 @@ export const BuildingModel = ({
                             ]);
                             geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
-                            panels.push(
-                              <mesh key={`hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`} geometry={geometry}>
-                                <meshStandardMaterial 
-                                  color={resolveColor(roofColor)}
-                                  metalness={0.9}
-                                  roughness={0.24}
-                                  bumpMap={roofBump}
-                                  bumpScale={0.3}
-                                  side={THREE.DoubleSide}
-                                />
-                              </mesh>
-                            );
+                            // Skip hip panel for single-slope cases - it causes the overhanging wedge artifact
+                            // Single-slope lean-tos are 'enclosed' or 'open' types (not 'gable')
+                            const isSingleSlopeMain = roofStyle === 'single-slope';
+                            const isSingleSlopeLeanTo = leanTo.type === 'enclosed' || leanTo.type === 'open';
+                            const shouldRenderHip = !isSingleSlopeMain && !isSingleSlopeLeanTo;
+
+                            if (shouldRenderHip) {
+                              panels.push(
+                                <mesh key={`hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`} geometry={geometry}>
+                                  <meshStandardMaterial 
+                                    color={resolveColor(roofColor)}
+                                    metalness={0.9}
+                                    roughness={0.24}
+                                    bumpMap={roofBump}
+                                    bumpScale={0.3}
+                                    side={THREE.DoubleSide}
+                                  />
+                                </mesh>
+                              );
+                            }
                           });
                         });
                         

@@ -1,0 +1,133 @@
+I still have two issues:
+
+On wraparound single-slope lean-tos, the roof still looks wrong — a corner panel hangs past the building (see my latest screenshot).
+
+The left sidebar (navigation pane) still opens itself on refresh; I want it closed by default.
+
+Please fix them in a very explicit way, not by tweaking random constants.
+
+A. Turn off the wraparound hip panel for single-slope cases
+
+File: client/src/configurator/BuildingModel.tsx (CRM version – do not edit only the archived copy under configurator/iron-builder-studio...).
+
+In this file, locate the JSX block with the comment:
+
+{/* Wraparound porch roof connection - generate hip panel if this lean-to is part of wraparound */}
+
+
+Inside that block there is a <mesh> whose key looks like:
+
+<mesh key={`hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`} geometry={geometry}>
+
+
+Right now that mesh renders for any wraparound combination. That hip panel is the piece that’s causing the weird overhang when the main roof or lean-to is single-slope.
+
+I want this behavior:
+
+Do not render the hip panel when single-slope is involved.
+Specifically, if either:
+
+the main building roof style is "single-slope", or
+
+the lean-to is single-slope (depending on how you check it),
+then skip that hip mesh entirely.
+
+Implement it explicitly, for example:
+
+// before rendering the hip mesh
+const isSingleSlopeMain = roofStyle === 'single-slope';
+const isSingleSlopeLeanTo = leanTo.roofStyle === 'single-slope' || leanTo.type === 'single-slope';
+
+const shouldRenderHip =
+  !isSingleSlopeMain && !isSingleSlopeLeanTo;
+
+...
+
+{shouldRenderHip && (
+  <mesh key={`hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`} geometry={geometry}>
+    <meshStandardMaterial ... />
+  </mesh>
+)}
+
+
+Use whatever exact flags exist in this file (roofStyle, leanTo.roofStyle, etc.), but the net effect must be:
+
+For wraparound single-slope lean-tos, this hip mesh does not render at all.
+
+Do not touch the main lean-to roof panels or the main building roof here – just gate the hip connector mesh.
+
+Also keep the previous change where vertical lean-to posts are wrapped like:
+
+if (!leanTo.wraparound) {
+  // vertical column meshes...
+}
+
+
+After this change, test in /builder:
+
+Make a main building.
+
+Add a wraparound single-slope lean-to at the corner (try widths 16 ft, 20 ft, 30 ft).
+
+Confirm:
+
+No orange posts on the wraparound lean-to.
+
+No extra triangular / wedge roof piece hanging off the building — the wraparound roof should just be the normal lean-to roof without that special hip connector.
+
+In your summary, explicitly confirm that the hip-... mesh now does not render for single-slope cases.
+
+B. Sidebar must be closed by default, every time
+
+I still see the left navigation sidebar opening itself on refresh. I want:
+
+On every initial page load, the sidebar is closed.
+
+It only opens when I click the sidebar toggle button.
+
+There should be no cookies or persisted state that re-opens it.
+
+Open the sidebar implementation file(s), e.g.:
+
+client/src/components/ui/sidebar.tsx
+
+any related SidebarProvider or layout wrapper that controls open state.
+
+Make the logic extremely simple:
+
+Remove any code that reads from document.cookie, localStorage, or similar to determine the initial open state.
+
+Remove any code that writes sidebar_state to cookies.
+
+Initialize the state as closed:
+
+const [open, setOpen] = useState(false);
+// or
+<Sidebar defaultOpen={false} ... />
+
+
+Make sure there is no other hook or effect that immediately calls setOpen(true) on mount.
+
+Ensure the toggle button still just calls setOpen(prev => !prev) or the equivalent.
+
+After the change:
+
+Fully reload the app.
+
+Go to /sales.
+
+Confirm the sidebar starts closed.
+
+Click the toggle → it opens.
+
+Hit browser refresh.
+
+Confirm it is closed again (no auto-open).
+
+In your summary, tell me:
+
+Exactly what condition now controls rendering of the hip mesh for wraparound lean-tos.
+
+Which sidebar file you modified and what the initial open / defaultOpen value is now.
+
+Do not show full file contents; just describe the changes and confirm both behaviors match my requirements.
