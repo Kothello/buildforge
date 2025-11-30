@@ -2134,11 +2134,11 @@ export const BuildingModel = ({
                   return beams;
                 })()}
                 
-                {/* Side walls for gable lean-to - render when not open OR when wall is explicitly enabled */}
-                {(!leanTo.isOpen || leanTo.walls?.front === true || leanTo.walls?.back === true) && (
+                {/* Side walls for gable lean-to - only render when enclosed (not open) */}
+                {!leanTo.isOpen && (
                   <>
                     {/* Front local wall (z -effectiveLength/2) - respects leanTo.walls.front */}
-                    {(!leanTo.isOpen || leanTo.walls?.front === true) && (leanTo.walls?.front !== false) && (
+                    {(leanTo.walls?.front !== false) && (
                       <>
                         <mesh 
                           key={`leanto-gable-sidewall-front-${leanTo.id}-${wallColor}`} 
