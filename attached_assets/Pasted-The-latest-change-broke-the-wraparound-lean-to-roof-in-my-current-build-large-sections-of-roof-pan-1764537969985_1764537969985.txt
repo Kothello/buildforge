@@ -1,0 +1,131 @@
+The latest change broke the wraparound lean-to roof: in my current build, large sections of roof panels are missing (see my screenshot). I only wanted to disable the extra hip connector when single-slope is involved, not the main roof panels.
+
+I want to reset the wraparound lean-to roof code to match the canonical builder exactly, then re-apply two small, explicit tweaks.
+
+1) Reset wraparound lean-to roof logic to canonical builder
+
+Files:
+
+Canonical builder:
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+Active CRM file:
+client/src/configurator/BuildingModel.tsx
+
+Goal for this step:
+
+For all wraparound lean-tos (gable and single-slope), the CRM BuildingModel.tsx must use the exact same roof panel meshes and math as the canonical builder file.
+
+Only after that do we add CRM-specific tweaks.
+
+Do this:
+
+Open both files listed above.
+
+In both files, search for the loop that handles wraparound lean-tos. You will see a block roughly like:
+
+wraparoundLeanTos.forEach((wraparoundLeanTo) => {
+  // ... compute wraparound lengths, positions ...
+  // ... create roof panel meshes for the wraparound lean-to ...
+  {/* Wraparound porch roof connection - generate hip panel if this lean-to is part of wraparound */}
+  <mesh key={`hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`} ... />
+});
+
+
+In the CRM file (client/src/configurator/BuildingModel.tsx), replace the entire wraparoundLeanTos block — from the start of wraparoundLeanTos.forEach(...) down to just before the next unrelated section — with the corresponding block from the canonical builder file.
+
+That means all computations and all roof panel meshes for wraparound lean-tos now match the canonical builder exactly.
+
+Keep the CRM imports and types at the top of the file; we are only replacing this specific block.
+
+After this replacement, the CRM wraparound roof behavior should be identical to the standalone builder, including gable and single-slope, before we add any CRM tweaks.
+
+2) Apply only two controlled tweaks in the CRM file
+
+Now in client/src/configurator/BuildingModel.tsx only, apply these two changes:
+
+(a) Disable vertical posts on wraparound lean-tos
+
+Find the code that pushes vertical I-beam columns for lean-tos (keys like):
+
+leanto-single-column-front-outer
+
+leanto-single-column-back-outer
+
+leanto-single-column-outer-${i}
+
+Wrap all of those vertical column beams.push(...) calls in:
+
+if (!leanTo.wraparound) {
+  // vertical column meshes for this lean-to
+}
+
+
+Do not wrap any roof panel meshes in this condition — only the vertical columns.
+
+Result:
+
+Non-wraparound lean-tos: columns still visible.
+
+Wraparound lean-tos: no vertical posts.
+
+(b) Gate only the hip connector mesh for single-slope
+
+In the wraparound block, find the hip connector section, with comment like:
+
+{/* Wraparound porch roof connection - generate hip panel if this lean-to is part of wraparound */}
+<mesh key={`hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`} geometry={geometry}>
+  ...
+</mesh>
+
+
+Introduce a small condition just for this hip mesh, e.g.:
+
+const isSingleSlopeMain = roofStyle === 'single-slope';
+const isSingleSlopeLeanTo =
+  wraparoundLeanTo.roofStyle === 'single-slope' ||
+  leanTo.roofStyle === 'single-slope';
+
+const shouldRenderHip = !isSingleSlopeMain && !isSingleSlopeLeanTo;
+
+
+Then render the hip mesh like:
+
+{shouldRenderHip && (
+  <mesh key={`hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`} geometry={geometry}>
+    <meshStandardMaterial ... />
+  </mesh>
+)}
+
+
+Do not wrap any of the main wraparound roof panel meshes in shouldRenderHip; they must render regardless of single-slope vs gable, exactly like the canonical builder.
+
+3) Verify visually
+
+After these changes:
+
+In /builder:
+
+Create a building with a wraparound single-slope lean-to at a corner.
+
+Test widths at 16 ft, 20 ft, 30 ft.
+
+Confirm:
+
+The wraparound roof shows all panels (no missing sections).
+
+No triangular “wedge” roof piece is sticking out.
+
+No orange vertical posts on that wraparound lean-to.
+
+In /sales/leads/:id with a similar config, confirm the same behavior in the embedded configurator.
+
+In your summary, I want you to explicitly state:
+
+That the wraparoundLeanTos block in the CRM file now matches the canonical builder, except for:
+
+(1) the if (!leanTo.wraparound) wrapper around column beams, and
+
+(2) the shouldRenderHip condition on the hip mesh.
+
+That all wraparound roof panels render again, and the corner overhang is gone.

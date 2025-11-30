@@ -2588,11 +2588,13 @@ export const BuildingModel = ({
                             ]);
                             geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
-                            // Skip hip panel for single-slope cases - it causes the overhanging wedge artifact
-                            // Single-slope lean-tos are 'enclosed' or 'open' types (not 'gable')
+                            // Gate hip panel: skip when main building OR lean-tos use single-slope roof
+                            // Single-slope main building: roofStyle === 'single-slope'
+                            // Single-slope lean-to: type is 'enclosed' or 'open' (not 'gable')
                             const isSingleSlopeMain = roofStyle === 'single-slope';
-                            const isSingleSlopeLeanTo = leanTo.type === 'enclosed' || leanTo.type === 'open';
-                            const shouldRenderHip = !isSingleSlopeMain && !isSingleSlopeLeanTo;
+                            const isSingleSlopeLeanTo = leanTo.type !== 'gable';
+                            const isSingleSlopeWraparound = wraparoundLeanTo.type !== 'gable';
+                            const shouldRenderHip = !isSingleSlopeMain && !isSingleSlopeLeanTo && !isSingleSlopeWraparound;
 
                             if (shouldRenderHip) {
                               panels.push(
