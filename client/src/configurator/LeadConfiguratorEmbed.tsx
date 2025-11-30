@@ -114,10 +114,10 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
   return (
     <div className="h-full w-full relative">
       {!isEditing && (
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 right-4 z-50">
           <Button
             onClick={() => setIsEditing(true)}
-            className="gap-2"
+            className="gap-2 shadow-lg"
             data-testid="button-edit-building"
           >
             <Pencil className="h-4 w-4" />
