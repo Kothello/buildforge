@@ -17,8 +17,11 @@ Previous integration attempts created a **hybrid file** that:
 The CRM's `BuildingModel.tsx` was **completely replaced** with the iron-builder version, with only two changes:
 
 **Files involved:**
-- Source (canonical): `configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx`
+- Source (canonical - NEW): `configurator/iron-builder-studio-new/client/src/components/BuildingModel.tsx` (3552 lines)
+- Source (canonical - OLD): `configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx` (3565 lines)
 - Target (CRM): `client/src/configurator/BuildingModel.tsx`
+
+**Latest canonical zip:** `attached_assets/iron-builder-studio-70695-74818-74577-9-62585 (2)_1764481439733.zip`
 
 ### Exact Diff (Only Allowed Changes)
 ```diff
