@@ -1,0 +1,120 @@
+Stop trying to patch the lean-to geometry with more conditions. I want to reset the CRM 3D building renderer to match the fixed builder version exactly, and then only adjust imports/types so it compiles.
+
+Important: Do not add any new roof/hip/column conditions after the reset. No shouldRenderHip, no new if logic around wraparound. The geometry in the builder zip is already correct.
+
+1) Confirm the two files and show me the diff
+
+There are two BuildingModel files:
+
+Fixed builder (canonical):
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+CRM version (currently broken):
+client/src/configurator/BuildingModel.tsx
+
+First, run a shell diff and summarize it:
+
+diff -u configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx \
+       client/src/configurator/BuildingModel.tsx | head -n 80
+
+
+In your explanation, tell me how many lines differ in total (Replit can see that from the diff metadata).
+
+2) Hard-copy the canonical file over the CRM file
+
+Now reset the CRM file from the canonical file using cp:
+
+cp configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx \
+   client/src/configurator/BuildingModel.tsx
+
+
+After this copy:
+
+client/src/configurator/BuildingModel.tsx must be byte-for-byte identical to the builder version.
+
+Do not make any geometry changes yet.
+
+3) Make only the minimal edits needed for the CRM to compile
+
+Open client/src/configurator/BuildingModel.tsx and do only these minimal edits:
+
+Import types
+At the top, the canonical file will import Door and Window from the builder’s Index page using an alias like:
+
+import type { Door, Window } from "@/pages/Index";
+
+
+In the CRM app, the types live in client/src/configurator/types.ts.
+
+Change that single line to:
+
+import type { Door, Window } from "./types";
+
+
+LeanTo interface extension (if needed)
+If the CRM project needs extra fields like gableAttachmentSide or enclosure, extend the LeanTo type where it is defined, without touching any geometry logic.
+
+For example:
+
+interface LeanTo {
+  // existing fields from canonical file...
+  gableAttachmentSide?: "front" | "back" | "left" | "right";
+  enclosure?: "fully-enclosed" | "fully-open" | "customize";
+}
+
+
+Do not add any new conditions based on these fields in the rendering logic in this step.
+
+Do not add:
+
+shouldRenderHip
+
+any new if (!leanTo.wraparound) around beams
+
+any new isSingleSlopeMain / isSingleSlopeLeanTo conditions
+
+The goal is: geometry identical to builder, types just extended enough to compile.
+
+4) Verify files are in sync
+
+Run the diff again to make sure the only differences are the type import and optional LeanTo fields:
+
+diff -u configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx \
+       client/src/configurator/BuildingModel.tsx | head -n 80
+
+
+In your explanation, confirm that:
+
+The only differences are:
+
+the import type { Door, Window } from "./types"; line, and
+
+the extra optional fields on the LeanTo interface (if present).
+
+There are no differences in the geometry/rendering code (the big beams.push, roof panel loops, wraparound lean-to logic, etc.).
+
+5) Run and visually confirm behavior
+
+After you’ve confirmed the reset:
+
+Run the app.
+
+In /builder, create the same configuration that was previously broken:
+
+Main building
+
+Wraparound single-slope lean-tos on both sides if you want
+
+Confirm:
+
+All roofs and lean-to panels render (no huge missing sections).
+
+The shape matches the canonical iron-builder behavior.
+
+Do not try to “fix” posts or hip panels again in this step. I only want the CRM renderer fully synchronized with the fixed builder renderer so we get back to a known-good baseline.
+
+In your final summary, clearly state:
+
+How many lines still differ between the two BuildingModel files and what they are.
+
+That you did not add any extra conditions around wraparound/hip/columns.
