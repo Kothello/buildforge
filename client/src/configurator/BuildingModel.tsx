@@ -724,7 +724,8 @@ export const BuildingModel = ({
                 {showBack && (
                   <mesh 
                     key={`back-gable-endcap-${wallColor}-${width}-${height}-${roofHeight}`} 
-                    position={[0, 0, length / 2]} 
+                    position={[0, 0, length / 2 + 0.2]} 
+                    rotation={[0, Math.PI, 0]}
                     castShadow={false} 
                     receiveShadow={false}
                     onClick={(e) => {
@@ -764,7 +765,8 @@ export const BuildingModel = ({
                 {showBack && (
                   <mesh 
                     key={`back-single-${wallColor}-${width}-${height}-${roofHeight}`} 
-                    position={[0, 0, length / 2]} 
+                    position={[0, 0, length / 2 + 0.2]} 
+                    rotation={[0, Math.PI, 0]}
                     castShadow={false} 
                     receiveShadow={false}
                     onClick={(e) => {
