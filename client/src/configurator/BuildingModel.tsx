@@ -2341,18 +2341,6 @@ export const BuildingModel = ({
                           </mesh>
                         );
                         
-                        // Vertical column at front corner - outer side only (tall for single slope)
-                        beams.push(
-                          <mesh 
-                            key={`leanto-single-column-front-outer`}
-                            position={[effectiveWidth / 2 - 1.434, (leanToHeight + effectiveRoofRise - 2.5) / 2, cornerFrontPos]} 
-                            rotation={[0, 0, 1.5 * Math.PI / 180]}
-                          >
-                            <primitive object={createIBeamGeometry(leanToHeight + effectiveRoofRise - 2.5, 'vertical')} />
-                            <primitive attach="material" object={beamMaterial} />
-                          </mesh>
-                        );
-                        
                         // Angled roof beam at back corner
                         beams.push(
                           <mesh 
@@ -2365,19 +2353,7 @@ export const BuildingModel = ({
                           </mesh>
                         );
                         
-                        // Vertical column at back corner - outer side only (tall for single slope)
-                        beams.push(
-                          <mesh 
-                            key={`leanto-single-column-back-outer`}
-                            position={[effectiveWidth / 2 - 1.434, (leanToHeight + effectiveRoofRise - 2.5) / 2, cornerBackPos]} 
-                            rotation={[0, 0, 1.5 * Math.PI / 180]}
-                          >
-                            <primitive object={createIBeamGeometry(leanToHeight + effectiveRoofRise - 2.5, 'vertical')} />
-                            <primitive attach="material" object={beamMaterial} />
-                          </mesh>
-                        );
-                        
-                        // Add regularly spaced beams in between with 20 foot buffer from corners
+                        // Add regularly spaced angled roof beams in between with 20 foot buffer from corners
                         const spacing = 24.5;
                         const margin = 20;
                         const inner = Math.max(0, attachWallLength - margin * 2);
@@ -2399,18 +2375,51 @@ export const BuildingModel = ({
                               <primitive attach="material" object={beamMaterial} />
                             </mesh>
                           );
-                          
-                          // Vertical column at this position - outer side only
+                        }
+                        
+                        // Vertical columns - only render when NOT a wraparound lean-to
+                        // Wraparound lean-tos should not show vertical posts as they stick through the roof
+                        if (!leanTo.wraparound) {
+                          // Vertical column at front corner - outer side only (tall for single slope)
                           beams.push(
                             <mesh 
-                              key={`leanto-single-column-outer-${i}`}
-                              position={[effectiveWidth / 2 - 1.434, (leanToHeight + effectiveRoofRise - 2.5) / 2, position]} 
+                              key={`leanto-single-column-front-outer`}
+                              position={[effectiveWidth / 2 - 1.434, (leanToHeight + effectiveRoofRise - 2.5) / 2, cornerFrontPos]} 
                               rotation={[0, 0, 1.5 * Math.PI / 180]}
                             >
                               <primitive object={createIBeamGeometry(leanToHeight + effectiveRoofRise - 2.5, 'vertical')} />
                               <primitive attach="material" object={beamMaterial} />
                             </mesh>
                           );
+                          
+                          // Vertical column at back corner - outer side only (tall for single slope)
+                          beams.push(
+                            <mesh 
+                              key={`leanto-single-column-back-outer`}
+                              position={[effectiveWidth / 2 - 1.434, (leanToHeight + effectiveRoofRise - 2.5) / 2, cornerBackPos]} 
+                              rotation={[0, 0, 1.5 * Math.PI / 180]}
+                            >
+                              <primitive object={createIBeamGeometry(leanToHeight + effectiveRoofRise - 2.5, 'vertical')} />
+                              <primitive attach="material" object={beamMaterial} />
+                            </mesh>
+                          );
+                          
+                          // Vertical columns at middle positions
+                          for (let i = 0; i <= n; i++) {
+                            const position = start + i * spacing;
+                            if (position < -attachWallLength / 2 + margin || position > attachWallLength / 2 - margin) continue;
+                            
+                            beams.push(
+                              <mesh 
+                                key={`leanto-single-column-outer-${i}`}
+                                position={[effectiveWidth / 2 - 1.434, (leanToHeight + effectiveRoofRise - 2.5) / 2, position]} 
+                                rotation={[0, 0, 1.5 * Math.PI / 180]}
+                              >
+                                <primitive object={createIBeamGeometry(leanToHeight + effectiveRoofRise - 2.5, 'vertical')} />
+                                <primitive attach="material" object={beamMaterial} />
+                              </mesh>
+                            );
+                          }
                         }
                         
                         return beams;

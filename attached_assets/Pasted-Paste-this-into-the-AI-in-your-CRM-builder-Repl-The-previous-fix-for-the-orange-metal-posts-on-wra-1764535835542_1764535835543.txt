@@ -1,0 +1,110 @@
+Paste this into the AI in your CRM+builder Repl:
+
+The previous fix for the orange metal posts on wraparound lean-tos did not work. They still stick out through the roof on wraparound single-slope lean-tos. I do not want those posts rendered at all on wraparound lean-tos – they should completely disappear, not just be shorter.
+
+Please follow these instructions exactly and work only in the active CRM configurator file:
+
+1. Use the correct BuildingModel file
+
+The file that drives the CRM + embedded configurator is:
+client/src/configurator/BuildingModel.tsx
+
+There is also an older copy here:
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+You must make the changes in client/src/configurator/BuildingModel.tsx.
+
+To verify you’re in the right file, add a temporary console.log like:
+
+console.log("CRM BuildingModel mounted");
+
+
+in the React component function, refresh /sales/leads/:id, and confirm this log appears in the browser console.
+Once confirmed, remove the console.log.
+
+2. Locate the vertical posts for single-slope lean-tos
+
+In client/src/configurator/BuildingModel.tsx, find the section that renders the beams and columns for single-slope lean-tos.
+
+You’ll see code that pushes meshes into a beams array with keys like:
+
+leanto-single-column-front-outer
+
+leanto-single-column-back-outer
+
+leanto-single-column-outer-${i}
+
+Those meshes use createIBeamGeometry(..., 'vertical') and positions like:
+
+position={[effectiveWidth / 2 - 0.75, (leanToHeight + effectiveRoofRise - 2.5) / 2, cornerFrontPos]}
+
+
+This block sits right after the single-slope corner roof beams for lean-tos.
+
+3. Change the logic instead of the numbers
+
+I don’t want any vertical posts visible on wraparound lean-tos. Do this:
+
+Wrap all of the vertical column pushes for single-slope lean-tos in a condition that checks leanTo.wraparound.
+
+Pseudocode:
+
+// BEFORE: columns always rendered
+beams.push(<mesh key="leanto-single-column-front-outer" ...>...</mesh>);
+beams.push(<mesh key="leanto-single-column-back-outer" ...>...</mesh>);
+// loop for middle columns ...
+
+// AFTER: only render columns when NOT wraparound
+if (!leanTo.wraparound) {
+  beams.push(<mesh key="leanto-single-column-front-outer" ...>...</mesh>);
+  beams.push(<mesh key="leanto-single-column-back-outer" ...>...</mesh>);
+  // loop for middle columns ...
+}
+
+
+Do not try to adjust lengths, insets, or scaling factors for this task. The requirement is:
+
+If leanTo.wraparound === true and the roofStyle is single-slope, do not render any vertical I-beam columns for that lean-to.
+
+Keep the angled roof beams and roof panels exactly as they are; only remove the vertical columns.
+
+4. Verify visually
+
+Run the app and go to:
+
+/builder and
+
+/sales/leads/:id for a lead with a wraparound single-slope lean-to.
+
+In the configurator:
+
+Set a wraparound single-slope lean-to with width around 16 ft or larger.
+
+Confirm:
+
+The orange/brown vertical posts are completely gone on that wraparound lean-to (no sticking up through the roof at any width).
+
+Non-wraparound lean-tos still show their posts as before.
+
+5. Sidebar / navigation pane behavior
+
+The earlier change to keep the sidebar state using cookies also didn’t behave as expected after auto-refresh. Please confirm:
+
+The sidebar component is client/src/components/ui/sidebar.tsx.
+
+On initial load, SidebarProvider should:
+
+Read document.cookie for sidebar_state.
+
+Use that value ("true" / "false") to set the initial defaultOpen / _open state.
+
+When I:
+
+Collapse the sidebar.
+
+Click Save Changes in the lead configurator.
+
+The app refreshes/re-renders.
+→ The sidebar must remain collapsed instead of popping back open.
+
+Summarize the exact conditions you added around the vertical columns (which keys, which lean-to fields you checked) and confirm that wraparound single-slope lean-tos no longer show any posts, while non-wraparound lean-tos are unaffected.
