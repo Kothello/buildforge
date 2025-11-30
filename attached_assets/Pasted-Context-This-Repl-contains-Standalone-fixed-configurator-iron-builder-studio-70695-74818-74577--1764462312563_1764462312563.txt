@@ -1,0 +1,91 @@
+Context:
+
+This Repl contains:
+
+Standalone fixed configurator: iron-builder-studio-70695-74818-74577-9-62585/client/src
+
+CRM-integrated configurator: client/src/configurator
+
+In the standalone project I already fixed this bug in BuildingModel.tsx:
+
+In Doors & Windows → Edit mode on a single-slope main building, the high sidewall highlight mesh (blue door/window edit area) now extends up to the high-side eave height (based on roof pitch + wall height), not just the base wall height.
+
+I want to make sure this exact fix is also present in the CRM version of BuildingModel.
+
+Constraints:
+
+Do not touch backend, pricing, or CRM pages (/sales, /sales/leads/:id) except to fix imports if absolutely necessary.
+
+Only change the CRM BuildingModel implementation in client/src/configurator/BuildingModel.tsx if it doesn’t already match the fixed behavior.
+
+Task:
+
+Open the standalone BuildingModel at:
+
+iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+and locate the code that builds the door/window edit highlight meshes for main building walls (the blue wall planes that appear when Doors & Windows edit mode is ON).
+
+Specifically find the logic that sets the height of the highlight mesh for:
+
+single-slope roof style
+
+high sidewall vs low sidewall
+
+Identify which variables represent:
+
+base wall height
+
+low-side eave height
+
+high-side eave height (used after the fix).
+
+Open the CRM BuildingModel at:
+
+client/src/configurator/BuildingModel.tsx
+and find the corresponding highlight-mesh code.
+
+Compare how it computes the highlight mesh height for the same case (single-slope, high sidewall).
+
+If the CRM version still uses only base wall height (or low eave) for the high side highlight:
+
+Update the CRM BuildingModel to match the fixed standalone logic:
+
+For a single-slope main building, when creating the highlight mesh for the high sidewall, use the high-side eave height (the same value the roof geometry uses on that side) as the vertical extent of the highlight mesh.
+
+Keep the low sidewall highlight using low eave / base as in the fixed version.
+
+For non–single-slope roofs, keep existing behavior unchanged.
+
+Reuse the same formulas / variables from the standalone file; only adapt imports/types as needed for the CRM file.
+
+Do not change the footprint or door/window placement logic—only the height of the highlight mesh. The goal is purely visual alignment of the edit area with the roof eave.
+
+Manual tests (please run and describe):
+
+In /builder:
+
+Set a single-slope building (e.g. Width 40 ft, Length 60 ft, Height 12 ft, Roof Style = Single Slope).
+
+Turn Doors & Windows Edit ON.
+
+Rotate to view both low and high sidewalls.
+
+Confirm:
+
+Low side highlight reaches its low eave as before.
+
+High side highlight now reaches the high eave, matching the roof edge with no short rectangle.
+
+In /sales/leads/:id:
+
+Open a lead with a single-slope main building.
+
+Turn Edit ON in the embedded configurator and confirm the same behavior: high side highlight reaches the eave.
+
+At the end, summarize:
+
+Whether the CRM BuildingModel needed changes or already matched the standalone fix.
+
+If changed, show the old vs new height calculation for the high-side highlight mesh.
+
+Confirm that both /builder and /sales/leads/:id now show the correct high-side highlight height in Doors & Windows edit mode.

@@ -853,18 +853,23 @@ export const BuildingModel = ({
                     </lineSegments>
                   </group>
                 )}
-                {highlightedWall.wall === 'right' && !highlightedWall.leanToId && showRight && (
-                  <group>
-                    <mesh position={[width / 2 + 0.3, height / 2, 0]} rotation={[0, Math.PI / 2, 0]} castShadow={false} receiveShadow={false}>
-                      <planeGeometry args={[length, height]} />
-                      <primitive attach="material" object={highlightMaterial} />
-                    </mesh>
-                    <lineSegments position={[width / 2 + 0.35, height / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
-                      <edgesGeometry args={[new THREE.PlaneGeometry(length, height)]} />
-                      <lineBasicMaterial color="#1d4ed8" linewidth={3} />
-                    </lineSegments>
-                  </group>
-                )}
+                {highlightedWall.wall === 'right' && !highlightedWall.leanToId && showRight && (() => {
+                  // For single-slope roofs, right wall is the high side - extend highlight to high eave
+                  const rightWallHeight = roofStyle === 'single-slope' ? height + roofHeight : height;
+                  const rightWallY = rightWallHeight / 2;
+                  return (
+                    <group>
+                      <mesh position={[width / 2 + 0.3, rightWallY, 0]} rotation={[0, Math.PI / 2, 0]} castShadow={false} receiveShadow={false}>
+                        <planeGeometry args={[length, rightWallHeight]} />
+                        <primitive attach="material" object={highlightMaterial} />
+                      </mesh>
+                      <lineSegments position={[width / 2 + 0.35, rightWallY, 0]} rotation={[0, Math.PI / 2, 0]}>
+                        <edgesGeometry args={[new THREE.PlaneGeometry(length, rightWallHeight)]} />
+                        <lineBasicMaterial color="#1d4ed8" linewidth={3} />
+                      </lineSegments>
+                    </group>
+                  );
+                })()}
               </>
             )}
           </>
