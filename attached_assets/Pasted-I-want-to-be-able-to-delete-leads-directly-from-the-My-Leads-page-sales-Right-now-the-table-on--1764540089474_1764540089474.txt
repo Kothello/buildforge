@@ -1,0 +1,110 @@
+I want to be able to delete leads directly from the My Leads page (/sales).
+
+Right now the table on /sales shows rows like in my screenshot (Customer, Status, Price, Action with a “View” link), but there is no way to delete a lead.
+
+Implement full delete functionality (backend + frontend) with a confirmation step.
+
+1) Backend: DELETE /api/leads/:id endpoint
+
+Locate the server code that handles leads:
+
+The list/creation endpoint is already at /api/leads (used by the builder and CRM).
+
+There is also a PATCH /api/leads/:id endpoint for updates.
+
+These are likely defined in something like server/leadsRoutes.ts and registered in server/routes.ts.
+
+Add a new DELETE endpoint:
+
+Route:
+DELETE /api/leads/:id
+
+Behavior:
+
+Parse id from req.params.id.
+
+Delete the matching lead from the database using the existing ORM (same db instance and leads table used by POST/PATCH).
+
+Return a 204 (No Content) on success, or a 404 if no lead is found.
+
+Register that route in the server router so the client can call it.
+
+Do not change any existing POST/GET/PATCH behavior.
+
+2) Frontend: Add Delete action on My Leads table
+
+Open the My Leads page component:
+
+It is the React page rendered at /sales, likely client/src/pages/sales-dashboard.tsx or similarly named.
+
+This page already:
+
+Uses React Query to fetch leads from /api/leads.
+
+Renders the table with columns: Customer, Status, Price, Action.
+
+Has a “View” button in the Action column.
+
+Add a delete mutation using React Query:
+
+const deleteLeadMutation = useMutation({
+  mutationFn: async (id: string) => {
+    const res = await fetch(`/api/leads/${id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      throw new Error("Failed to delete lead");
+    }
+  },
+  onSuccess: (_data, id) => {
+    // Remove the deleted lead from the /api/leads cache
+    queryClient.setQueryData<Lead[]>(["/api/leads"], (old) =>
+      old ? old.filter((lead) => lead.id !== id) : old
+    );
+  },
+});
+
+
+Adjust types/imports to match the existing Lead type and React Query setup in this file.
+
+In each table row, next to the existing View button, add a Delete button (or small trash icon button) that:
+
+On click, shows a window.confirm dialog:
+
+const handleDelete = (id: string) => {
+  if (!window.confirm("Delete this lead permanently? This cannot be undone.")) return;
+  deleteLeadMutation.mutate(id);
+};
+
+
+Calls handleDelete(lead.id) when the Delete button is clicked.
+
+Keep the styling consistent with the existing design system:
+
+Use the same button component / Tailwind styles as other secondary/destructive actions (e.g. smaller red/outline button or icon).
+
+Optional: disable the Delete button and show a small spinner while deleteLeadMutation.isPending for that row.
+
+Make sure:
+
+On success, the deleted lead disappears from the My Leads table without a full page refresh (only via React Query cache update).
+
+On error, show a toast or alert with the error message.
+
+3) Quick test flow
+
+After implementation:
+
+Go to /sales (My Leads).
+
+Pick a test lead and click the new Delete button.
+
+Confirm in the dialog.
+
+Verify:
+
+The row disappears from the table immediately.
+
+If you reload /sales, that lead is still gone (it was actually deleted from the DB).
+
+Summarize which files you changed (server + client), the DELETE endpoint signature, and how the React Query cache is updated after deletion. Do not paste entire files, just the key pieces you modified.

@@ -1,11 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp } from "lucide-react";
+import { Search, TrendingUp, Trash2, Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Lead } from "@shared/schema";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const prefetchLeadEdit = () => {
   import("@/pages/lead-edit");
@@ -15,7 +17,9 @@ const prefetchLeadEdit = () => {
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, navigate] = useLocation();
+  const { toast } = useToast();
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads"],
@@ -23,6 +27,32 @@ export default function SalesDashboard() {
     staleTime: 0,
     refetchOnMount: "always",
   });
+
+  const deleteLeadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        throw new Error("Failed to delete lead");
+      }
+    },
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<Lead[]>(["/api/leads"], (old) =>
+        old ? old.filter((lead) => lead.id !== id) : old
+      );
+      toast({ title: "Lead deleted", description: "The lead has been permanently removed." });
+      setDeletingId(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setDeletingId(null);
+    },
+  });
+
+  const handleDelete = (id: string) => {
+    if (!window.confirm("Delete this lead permanently? This cannot be undone.")) return;
+    setDeletingId(id);
+    deleteLeadMutation.mutate(id);
+  };
 
   const myLeads = useMemo(() => {
     let filtered = leads.filter((lead: any) =>
@@ -136,14 +166,30 @@ export default function SalesDashboard() {
                     ${parseFloat(lead.totalPrice || "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                   <td className="py-3 px-3 sm:px-4 text-right">
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      data-testid={`button-view-lead-${lead.id}`}
-                      onClick={() => handleLeadClick(lead)}
-                    >
-                      View
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        data-testid={`button-view-lead-${lead.id}`}
+                        onClick={() => handleLeadClick(lead)}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        data-testid={`button-delete-lead-${lead.id}`}
+                        onClick={() => handleDelete(lead.id)}
+                        disabled={deletingId === lead.id}
+                      >
+                        {deletingId === lead.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
