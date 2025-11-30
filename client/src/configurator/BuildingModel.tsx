@@ -2323,12 +2323,6 @@ export const BuildingModel = ({
                         const cornerFrontPos = -attachWallLength / 2 + 0.875;
                         const cornerBackPos = attachWallLength / 2 - 0.875;
                         
-                        // Calculate beam length - reduce inset for wider lean-tos to prevent sticking out
-                        // For widths over 12ft, increase the inset proportionally to keep beams inside roof
-                        const baseInset = 1.5;
-                        const extraInset = effectiveWidth > 12 ? (effectiveWidth - 12) * 0.25 : 0;
-                        const beamLength = roofPanelWidth - baseInset - extraInset;
-                        
                         // Angled roof beam at front corner
                         beams.push(
                           <mesh 
@@ -2336,7 +2330,7 @@ export const BuildingModel = ({
                             position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, cornerFrontPos]} 
                             rotation={[0, 0, -roofAngle]}
                           >
-                            <primitive object={createIBeamGeometry(beamLength, 'none', 1.4)} />
+                            <primitive object={createIBeamGeometry(roofPanelWidth - 0.5, 'none', 1.4)} />
                             <primitive attach="material" object={beamMaterial} />
                           </mesh>
                         );
@@ -2348,12 +2342,12 @@ export const BuildingModel = ({
                             position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, cornerBackPos]} 
                             rotation={[0, 0, -roofAngle]}
                           >
-                            <primitive object={createIBeamGeometry(beamLength, 'none', 1.4)} />
+                            <primitive object={createIBeamGeometry(roofPanelWidth - 0.5, 'none', 1.4)} />
                             <primitive attach="material" object={beamMaterial} />
                           </mesh>
                         );
                         
-                        // Add regularly spaced angled roof beams in between with 20 foot buffer from corners
+                        // Add regularly spaced beams in between with 20 foot buffer from corners
                         const spacing = 24.5;
                         const margin = 20;
                         const inner = Math.max(0, attachWallLength - margin * 2);
@@ -2371,7 +2365,7 @@ export const BuildingModel = ({
                               position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, position]} 
                               rotation={[0, 0, -roofAngle]}
                             >
-                              <primitive object={createIBeamGeometry(beamLength, 'none', 1.4)} />
+                              <primitive object={createIBeamGeometry(roofPanelWidth - 0.5, 'none', 1.4)} />
                               <primitive attach="material" object={beamMaterial} />
                             </mesh>
                           );
