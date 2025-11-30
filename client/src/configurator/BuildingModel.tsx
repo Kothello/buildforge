@@ -960,62 +960,72 @@ export const BuildingModel = ({
         </mesh>
       )}
 
-      {/* Red Iron Structural Beams - every 25 feet along length, centered */}
+      {/* Red Iron Structural Beams - per prompt specification */}
       {(() => {
         const angle = Math.atan(roofPitch / 12);
         const beamLength = (width / 2) / Math.cos(angle);
+        const beamThickness = 0.15;
+        const roofPanelThickness = 0.15;
+        // Offset beams to sit under roof panels (half roof thickness + half beam thickness)
+        const beamYOffset = (roofPanelThickness / 2) + (beamThickness / 2);
         
-        const renderBeamSet = (position: number, key: string) => (
+        const renderBeamSet = (zPosition: number, key: string) => (
           <group key={key}>
             {roofStyle === 'gable' ? (
               <>
-                {/* Left angled beam following roof pitch - aligned with vertical column */}
+                {/* Left angled beam - center on quarter-width line, under roof panel */}
                 <mesh 
-                  position={[-width / 4 + 0.92, height + roofHeight / 2 - 0.62, position]} 
-                  rotation={[0, 0, angle * 1.02]}
+                  position={[-width / 4, height + roofHeight / 2 - beamYOffset, zPosition]} 
+                  rotation={[0, 0, angle]}
                   castShadow={false} receiveShadow={false}
                 >
-                  <primitive object={createIBeamGeometry(beamLength - 0.65, 'left')} />
+                  <boxGeometry args={[beamLength, beamThickness, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
                 
-                {/* Right angled beam following roof pitch - aligned with vertical column */}
+                {/* Right angled beam - center on quarter-width line, under roof panel */}
                 <mesh 
-                  position={[width / 4 - 0.8, height + roofHeight / 2 - 0.62, position]} 
-                  rotation={[0, 0, -angle * 1.02]}
+                  position={[width / 4, height + roofHeight / 2 - beamYOffset, zPosition]} 
+                  rotation={[0, 0, -angle]}
+                  castShadow={false} receiveShadow={false}
                 >
-                  <primitive object={createIBeamGeometry(beamLength - 0.65, 'right')} />
+                  <boxGeometry args={[beamLength, beamThickness, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
                 
-                {/* Vertical support columns - truly vertical, fixed to height */}
-                <mesh position={[-width / 2 - 0.083, height / 2, position]} rotation={[0, 0, -1.5 * Math.PI / 180]}>
-                  <primitive object={createIBeamGeometry(height, 'vertical')} />
+                {/* Left vertical column - at quarter-width, from ground to eave, no rotation */}
+                <mesh position={[-width / 4, height / 2, zPosition]}>
+                  <boxGeometry args={[beamThickness, height, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
-                <mesh position={[width / 2 - 1.434, height / 2, position]} rotation={[0, 0, 1.5 * Math.PI / 180]}>
-                  <primitive object={createIBeamGeometry(height, 'vertical')} />
+                
+                {/* Right vertical column - at quarter-width, from ground to eave, no rotation */}
+                <mesh position={[width / 4, height / 2, zPosition]}>
+                  <boxGeometry args={[beamThickness, height, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
               </>
             ) : (
               <>
-                {/* Single slope angled beam following roof pitch - straight big beam with no taper */}
+                {/* Single slope angled beam following roof pitch */}
                 <mesh 
-                  position={[0, height + roofHeight / 2 - 0.75, position]} 
+                  position={[0, height + roofHeight / 2 - beamYOffset, zPosition]} 
                   rotation={[0, 0, angle]}
+                  castShadow={false} receiveShadow={false}
                 >
-                  <primitive object={createIBeamGeometry(width / Math.cos(angle) - 0.5, 'none', 1.4)} />
+                  <boxGeometry args={[width / Math.cos(angle), beamThickness, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
                 
-                {/* Vertical support columns - left side at standard height, right side at full height, both with dramatic taper */}
-                <mesh position={[-width / 2 - 0.083, height / 2, position]} rotation={[0, 0, -1.5 * Math.PI / 180]}>
-                  <primitive object={createIBeamGeometry(height, 'vertical')} />
+                {/* Left vertical column - standard height */}
+                <mesh position={[-width / 2, height / 2, zPosition]}>
+                  <boxGeometry args={[beamThickness, height, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
-                <mesh position={[width / 2 - 1.434, (height + roofHeight - 1) / 2, position]} rotation={[0, 0, 1.5 * Math.PI / 180]}>
-                  <primitive object={createIBeamGeometry(height + roofHeight - 1, 'vertical')} />
+                
+                {/* Right vertical column - full height for single slope */}
+                <mesh position={[width / 2, (height + roofHeight) / 2, zPosition]}>
+                  <boxGeometry args={[beamThickness, height + roofHeight, beamThickness]} />
                   <primitive attach="material" object={beamMaterial} />
                 </mesh>
               </>
@@ -1025,21 +1035,21 @@ export const BuildingModel = ({
         
         const beams = [];
         
-        // Always add corner beams - 0.875 feet inside the walls
+        // Corner beams - 0.875 feet inboard from walls
         beams.push(renderBeamSet(-length / 2 + 0.875, 'corner-front'));
         beams.push(renderBeamSet(length / 2 - 0.875, 'corner-back'));
         
-        // Add regularly spaced beams in between with 20 foot buffer from corners
-        const spacing = 24.5;
-        const margin = 20;
-        const inner = Math.max(0, length - margin * 2);
-        const n = Math.floor(inner / spacing);
-        const start = -(n * spacing) / 2;
-        
-        for (let i = 0; i <= n; i++) {
-          const position = start + i * spacing;
-          if (position < -length / 2 + margin || position > length / 2 - margin) continue;
-          beams.push(renderBeamSet(position, `middle-${i}`));
+        // Middle beams: Math.floor((length - 40) / 24.5) evenly distributed
+        // Guard against short buildings where length <= 40
+        if (length > 40) {
+          const middleCount = Math.floor((length - 40) / 24.5);
+          if (middleCount > 0) {
+            const span = (length - 40) / (middleCount + 1);
+            for (let i = 1; i <= middleCount; i++) {
+              const zPos = -length / 2 + 20 + i * span;
+              beams.push(renderBeamSet(zPos, `middle-${i}`));
+            }
+          }
         }
         
         return beams;
