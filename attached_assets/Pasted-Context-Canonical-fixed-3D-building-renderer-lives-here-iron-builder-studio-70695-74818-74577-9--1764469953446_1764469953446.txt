@@ -1,0 +1,66 @@
+Context:
+
+Canonical, fixed 3D building renderer lives here:
+iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+The CRM app uses this file as its 3D core:
+client/src/configurator/BuildingModel.tsx
+
+I want the CRM version’s 3D behavior to be identical to the fixed iron-builder version (door/window edit highlight, single-slope high side, lean-tos, roofs, etc.).
+
+Pricing and lead logic are handled elsewhere (BuilderPage, LeadConfiguratorEmbed, PricingDisplay, /api/pricing/*) and must not be changed here.
+
+Goal:
+
+Replace the CRM BuildingModel.tsx implementation with the fixed iron-builder BuildingModel.tsx implementation, adjusting only imports/types so it compiles inside the CRM project. After this, any building the CRM renders should behave exactly like in the standalone iron-builder.
+
+Constraints:
+
+Do not modify:
+
+client/src/configurator/BuilderPage.tsx
+
+client/src/configurator/LeadConfiguratorEmbed.tsx
+
+client/src/configurator/PricingDisplay.tsx
+
+any server/* files or pricing routes.
+
+Do not add new props or CRM logic into BuildingModel; just adapt imports/types.
+
+Task:
+
+Open the iron-builder file:
+
+iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+and treat this as the canonical implementation.
+
+Open the CRM file:
+
+client/src/configurator/BuildingModel.tsx
+
+Replace the entire contents of the CRM BuildingModel.tsx with the iron-builder implementation, then:
+
+Update import paths so that any references to local modules use the CRM configurator structure (e.g. ./types, ./Scene3D, etc.) and not paths under iron-builder-studio-....
+
+Ensure the component exports the same default name that the rest of the CRM code expects (if CRM imports BuildingModel as default from ./BuildingModel, keep that).
+
+Keep any TypeScript types in sync with client/src/configurator/types.ts; if iron-builder’s types differ slightly, adapt them so they use the CRM’s shared types file instead of redefining them.
+
+Do not add any pricing or lead-related props to BuildingModel. It should remain a pure 3D rendering component that takes building configuration props and renders meshes.
+
+After the replacement compiles, run the app and manually test:
+
+/builder:
+
+Single-slope building, Doors & Windows edit mode → verify the high-side wall highlight mesh reaches the eave and all other known iron-builder behaviors (lean-tos, wrap, etc.) match.
+
+/sales/leads/:id:
+
+Open a few leads (including single-slope and lean-to cases) in the embedded configurator and confirm the 3D behavior matches the standalone iron-builder. Pricing and lead save behavior should remain unchanged.
+
+At the end, summarize:
+
+Confirm that client/src/configurator/BuildingModel.tsx now matches the iron-builder version logically (list any unavoidable minor differences like import paths).
+
+Note any type/import adjustments you had to make to integrate it into the CRM project.
