@@ -1,0 +1,164 @@
+You’re not crazy, Replit is talking in circles.
+
+Here’s the blunt reality based on the actual files in your zips:
+
+Your new builder zip (iron-builder-studio-70695-74818-74577-9-62585 (2).zip) has a BuildingModel.tsx that is not identical to the CRM BuildingModel.tsx.
+
+The iron-builder file contains newer fixes like:
+
+gable lean-to side walls renamed to left / right (so both are clickable and correctly mapped for doors/windows).
+
+some beam/visual tweaks.
+
+The CRM BuildingModel.tsx still has older, CRM-specific edits:
+
+Side walls for gable lean-to - based on wall enclosure settings (with shouldRenderWall('front'/'back')),
+
+extra logic for enclosure and customWalls,
+
+its own tweaks like roofExtension for the gap.
+
+So when Replit says “I copied the canonical file and everything is in sync”, it’s just copying whatever BuildingModel.tsx happens to be in the repo at that moment and then re-adding CRM bits – but those CRM bits are exactly where some of your bugs live (gable lean-to walls, roof join).
+
+What that big Replit summary actually did
+
+From your summary:
+
+It did:
+
+Copy BuildingModel.tsx from the iron-builder folder into client/src/configurator/BuildingModel.tsx.
+
+Change the Door, Window import to ./types.
+
+Add the CRM fields gableAttachmentSide? and enclosure? into the LeanTo type.
+
+Rewrite a bunch of I-beam logic and a wall-visibility check.
+
+It did NOT:
+
+Reconcile the CRM-only “enclosure / shouldRenderWall / front/back” lean-to wall code with the new iron-builder behavior.
+
+Guarantee that gable lean-to walls use the updated left/right mapping from your new builder.
+
+Guarantee that the lean-to roof join is using the same geometry as the working builder.
+
+So you’re still running a hybrid: iron-builder core + CRM lean-to enclosure code. That’s why you still see:
+
+Gap at the lean-to roof join in CRM.
+
+Some gable lean-to walls not clickable in CRM, while they work in the pure builder.
+
+Next course of action
+
+Given you just uploaded the new builder zip (with your latest fixes), the cleanest move now:
+
+Treat the new builder’s BuildingModel.tsx as the truth and force the CRM to use it verbatim, only changing:
+
+the Door, Window import path
+
+the LeanTo type to add your CRM optional fields.
+
+That means you temporarily sacrifice the CRM-only “enclosure/custom walls” logic until we layer it back in on top of a clean, working base. Right now that enclosure layer is what’s fighting your good builder code.
+
+Step 1 – Make sure the new builder is in the CRM Repl
+
+In the CRM Repl on Replit:
+
+Upload the new builder zip you just sent me.
+
+Ensure the path to the fixed BuildingModel.tsx is:
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+
+(If Replit unzips to a slightly different folder name, adjust the path in the prompt below.)
+
+Step 2 – Use this prompt in Replit AI to hard-replace the CRM BuildingModel
+
+Paste this in a new AI chat in the CRM+builder Repl:
+
+Context:
+
+I just uploaded a fresh, fixed builder project. The canonical BuildingModel.tsx I want to use now lives at:
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+The CRM version that is currently used lives at:
+client/src/configurator/BuildingModel.tsx
+
+The CRM version has extra “enclosure / shouldRenderWall / front/back” lean-to logic that is causing bugs (roof gaps and not all gable lean-to walls clickable).
+
+I want the CRM to use the exact 3D behavior of the new builder BuildingModel.tsx.
+
+Goal:
+
+Completely replace the CRM client/src/configurator/BuildingModel.tsx implementation with the new builder BuildingModel.tsx, changing only what is absolutely necessary for CRM compatibility:
+
+The import path for Door and Window
+
+The LeanTo type to include the existing CRM optional fields gableAttachmentSide? and enclosure?
+
+Do not reintroduce the old CRM-only “Side walls for gable lean-to – based on wall enclosure settings” block or any custom shouldRenderWall('front'/'back') logic. I want the lean-to behavior exactly like the new builder.
+
+Task:
+
+Open:
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx (canonical)
+
+client/src/configurator/BuildingModel.tsx (CRM)
+
+Replace the entire contents of client/src/configurator/BuildingModel.tsx with the canonical builder file.
+
+Make the minimal CRM compatibility edits:
+
+Change the Door, Window import from the builder’s version to:
+import type { Door, Window } from './types';
+
+In the LeanTo interface/type inside BuildingModel.tsx, add back the two optional CRM fields if they’re missing:
+
+gableAttachmentSide?: 'front' | 'back' | 'left' | 'right';
+enclosure?: 'fully-enclosed' | 'fully-open' | 'customize';
+
+
+Do not add any other CRM-specific logic (no shouldRenderWall, no extra front/back lean-to walls, no roofExtension tweaks). The rest of the file must match the new builder line-for-line.
+
+Confirm by running a diff:
+
+Compare configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx with client/src/configurator/BuildingModel.tsx.
+
+Aside from:
+
+the Door, Window import path, and
+
+the two optional LeanTo fields
+they should be identical.
+
+Rebuild / restart the app. Then manually test:
+
+/builder:
+
+Create a building and add a gable lean-to on a side wall.
+
+Verify:
+
+No roof gap where the lean-to roof meets the main roof.
+
+Doors & Windows edit mode → all gable lean-to walls that exist are clickable and highlight correctly.
+
+/sales/leads/:id:
+
+Open a lead with a gable lean-to and confirm the embedded configurator behaves the same as the standalone builder.
+
+At the end, summarize:
+
+Confirm that the CRM BuildingModel.tsx now matches the builder’s BuildingModel.tsx except for the import path and the two optional LeanTo fields.
+
+Confirm from your manual test that the lean-to roof gap and unclickable walls are gone.
+
+Why this should finally move the needle
+
+This prompt stops asking for “sync” in a vague way and explicitly says: overwrite the file, then list the only allowed differences.
+
+It tells Replit not to re-inject the CRM-only lean-to enclosure block that has been breaking parity.
+
+It anchors the changes to the exact path of the new builder zip you just uploaded, not an older snapshot.
