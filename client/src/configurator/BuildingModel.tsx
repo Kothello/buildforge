@@ -2177,7 +2177,7 @@ export const BuildingModel = ({
                     )}
 
                     {/* Back local wall (z +effectiveLength/2) - respects leanTo.walls.back */}
-                    {(!leanTo.isOpen || leanTo.walls?.back === true) && (leanTo.walls?.back !== false) && (
+                    {(leanTo.walls?.back !== false) && (
                       <>
                         <mesh 
                           key={`leanto-gable-sidewall-back-${leanTo.id}-${wallColor}`} 
