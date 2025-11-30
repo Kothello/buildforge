@@ -2343,7 +2343,7 @@ export const BuildingModel = ({
                             position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, cornerFrontPos]} 
                             rotation={[0, 0, -roofAngle]}
                           >
-                            <primitive object={createIBeamGeometry(roofPanelWidth - 0.5, 'none', 1.4)} />
+                            <primitive object={createIBeamGeometry(roofPanelWidth - 1.0, 'none', 1.4)} />
                             <primitive attach="material" object={beamMaterial} />
                           </mesh>
                         );
@@ -2367,7 +2367,7 @@ export const BuildingModel = ({
                             position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, cornerBackPos]} 
                             rotation={[0, 0, -roofAngle]}
                           >
-                            <primitive object={createIBeamGeometry(roofPanelWidth - 0.5, 'none', 1.4)} />
+                            <primitive object={createIBeamGeometry(roofPanelWidth - 1.0, 'none', 1.4)} />
                             <primitive attach="material" object={beamMaterial} />
                           </mesh>
                         );
@@ -2402,7 +2402,7 @@ export const BuildingModel = ({
                               position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, position]} 
                               rotation={[0, 0, -roofAngle]}
                             >
-                              <primitive object={createIBeamGeometry(roofPanelWidth - 0.5, 'none', 1.4)} />
+                              <primitive object={createIBeamGeometry(roofPanelWidth - 1.0, 'none', 1.4)} />
                               <primitive attach="material" object={beamMaterial} />
                             </mesh>
                           );
