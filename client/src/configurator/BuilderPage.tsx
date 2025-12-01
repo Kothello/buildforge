@@ -1288,8 +1288,9 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: 
 
   return (
     <div className="h-full" style={{ background: 'hsl(var(--background))' }}>
-      <div className="flex flex-col md:flex-row lg:flex-row m-0 p-0 h-full">
-        <div className={`sticky md:static lg:static z-10 h-[35vh] md:h-full lg:h-full w-full ${showEditPanel ? 'md:w-[62%] lg:w-[62%]' : 'md:w-full lg:w-full'} px-3 py-2`} style={{ top: '0', background: 'hsl(var(--background))' }}>
+      <div className="flex flex-col lg:flex-row h-full gap-4 p-2">
+        {/* 3D Viewport */}
+        <div className={`${showEditPanel ? 'flex-[2]' : 'flex-1'} min-h-[400px] rounded-xl border bg-black/40 overflow-hidden`}>
           <div className="w-full h-full">
             <ErrorBoundary>
             <Scene3D
@@ -1388,9 +1389,10 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: 
           </div>
         </div>
 
+        {/* Right-side controls */}
         {showEditPanel && (
         <div 
-          className="w-full md:w-[38%] lg:w-[38%] mt-1 md:mt-0 lg:mt-0 md:h-full lg:h-full flex flex-col md:border-l lg:border-l"
+          className="flex-[1] min-w-[320px] max-w-md flex flex-col rounded-xl border overflow-hidden"
           style={{ 
             background: 'hsl(var(--background))',
             borderColor: 'hsl(var(--border))'
