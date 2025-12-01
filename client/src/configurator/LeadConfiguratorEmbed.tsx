@@ -83,6 +83,18 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
     onSuccess: (updatedLead: Lead) => {
       setIsSaving(false);
       
+      // Update individual lead query cache (used by lead detail page)
+      queryClient.setQueryData<Lead>(
+        ["/api/leads", leadId],
+        updatedLead
+      );
+      
+      // Update leads list query cache (used by /sales My Leads page)
+      queryClient.setQueryData<Lead[]>(
+        ["/api/leads"],
+        (old) => old ? old.map((l) => (l.id === updatedLead.id ? updatedLead : l)) : [updatedLead]
+      );
+      
       toast({
         title: 'Saved',
         description: 'Configuration updated successfully',
@@ -90,7 +102,8 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
       
       onSave?.(updatedLead);
       
-      window.location.reload();
+      // Exit edit mode after successful save
+      setIsEditing(false);
     },
     onError: (error) => {
       setIsSaving(false);

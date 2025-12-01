@@ -38,8 +38,8 @@ export default function LeadEditPage() {
     queryKey: ["/api/leads", leadId],
     queryFn: () => fetch(`/api/leads/${leadId}`).then(r => r.json()),
     enabled: !!leadId,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
   });
 
   const { data: activities = [] } = useQuery<Activity[]>({

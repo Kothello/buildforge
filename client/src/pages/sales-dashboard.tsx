@@ -24,8 +24,8 @@ export default function SalesDashboard() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads"],
     queryFn: () => fetch("/api/leads").then(r => r.json()),
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
   });
 
   const deleteLeadMutation = useMutation({

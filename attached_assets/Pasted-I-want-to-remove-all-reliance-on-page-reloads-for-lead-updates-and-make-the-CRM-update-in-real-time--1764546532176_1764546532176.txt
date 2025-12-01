@@ -1,0 +1,115 @@
+I want to remove all reliance on page reloads for lead updates and make the CRM update in real time using React Query’s cache.
+
+When I click Save Changes in the building configurator on a lead, I want:
+
+The lead detail page (pricing breakdown, quote total, etc.) to update immediately.
+
+The My Leads list on /sales to show the new price immediately, without me manually refreshing.
+
+No window.location.reload() or full navigation tricks.
+
+Please implement this by wiring React Query’s mutation onSuccess callbacks to update the cache, not by reloading the browser.
+
+1. Lead configurator save → update React Query cache
+
+Open the file that defines the embedded configurator for a lead, which should be:
+
+client/src/configurator/LeadConfiguratorEmbed.tsx
+
+In that file, find the save mutation for updating a lead (the one that calls PATCH /api/leads/:id and is triggered by the "Save Changes" button).
+
+Make sure this mutation uses useMutation from React Query with an onSuccess handler. In that handler:
+
+Get the React Query client:
+
+const queryClient = useQueryClient();
+
+
+When the mutation succeeds and returns the updated lead (including new totalPrice, buildingSpecs, and configuration), update both:
+
+a) The individual lead query (used by the lead edit/detail page):
+
+queryClient.setQueryData<Lead>(
+  ["/api/leads", updatedLead.id],
+  updatedLead
+);
+
+
+b) The leads list query (used by /sales My Leads page):
+
+queryClient.setQueryData<Lead[]>(
+  ["/api/leads"],
+  (old) =>
+    old ? old.map((l) => (l.id === updatedLead.id ? updatedLead : l)) : [updatedLead]
+);
+
+
+Remove any code in this file that does a full page reload or navigation just to show updated data, e.g.:
+
+window.location.reload();
+
+
+or navigate("/sales") used only to force a refresh. The UI should update from the cache instead.
+
+Ensure the “Saved” toast/snackbar still appears, but the component stays on the same page with updated values rendered from the new lead data.
+
+2. My Leads page: use the same cache and stay live
+
+Open the My Leads page component (the /sales page), likely:
+
+client/src/pages/sales-dashboard.tsx
+
+Confirm that it uses useQuery with queryKey: ["/api/leads"] to fetch the lead list.
+
+Do not change this key; it must match the key we updated in LeadConfiguratorEmbed.tsx.
+
+Make sure there is no manual refresh logic here either; the table should simply render whatever comes from useQuery. When setQueryData is called in the save mutation, this query should re-render automatically with the new totalPrice and other fields.
+
+(Optional but nice): Set sane React Query options on the leads list so it feels live:
+
+const { data: leads } = useQuery({
+  queryKey: ["/api/leads"],
+  queryFn: fetchLeads,
+  staleTime: 1000 * 30,           // 30 seconds
+  refetchOnWindowFocus: true,     // refresh when tab is focused
+});
+
+3. Remove any remaining full-page reloads related to leads
+
+Search the client code for window.location.reload and any uses of navigate("/sales") or navigate(…) that are only there to “refresh” after saving a lead.
+
+For any such case related to lead updates (create/update/delete):
+
+Replace the reload/forced navigation with the same React Query pattern:
+
+Update the relevant cache via setQueryData, or
+
+Call invalidateQueries(["/api/leads"]) if you really want to refetch from the server.
+
+Do not add new reloads. The entire lead flow should be driven by React Query cache updates.
+
+4. Verification
+
+After making these changes:
+
+Open /sales and the detail view for a lead that has a configurator.
+
+Change the building configuration so the price changes.
+
+Click Save Changes.
+
+Confirm:
+
+The Pricing Breakdown and quote total on the lead detail page update immediately without any manual refresh.
+
+When you go back to /sales, the My Leads table already shows the new price (because the list query used the updated cache).
+
+There are no window.location.reload() calls in the lead-related code paths.
+
+In your summary, list:
+
+The exact files you modified.
+
+The queryKeys you used for the lead detail and list queries.
+
+How the onSuccess handler in the save mutation updates both caches.
