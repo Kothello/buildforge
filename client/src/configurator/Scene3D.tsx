@@ -245,12 +245,12 @@ export const Scene3D = ({ width, length, height, wallColor, roofColor, trimColor
     const dir = new THREE.Vector3(1.2, 1.2, -1.4).normalize();
     lockedDirectionRef.current = dir.clone();
     
-    // Start zoomed in so the building fills the viewport nicely
+    // Start more zoomed out so the whole building is visible, but keep things snappy
     const maxSize = Math.max(size.x, size.y, size.z);
     const fov = (camera.fov * Math.PI) / 180;
     const fitHeightDistance = maxSize / (2 * Math.tan(fov / 2));
     const fitWidthDistance = fitHeightDistance / camera.aspect;
-    const distance = 1.8 * Math.max(fitHeightDistance, fitWidthDistance);
+    const distance = 3.8 * Math.max(fitHeightDistance, fitWidthDistance);
     
     camera.position.copy(center).add(dir.multiplyScalar(distance));
     
