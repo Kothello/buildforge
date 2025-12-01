@@ -270,8 +270,8 @@ export const Scene3D = ({ width, length, height, wallColor, roofColor, trimColor
 
 
   return (
-    <div className="w-full h-full overflow-hidden rounded-lg border" style={{ borderColor: 'hsl(var(--border))' }}>
-      <Canvas gl={{ logarithmicDepthBuffer: true }} dpr={[1, 2]}>
+    <div className="w-full h-full overflow-hidden rounded-lg border flex items-center justify-center" style={{ borderColor: 'hsl(var(--border))' }}>
+      <Canvas className="w-full h-full" gl={{ logarithmicDepthBuffer: true }} dpr={[1, 2]}>
         <CameraTracker 
           onGetCameraAngle={onGetCameraAngle} 
           modelGroupRef={modelGroupRef}

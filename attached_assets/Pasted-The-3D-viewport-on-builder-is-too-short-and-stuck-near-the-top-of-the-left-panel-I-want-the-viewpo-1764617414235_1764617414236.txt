@@ -1,0 +1,56 @@
+The 3D viewport on /builder is too short and stuck near the top of the left panel. I want the viewport box itself (the black area that contains the model) to be much taller and fill most of the left column, so the model appears bigger.
+
+Do not change camera logic; just adjust layout/CSS.
+
+1. Find the Builder page and the Scene container
+
+Open client/src/configurator/BuilderPage.tsx.
+
+Find the JSX where <Scene3D /> is rendered for the /builder route.
+There should be a div (or several nested divs) that wrap <Scene3D /> and give it its size.
+
+2. Make the viewport tall and centered vertically
+
+Change the container around <Scene3D /> so that:
+
+The viewport column uses most of the vertical space:
+
+Use classes like flex-1 and min-h-[550px] or min-h-[600px].
+
+Remove or increase any small fixed heights (e.g. h-64, h-72, max-h-[250px] etc.).
+
+The canvas is not pinned to the very top of the black area:
+
+If the parent is flex with items-start, change to items-center.
+
+Make the direct wrapper of <Scene3D /> className="h-full w-full flex items-center justify-center" so the canvas is vertically centered inside the viewport box.
+
+The immediate wrapper that sets the black background should span the full height you just defined:
+
+e.g. className="flex-1 min-h-[600px] bg-black rounded-xl p-4" (adjust to match your design).
+
+Ensure there is no extra wrapper above <Scene3D /> that limits height with a small h-* class.
+
+3. Ensure the Canvas itself fills its box
+
+Open client/src/configurator/Scene3D.tsx.
+
+Make sure the <Canvas> has className="w-full h-full" (or equivalent) so it fills whatever height the parent gives it.
+
+If there is any inline style like style={{ height: 240 }} or a small fixed height class on the element that directly wraps <Canvas>, remove it and use h-full instead.
+
+4. Verification
+
+After your changes, on /builder:
+
+The black viewport area on the left should be tall (around 550–650px on desktop) and take most of the column height.
+
+The model should appear significantly larger because the canvas itself is taller.
+
+The viewport should not be stuck at the very top with a big empty area under it.
+
+In your summary, show me:
+
+The final className on the container that directly wraps <Scene3D /> in BuilderPage.tsx.
+
+The className on the <Canvas> in Scene3D.tsx.
