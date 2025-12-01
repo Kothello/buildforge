@@ -2332,6 +2332,20 @@ export const BuildingModel = ({
                       {(() => {
                         const beams = [];
                         
+                        // Calculate dynamic beam trim based on pitch and beam dimensions
+                        // The rotated I-beam flanges project beyond the centerline
+                        const beamScale = 1.4;
+                        const hBeam = 0.85 * beamScale * 0.9; // Effective beam depth
+                        const sinAngle = Math.sin(roofAngle);
+                        const cosAngle = Math.cos(roofAngle);
+                        const cOuter = 0.75; // Horizontal clearance at outer (eave) edge
+                        const cInner = 0.35; // Horizontal clearance at inner (ridge) edge
+                        // Total trim accounts for flange projection after rotation
+                        const trimTotal = 2 * (cOuter + 0.5 * hBeam * sinAngle) / cosAngle;
+                        const beamLength = roofPanelWidth - trimTotal;
+                        // Offset beam toward building so inner end stays tight while outer has more clearance
+                        const beamXOffset = -(cOuter - cInner) / (2 * cosAngle);
+                        
                         // Corner beams first - 0.875 feet inside the ends
                         const cornerFrontPos = -attachWallLength / 2 + 0.875;
                         const cornerBackPos = attachWallLength / 2 - 0.875;
@@ -2340,10 +2354,10 @@ export const BuildingModel = ({
                         beams.push(
                           <mesh 
                             key={`leanto-single-beam-corner-front`}
-                            position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, cornerFrontPos]} 
+                            position={[beamXOffset, leanToHeight + effectiveRoofRise / 2 - 0.75, cornerFrontPos]} 
                             rotation={[0, 0, -roofAngle]}
                           >
-                            <primitive object={createIBeamGeometry(roofPanelWidth - 1.0, 'none', 1.4)} />
+                            <primitive object={createIBeamGeometry(beamLength, 'none', beamScale)} />
                             <primitive attach="material" object={beamMaterial} />
                           </mesh>
                         );
@@ -2364,10 +2378,10 @@ export const BuildingModel = ({
                         beams.push(
                           <mesh 
                             key={`leanto-single-beam-corner-back`}
-                            position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, cornerBackPos]} 
+                            position={[beamXOffset, leanToHeight + effectiveRoofRise / 2 - 0.75, cornerBackPos]} 
                             rotation={[0, 0, -roofAngle]}
                           >
-                            <primitive object={createIBeamGeometry(roofPanelWidth - 1.0, 'none', 1.4)} />
+                            <primitive object={createIBeamGeometry(beamLength, 'none', beamScale)} />
                             <primitive attach="material" object={beamMaterial} />
                           </mesh>
                         );
@@ -2399,10 +2413,10 @@ export const BuildingModel = ({
                           beams.push(
                             <mesh 
                               key={`leanto-single-beam-middle-${i}`}
-                              position={[0, leanToHeight + effectiveRoofRise / 2 - 0.75, position]} 
+                              position={[beamXOffset, leanToHeight + effectiveRoofRise / 2 - 0.75, position]} 
                               rotation={[0, 0, -roofAngle]}
                             >
-                              <primitive object={createIBeamGeometry(roofPanelWidth - 1.0, 'none', 1.4)} />
+                              <primitive object={createIBeamGeometry(beamLength, 'none', beamScale)} />
                               <primitive attach="material" object={beamMaterial} />
                             </mesh>
                           );
