@@ -179,14 +179,7 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true, sa
     leanTosCount: leanTos.length,
   });
 
-  const handleSave = async () => {
-    if (!onSave) return;
-    
-    const config = getCurrentConfig();
-    const buildingSpecs = getCurrentBuildingSpecs();
-    
-    let totalPrice = '0';
-    
+  const calculatePricing = async () => {
     try {
       const pricingResponse = await fetch('/api/pricing/calculate', {
         method: 'POST',
@@ -219,14 +212,28 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true, sa
       if (pricingResponse.ok) {
         const pricingData = await pricingResponse.json();
         if (pricingData?.total) {
-          totalPrice = pricingData.total.toString();
+          onTotalChange?.(pricingData.total.toString());
+          return pricingData.total.toString();
         }
       }
     } catch (e) {
       console.error('Failed to calculate pricing:', e);
     }
+    return '0';
+  };
+
+  // Recalculate pricing whenever config changes
+  useEffect(() => {
+    calculatePricing();
+  }, [width, length, height, roofStyle, roofPitch, doors.length, windows.length, leanTos.length, wallEnclosure]);
+
+  const handleSave = async () => {
+    if (!onSave) return;
     
-    onTotalChange?.(totalPrice);
+    const config = getCurrentConfig();
+    const buildingSpecs = getCurrentBuildingSpecs();
+    const totalPrice = await calculatePricing();
+    
     onSave(config, buildingSpecs, totalPrice);
   };
 
