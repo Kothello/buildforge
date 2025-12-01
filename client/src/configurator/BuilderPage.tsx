@@ -48,9 +48,10 @@ export interface BuilderPageProps {
   onSave?: (config: BuildingConfig, buildingSpecs: BuildingSpecs, totalPrice: string) => void;
   isSaving?: boolean;
   showEditPanel?: boolean;
+  saveRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: BuilderPageProps = {}) => {
+const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true, saveRef }: BuilderPageProps = {}) => {
   const [width, setWidth] = useState(initialConfig?.width ?? 40);
   const [length, setLength] = useState(initialConfig?.length ?? 60);
   const [height, setHeight] = useState(initialConfig?.height ?? 12);
@@ -226,6 +227,18 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: 
     
     onSave(config, buildingSpecs, totalPrice);
   };
+
+  // Register save function for parent component to call
+  useEffect(() => {
+    if (saveRef) {
+      saveRef.current = handleSave;
+    }
+    return () => {
+      if (saveRef) {
+        saveRef.current = null;
+      }
+    };
+  });
 
   const handleSubmitDesign = async () => {
     if (!submitForm.name || !submitForm.company || !submitForm.email) {

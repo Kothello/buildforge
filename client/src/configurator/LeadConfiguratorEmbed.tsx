@@ -1,10 +1,10 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Pencil } from 'lucide-react';
+import { Pencil, Save } from 'lucide-react';
 import type { BuildingSpecs } from './BuilderPage';
 import type { BuildingConfig } from './types';
 
@@ -58,6 +58,7 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
+  const saveRef = useRef<(() => void) | null>(null);
   
   const initialConfig = (lead.configuration as BuildingConfig) || undefined;
 
@@ -130,8 +131,14 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
     updateMutation.mutate({ config, buildingSpecs, totalPrice });
   };
 
+  const triggerSave = () => {
+    if (saveRef.current) {
+      saveRef.current();
+    }
+  };
+
   return (
-    <div className="h-full w-full relative">
+    <div className="h-full w-full relative flex flex-col">
       {!isEditing && (
         <div className="absolute top-4 right-4 z-50">
           <Button
@@ -144,14 +151,30 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
           </Button>
         </div>
       )}
-      <Suspense fallback={<ConfiguratorSkeleton isEditing={isEditing} />}>
-        <LazyBuilderPage
-          initialConfig={initialConfig}
-          onSave={handleSave}
-          isSaving={isSaving}
-          showEditPanel={isEditing}
-        />
-      </Suspense>
+      <div className="flex-1 overflow-hidden">
+        <Suspense fallback={<ConfiguratorSkeleton isEditing={isEditing} />}>
+          <LazyBuilderPage
+            initialConfig={initialConfig}
+            onSave={handleSave}
+            isSaving={isSaving}
+            showEditPanel={isEditing}
+            saveRef={saveRef}
+          />
+        </Suspense>
+      </div>
+      {isEditing && (
+        <div className="shrink-0 p-4 border-t bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
+          <Button
+            onClick={triggerSave}
+            disabled={isSaving}
+            className="w-full gap-2"
+            data-testid="button-save-configuration"
+          >
+            <Save className="h-4 w-4" />
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

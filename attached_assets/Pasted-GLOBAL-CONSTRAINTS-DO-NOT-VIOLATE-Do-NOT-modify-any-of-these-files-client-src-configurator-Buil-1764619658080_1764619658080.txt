@@ -1,0 +1,113 @@
+GLOBAL CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any of these files:
+
+client/src/configurator/BuildingModel.tsx
+
+client/src/configurator/Scene3D.tsx
+
+client/src/configurator/LeanToConfig.tsx
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any 3D geometry, lean-to math, or pricing logic.
+
+You are only allowed to change layout / JSX / React state wiring in the lead detail view and configurator wrapper.
+
+TASK: Restore “Save Changes” button on the sales/leads detail page
+
+The “Save Changes” button that used to appear with the configurator on the lead detail page (/sales/leads/:id) is gone.
+I want it back in the same place and wired to the same update logic as before.
+
+This button:
+
+Belongs to the embedded configurator in the lead detail view, not the public /builder page.
+
+Should trigger the existing mutation that saves the lead’s configuration and pricing.
+
+Please do the following:
+
+1. Find the embedded configurator + mutation
+
+Open:
+
+client/src/configurator/LeadConfiguratorEmbed.tsx
+
+client/src/pages/lead-edit.tsx
+
+In LeadConfiguratorEmbed.tsx, locate the mutation that saves the lead config, something like:
+
+const updateMutation = useMutation( ... )
+
+
+or any handler that calls PATCH /api/leads/:id.
+
+Identify the function that should run when the user clicks Save Changes
+(for example handleSave, or an inline onClick={() => updateMutation.mutate(...)}).
+
+Do not change the mutation implementation itself, only reconnect the button to it.
+
+2. Search for the old “Save Changes” UI (if it still exists)
+
+Run a text search:
+
+rg "Save Changes" client/src -n
+
+
+If you find an older JSX block for the Save button (even in another file), reuse its styling:
+
+Same label: “Save Changes”
+
+Same button component / Tailwind classes if possible.
+
+If nothing remains, create a primary button that visually matches the other primary buttons in this UI.
+
+3. Re-add the button to the lead detail configurator
+
+In LeadConfiguratorEmbed.tsx, in the main JSX, add a footer area at the bottom of the right-hand control panel (where Dimensions / Doors & Windows / Colors / Lean-Tos / Walls live).
+
+In that footer, render:
+
+<button
+  type="button"
+  onClick={handleSave} // or the correct handler that triggers updateMutation
+  disabled={updateMutation.isLoading}
+  className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
+>
+  Save Changes
+</button>
+
+
+Use the existing button component from the design system if the project has one (e.g. <Button>), but keep the label “Save Changes”.
+
+The onClick must call the same handler/mutation that currently saves the lead configuration.
+
+Make sure this button only appears in the lead detail embed, not on the public /builder route. /builder should continue to use its own submit/lead-creation flow.
+
+4. Preserve existing success behavior
+
+Do not re-introduce any window.location.reload calls.
+
+Keep the existing onSuccess behavior of the mutation (updating React Query cache, exiting edit mode, showing toasts, etc.).
+
+The button should just trigger that mutation; all other behavior stays the same.
+
+5. Verify and summarize
+
+After your changes:
+
+Open /sales/leads/:id for any lead.
+
+In the configurator panel, you must see a “Save Changes” button at the bottom of the controls.
+
+Clicking it should save the configuration using the existing mutation, and the rest of the app should behave as it did before (pricing & lead data update, no full page reload).
+
+In your summary, show:
+
+The final JSX snippet for the Save Changes button in LeadConfiguratorEmbed.tsx.
+
+Which function it calls on click.
+
+Confirmation that none of the protected files were touched.
