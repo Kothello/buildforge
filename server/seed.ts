@@ -127,7 +127,7 @@ async function seedCrmData() {
         name: "Admin User",
         email: "admin@steelflow.com",
         role: "ADMIN",
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         avatar: null,
       });
       console.log("Created admin user (email: admin@steelflow.com, password: admin123)");
