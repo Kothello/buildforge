@@ -9,10 +9,40 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").default(""),
-  role: text("role").notNull().default("sales"),
+  role: text("role").notNull().default("REP"),
   avatar: text("avatar"),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const refreshTokens = pgTable("refresh_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const contacts = pgTable("contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  company: text("company"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const pipelineStages = pgTable("pipeline_stages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  order: integer("order").notNull().default(0),
+  isClosed: boolean("is_closed").default(false).notNull(),
+  isWon: boolean("is_won").default(false).notNull(),
+  color: text("color").default("#6B7280"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const pricingConfig = pgTable("pricing_config", {
@@ -72,6 +102,55 @@ export const callbacks = pgTable("callbacks", {
   notes: text("notes"),
   completed: boolean("completed").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const crmDeals = pgTable("crm_deals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  stageId: varchar("stage_id").references(() => pipelineStages.id),
+  ownerId: varchar("owner_id").references(() => users.id),
+  contactId: varchar("contact_id").references(() => contacts.id),
+  leadId: varchar("lead_id").references(() => leads.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const dealNotes = pgTable("deal_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  content: text("content").notNull(),
+  authorId: varchar("author_id").references(() => users.id).notNull(),
+  dealId: varchar("deal_id").references(() => crmDeals.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const tasks = pgTable("tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  status: text("status").notNull().default("OPEN"),
+  dueDate: timestamp("due_date"),
+  dealId: varchar("deal_id").references(() => crmDeals.id),
+  assignedToId: varchar("assigned_to_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const dealActivities = pgTable("deal_activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dealId: varchar("deal_id").references(() => crmDeals.id).notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  type: text("type").notNull(),
+  data: jsonb("data"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const settings = pgTable("settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: jsonb("value").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const deals = pgTable("deals", {
@@ -143,6 +222,80 @@ export const usersRelations = relations(users, ({ many }) => ({
   activities: many(activities),
   projects: many(projects),
   callbacks: many(callbacks),
+  refreshTokens: many(refreshTokens),
+  ownedDeals: many(crmDeals),
+  tasks: many(tasks),
+  dealNotes: many(dealNotes),
+}));
+
+export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [refreshTokens.userId],
+    references: [users.id],
+  }),
+}));
+
+export const contactsRelations = relations(contacts, ({ many }) => ({
+  deals: many(crmDeals),
+}));
+
+export const pipelineStagesRelations = relations(pipelineStages, ({ many }) => ({
+  deals: many(crmDeals),
+}));
+
+export const crmDealsRelations = relations(crmDeals, ({ one, many }) => ({
+  stage: one(pipelineStages, {
+    fields: [crmDeals.stageId],
+    references: [pipelineStages.id],
+  }),
+  owner: one(users, {
+    fields: [crmDeals.ownerId],
+    references: [users.id],
+  }),
+  contact: one(contacts, {
+    fields: [crmDeals.contactId],
+    references: [contacts.id],
+  }),
+  lead: one(leads, {
+    fields: [crmDeals.leadId],
+    references: [leads.id],
+  }),
+  notes: many(dealNotes),
+  tasks: many(tasks),
+  activities: many(dealActivities),
+}));
+
+export const dealNotesRelations = relations(dealNotes, ({ one }) => ({
+  author: one(users, {
+    fields: [dealNotes.authorId],
+    references: [users.id],
+  }),
+  deal: one(crmDeals, {
+    fields: [dealNotes.dealId],
+    references: [crmDeals.id],
+  }),
+}));
+
+export const tasksRelations = relations(tasks, ({ one }) => ({
+  deal: one(crmDeals, {
+    fields: [tasks.dealId],
+    references: [crmDeals.id],
+  }),
+  assignedTo: one(users, {
+    fields: [tasks.assignedToId],
+    references: [users.id],
+  }),
+}));
+
+export const dealActivitiesRelations = relations(dealActivities, ({ one }) => ({
+  deal: one(crmDeals, {
+    fields: [dealActivities.dealId],
+    references: [crmDeals.id],
+  }),
+  user: one(users, {
+    fields: [dealActivities.userId],
+    references: [users.id],
+  }),
 }));
 
 export const leadsRelations = relations(leads, ({ one, many }) => ({
@@ -155,6 +308,7 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
     references: [users.id],
   }),
   deals: many(deals),
+  crmDeals: many(crmDeals),
   activities: many(activities),
   projects: many(projects),
   callbacks: many(callbacks),
@@ -214,6 +368,52 @@ export const designPricingRelations = relations(designPricing, ({ one }) => ({
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRefreshTokenSchema = createInsertSchema(refreshTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertContactSchema = createInsertSchema(contacts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCrmDealSchema = createInsertSchema(crmDeals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDealNoteSchema = createInsertSchema(dealNotes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export const insertDealActivitySchema = createInsertSchema(dealActivities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSettingSchema = createInsertSchema(settings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertLeadSchema = createInsertSchema(leads).omit({
@@ -273,6 +473,22 @@ export const insertDesignPricingSchema = createInsertSchema(designPricing).omit(
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type RefreshToken = typeof refreshTokens.$inferSelect;
+export type InsertRefreshToken = z.infer<typeof insertRefreshTokenSchema>;
+export type Contact = typeof contacts.$inferSelect;
+export type InsertContact = z.infer<typeof insertContactSchema>;
+export type PipelineStage = typeof pipelineStages.$inferSelect;
+export type InsertPipelineStage = z.infer<typeof insertPipelineStageSchema>;
+export type CrmDeal = typeof crmDeals.$inferSelect;
+export type InsertCrmDeal = z.infer<typeof insertCrmDealSchema>;
+export type DealNote = typeof dealNotes.$inferSelect;
+export type InsertDealNote = z.infer<typeof insertDealNoteSchema>;
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type DealActivity = typeof dealActivities.$inferSelect;
+export type InsertDealActivity = z.infer<typeof insertDealActivitySchema>;
+export type Setting = typeof settings.$inferSelect;
+export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Deal = typeof deals.$inferSelect;

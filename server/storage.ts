@@ -1,6 +1,22 @@
 import {
   type User,
   type InsertUser,
+  type RefreshToken,
+  type InsertRefreshToken,
+  type Contact,
+  type InsertContact,
+  type PipelineStage,
+  type InsertPipelineStage,
+  type CrmDeal,
+  type InsertCrmDeal,
+  type DealNote,
+  type InsertDealNote,
+  type Task,
+  type InsertTask,
+  type DealActivity,
+  type InsertDealActivity,
+  type Setting,
+  type InsertSetting,
   type Lead,
   type InsertLead,
   type Deal,
@@ -17,13 +33,71 @@ import {
   type InsertPricingConfig,
 } from "@shared/schema";
 import { db } from "./db";
-import { users, leads, deals, activities, zapierWebhooks, projects, callbacks, pricingConfig } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { 
+  users, 
+  refreshTokens,
+  contacts,
+  pipelineStages,
+  crmDeals,
+  dealNotes,
+  tasks,
+  dealActivities,
+  settings,
+  leads, 
+  deals, 
+  activities, 
+  zapierWebhooks, 
+  projects, 
+  callbacks, 
+  pricingConfig 
+} from "@shared/schema";
+import { eq, and, gte, lte, ilike, or, desc, asc, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  
+  createRefreshToken(token: InsertRefreshToken): Promise<RefreshToken>;
+  getRefreshToken(token: string): Promise<RefreshToken | undefined>;
+  deleteRefreshToken(token: string): Promise<boolean>;
+  deleteUserRefreshTokens(userId: string): Promise<void>;
+  
+  getContacts(search?: string): Promise<Contact[]>;
+  getContact(id: string): Promise<Contact | undefined>;
+  createContact(contact: InsertContact): Promise<Contact>;
+  updateContact(id: string, updates: Partial<Contact>): Promise<Contact | undefined>;
+  deleteContact(id: string): Promise<boolean>;
+  
+  getPipelineStages(): Promise<PipelineStage[]>;
+  getPipelineStage(id: string): Promise<PipelineStage | undefined>;
+  createPipelineStage(stage: InsertPipelineStage): Promise<PipelineStage>;
+  updatePipelineStage(id: string, updates: Partial<PipelineStage>): Promise<PipelineStage | undefined>;
+  deletePipelineStage(id: string): Promise<boolean>;
+  
+  getCrmDeals(filters?: { stageId?: string; ownerId?: string; fromDate?: Date; toDate?: Date }): Promise<CrmDeal[]>;
+  getCrmDeal(id: string): Promise<CrmDeal | undefined>;
+  createCrmDeal(deal: InsertCrmDeal): Promise<CrmDeal>;
+  updateCrmDeal(id: string, updates: Partial<CrmDeal>): Promise<CrmDeal | undefined>;
+  deleteCrmDeal(id: string): Promise<boolean>;
+  
+  getDealNotes(dealId: string): Promise<DealNote[]>;
+  createDealNote(note: InsertDealNote): Promise<DealNote>;
+  
+  getTasks(filters?: { status?: string; assignedToId?: string; fromDate?: Date; toDate?: Date }): Promise<Task[]>;
+  getTasksByDeal(dealId: string): Promise<Task[]>;
+  getTask(id: string): Promise<Task | undefined>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: string, updates: Partial<Task>): Promise<Task | undefined>;
+  
+  getDealActivities(dealId: string): Promise<DealActivity[]>;
+  createDealActivity(activity: InsertDealActivity): Promise<DealActivity>;
+  
+  getSettings(): Promise<Setting[]>;
+  getSetting(key: string): Promise<Setting | undefined>;
+  upsertSetting(key: string, value: any): Promise<Setting>;
   
   getLeads(): Promise<Lead[]>;
   getLead(id: string): Promise<Lead | undefined>;
@@ -68,9 +142,247 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(asc(users.name));
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async createRefreshToken(insertToken: InsertRefreshToken): Promise<RefreshToken> {
+    const [token] = await db.insert(refreshTokens).values(insertToken).returning();
+    return token;
+  }
+
+  async getRefreshToken(token: string): Promise<RefreshToken | undefined> {
+    const [refreshToken] = await db.select().from(refreshTokens).where(eq(refreshTokens.token, token));
+    return refreshToken || undefined;
+  }
+
+  async deleteRefreshToken(token: string): Promise<boolean> {
+    const result = await db.delete(refreshTokens).where(eq(refreshTokens.token, token)).returning();
+    return result.length > 0;
+  }
+
+  async deleteUserRefreshTokens(userId: string): Promise<void> {
+    await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId));
+  }
+
+  async getContacts(search?: string): Promise<Contact[]> {
+    if (search) {
+      return await db.select().from(contacts).where(
+        or(
+          ilike(contacts.name, `%${search}%`),
+          ilike(contacts.email, `%${search}%`),
+          ilike(contacts.company, `%${search}%`)
+        )
+      ).orderBy(desc(contacts.createdAt));
+    }
+    return await db.select().from(contacts).orderBy(desc(contacts.createdAt));
+  }
+
+  async getContact(id: string): Promise<Contact | undefined> {
+    const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+    return contact || undefined;
+  }
+
+  async createContact(insertContact: InsertContact): Promise<Contact> {
+    const [contact] = await db.insert(contacts).values(insertContact).returning();
+    return contact;
+  }
+
+  async updateContact(id: string, updates: Partial<Contact>): Promise<Contact | undefined> {
+    const [contact] = await db
+      .update(contacts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contacts.id, id))
+      .returning();
+    return contact || undefined;
+  }
+
+  async deleteContact(id: string): Promise<boolean> {
+    const result = await db.delete(contacts).where(eq(contacts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getPipelineStages(): Promise<PipelineStage[]> {
+    return await db.select().from(pipelineStages).orderBy(asc(pipelineStages.order));
+  }
+
+  async getPipelineStage(id: string): Promise<PipelineStage | undefined> {
+    const [stage] = await db.select().from(pipelineStages).where(eq(pipelineStages.id, id));
+    return stage || undefined;
+  }
+
+  async createPipelineStage(insertStage: InsertPipelineStage): Promise<PipelineStage> {
+    const [stage] = await db.insert(pipelineStages).values(insertStage).returning();
+    return stage;
+  }
+
+  async updatePipelineStage(id: string, updates: Partial<PipelineStage>): Promise<PipelineStage | undefined> {
+    const [stage] = await db
+      .update(pipelineStages)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(pipelineStages.id, id))
+      .returning();
+    return stage || undefined;
+  }
+
+  async deletePipelineStage(id: string): Promise<boolean> {
+    const result = await db.delete(pipelineStages).where(eq(pipelineStages.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getCrmDeals(filters?: { stageId?: string; ownerId?: string; fromDate?: Date; toDate?: Date }): Promise<CrmDeal[]> {
+    let query = db.select().from(crmDeals);
+    const conditions = [];
+    
+    if (filters?.stageId) {
+      conditions.push(eq(crmDeals.stageId, filters.stageId));
+    }
+    if (filters?.ownerId) {
+      conditions.push(eq(crmDeals.ownerId, filters.ownerId));
+    }
+    if (filters?.fromDate) {
+      conditions.push(gte(crmDeals.createdAt, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      conditions.push(lte(crmDeals.createdAt, filters.toDate));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select().from(crmDeals).where(and(...conditions)).orderBy(desc(crmDeals.createdAt));
+    }
+    return await db.select().from(crmDeals).orderBy(desc(crmDeals.createdAt));
+  }
+
+  async getCrmDeal(id: string): Promise<CrmDeal | undefined> {
+    const [deal] = await db.select().from(crmDeals).where(eq(crmDeals.id, id));
+    return deal || undefined;
+  }
+
+  async createCrmDeal(insertDeal: InsertCrmDeal): Promise<CrmDeal> {
+    const [deal] = await db.insert(crmDeals).values(insertDeal).returning();
+    return deal;
+  }
+
+  async updateCrmDeal(id: string, updates: Partial<CrmDeal>): Promise<CrmDeal | undefined> {
+    const [deal] = await db
+      .update(crmDeals)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(crmDeals.id, id))
+      .returning();
+    return deal || undefined;
+  }
+
+  async deleteCrmDeal(id: string): Promise<boolean> {
+    await db.delete(dealNotes).where(eq(dealNotes.dealId, id));
+    await db.delete(tasks).where(eq(tasks.dealId, id));
+    await db.delete(dealActivities).where(eq(dealActivities.dealId, id));
+    const result = await db.delete(crmDeals).where(eq(crmDeals.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getDealNotes(dealId: string): Promise<DealNote[]> {
+    return await db.select().from(dealNotes).where(eq(dealNotes.dealId, dealId)).orderBy(desc(dealNotes.createdAt));
+  }
+
+  async createDealNote(insertNote: InsertDealNote): Promise<DealNote> {
+    const [note] = await db.insert(dealNotes).values(insertNote).returning();
+    return note;
+  }
+
+  async getTasks(filters?: { status?: string; assignedToId?: string; fromDate?: Date; toDate?: Date }): Promise<Task[]> {
+    const conditions = [];
+    
+    if (filters?.status) {
+      conditions.push(eq(tasks.status, filters.status));
+    }
+    if (filters?.assignedToId) {
+      conditions.push(eq(tasks.assignedToId, filters.assignedToId));
+    }
+    if (filters?.fromDate) {
+      conditions.push(gte(tasks.dueDate, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      conditions.push(lte(tasks.dueDate, filters.toDate));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select().from(tasks).where(and(...conditions)).orderBy(asc(tasks.dueDate));
+    }
+    return await db.select().from(tasks).orderBy(asc(tasks.dueDate));
+  }
+
+  async getTasksByDeal(dealId: string): Promise<Task[]> {
+    return await db.select().from(tasks).where(eq(tasks.dealId, dealId)).orderBy(asc(tasks.dueDate));
+  }
+
+  async getTask(id: string): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task || undefined;
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const [task] = await db.insert(tasks).values(insertTask).returning();
+    return task;
+  }
+
+  async updateTask(id: string, updates: Partial<Task>): Promise<Task | undefined> {
+    const updateData: any = { ...updates };
+    if (updates.status === "DONE" && !updates.completedAt) {
+      updateData.completedAt = new Date();
+    }
+    const [task] = await db
+      .update(tasks)
+      .set(updateData)
+      .where(eq(tasks.id, id))
+      .returning();
+    return task || undefined;
+  }
+
+  async getDealActivities(dealId: string): Promise<DealActivity[]> {
+    return await db.select().from(dealActivities).where(eq(dealActivities.dealId, dealId)).orderBy(desc(dealActivities.createdAt));
+  }
+
+  async createDealActivity(insertActivity: InsertDealActivity): Promise<DealActivity> {
+    const [activity] = await db.insert(dealActivities).values(insertActivity).returning();
+    return activity;
+  }
+
+  async getSettings(): Promise<Setting[]> {
+    return await db.select().from(settings);
+  }
+
+  async getSetting(key: string): Promise<Setting | undefined> {
+    const [setting] = await db.select().from(settings).where(eq(settings.key, key));
+    return setting || undefined;
+  }
+
+  async upsertSetting(key: string, value: any): Promise<Setting> {
+    const existing = await this.getSetting(key);
+    if (existing) {
+      const [updated] = await db
+        .update(settings)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(settings.key, key))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(settings).values({ key, value }).returning();
+      return created;
+    }
   }
 
   async getLeads(): Promise<Lead[]> {
@@ -97,14 +409,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLead(id: string): Promise<boolean> {
-    // Delete related records first to avoid foreign key constraint violations
-    // Order matters: delete child records before parent
     await db.delete(activities).where(eq(activities.leadId, id));
     await db.delete(callbacks).where(eq(callbacks.leadId, id));
     await db.delete(projects).where(eq(projects.leadId, id));
     await db.delete(deals).where(eq(deals.leadId, id));
     
-    // Now delete the lead itself
     const result = await db.delete(leads).where(eq(leads.id, id)).returning();
     return result.length > 0;
   }
