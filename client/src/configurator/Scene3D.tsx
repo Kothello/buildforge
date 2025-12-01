@@ -219,9 +219,9 @@ export const Scene3D = ({ width, length, height, wallColor, roofColor, trimColor
     return max;
   }, 0) || 0);
   const diag = Math.sqrt(actualWidth * actualWidth + actualLength * actualLength + totalY * totalY);
-  const camDist = Math.max(120, diag * 1.15);
-  const camFar = Math.max(1500, diag * 9); // slightly tighter for faster-feeling controls
-  const maxOrbit = Math.max(800, diag * 6.5); // keeps movement responsive while still supporting large buildings
+  const camDist = Math.max(60, diag * 0.8);
+  const camFar = Math.max(1500, diag * 9);
+  const maxOrbit = Math.max(800, diag * 6.5);
 
   // Initial camera setup ONLY - never touch camera after first setup
   useEffect(() => {
@@ -245,12 +245,12 @@ export const Scene3D = ({ width, length, height, wallColor, roofColor, trimColor
     const dir = new THREE.Vector3(1.2, 1.2, -1.4).normalize();
     lockedDirectionRef.current = dir.clone();
     
-    // Start more zoomed out so the whole building is visible, but keep things snappy
+    // Start zoomed in so the building fills the viewport nicely
     const maxSize = Math.max(size.x, size.y, size.z);
     const fov = (camera.fov * Math.PI) / 180;
     const fitHeightDistance = maxSize / (2 * Math.tan(fov / 2));
     const fitWidthDistance = fitHeightDistance / camera.aspect;
-    const distance = 3.8 * Math.max(fitHeightDistance, fitWidthDistance);
+    const distance = 1.8 * Math.max(fitHeightDistance, fitWidthDistance);
     
     camera.position.copy(center).add(dir.multiplyScalar(distance));
     
@@ -316,7 +316,7 @@ export const Scene3D = ({ width, length, height, wallColor, roofColor, trimColor
         <directionalLight position={[-15, 5, -10]} intensity={0.6} color="#ffbb88" />
         <directionalLight position={[0, 3, 15]} intensity={0.5} color="white" />
         
-        <group ref={modelGroupRef} scale={1.25} position={[1, -2, 0]}>
+        <group ref={modelGroupRef} scale={2.0} position={[0, -3, 0]}>
           {/* Ground plane - scales with building + lean-tos */}
           
           <BuildingModel 
