@@ -1289,7 +1289,7 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: 
   return (
     <div className="h-full" style={{ background: 'hsl(var(--background))' }}>
       <div className="flex flex-col md:flex-row lg:flex-row m-0 p-0 h-full">
-        <div className={`sticky md:static lg:static z-10 h-[35vh] md:max-h-[60vh] lg:max-h-[60vh] w-full ${showEditPanel ? 'md:w-[62%] lg:w-[62%]' : 'md:w-full lg:w-full'} px-3 py-2 overflow-hidden`} style={{ top: '0', background: 'hsl(var(--background))' }}>
+        <div className={`flex-shrink-0 md:flex-1 lg:flex-1 z-10 h-[27.5vh] md:h-full lg:h-full w-full md:w-[62%] lg:w-[62%] px-3 py-2 overflow-hidden`} style={{ background: 'hsl(var(--background))' }}>
           <div className="w-full h-full">
             <ErrorBoundary>
             <Scene3D
