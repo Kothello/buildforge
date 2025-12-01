@@ -1,0 +1,157 @@
+The last changes you made to LeadConfiguratorEmbed.tsx, sales-dashboard.tsx, and lead-edit.tsx did not give me live updates.
+
+After clicking Save Changes in the configurator:
+
+The Pricing Breakdown on the lead page still shows the old price until I refresh.
+
+The My Leads list on /sales also shows the old price until I refresh.
+
+Your summary says the cache is updated, but the UI clearly doesn’t re-render from that updated cache.
+
+I need you to trace and fix the entire data flow for a lead’s totalPrice and configuration, not just call setQueryData.
+
+1. Verify the PATCH response actually contains updated data
+
+Open client/src/configurator/LeadConfiguratorEmbed.tsx.
+
+In the mutation that calls PATCH /api/leads/:id, temporarily add a console.log("updatedLead", updatedLead) in the onSuccess (or directly after res.json() if you’re not returning it yet).
+
+Confirm in the code that:
+
+The mutation returns the full updated lead from res.json() (including totalPrice, buildingSpecs, configuration).
+
+onSuccess receives that same updated lead object.
+
+If the PATCH handler in the backend does not return the updated lead, fix it in the server route so that it does (e.g. returning in SQL/Drizzle, then res.json(updatedLead)).
+
+Tell me explicitly whether updatedLead.totalPrice is the new value when you log it.
+
+2. Ensure lead detail page reads from the React Query cache
+
+Open client/src/pages/lead-edit.tsx.
+
+Find how the lead is loaded. It should use React Query something like:
+
+const { data: lead } = useQuery({
+  queryKey: ["/api/leads", leadId],
+  queryFn: ...
+});
+
+
+Confirm:
+
+The only source of truth for the lead in this file is the useQuery result (lead), not:
+
+A separate useState copy like const [currentLead, setCurrentLead] = useState(initialLead);
+
+A lead prop passed into the page from somewhere else.
+
+Check how PricingBreakdown and LeadConfiguratorEmbed are invoked on this page:
+
+PricingBreakdown should receive this lead directly (or its fields) coming from useQuery.
+
+LeadConfiguratorEmbed should also receive the same lead and, if there is an onLeadUpdated prop, use it to let the parent replace the local lead value.
+
+If lead-edit.tsx keeps a local copy like const [leadState, setLeadState] = useState(lead);, then React Query updates will not show. In that case:
+
+Remove the extra local copy and use the lead from useQuery directly for rendering, or
+
+In onSuccess of the mutation, call that setLeadState(updatedLead) as well.
+
+I prefer the first option (render directly from useQuery) unless there is a strong reason not to.
+
+3. Ensure My Leads page uses the same query key and the query result
+
+Open client/src/pages/sales-dashboard.tsx (My Leads page).
+
+Confirm the query definition is exactly:
+
+const { data: leads } = useQuery({
+  queryKey: ["/api/leads"],
+  queryFn: ...
+  // plus your staleTime/refetchOnWindowFocus options
+});
+
+
+and not [ "/api/leads", "sales" ] or any other variant.
+
+Confirm that the table renders directly from leads, and that you are not copying this into another state like:
+
+const [rows, setRows] = useState(leads ?? []);
+
+
+If you see any such local state copy, remove it and render from the React Query leads data so setQueryData can drive the UI.
+
+4. Wire the mutation onSuccess to all actual consumers
+
+Go back to LeadConfiguratorEmbed.tsx and adjust the mutation’s onSuccess like this (adapt to actual types):
+
+const queryClient = useQueryClient();
+
+const updateLeadMutation = useMutation({
+  mutationFn: ...,
+  onSuccess: (updatedLead) => {
+    // 1) Update detail cache
+    queryClient.setQueryData<Lead>(
+      ["/api/leads", updatedLead.id],
+      updatedLead
+    );
+
+    // 2) Update list cache
+    queryClient.setQueryData<Lead[]>(
+      ["/api/leads"],
+      (old) => old
+        ? old.map((l) => (l.id === updatedLead.id ? updatedLead : l))
+        : [updatedLead]
+    );
+
+    // 3) If lead-edit.tsx still keeps its own local lead state, call its onLeadUpdated(updatedLead) prop here
+    if (onLeadUpdated) {
+      onLeadUpdated(updatedLead);
+    }
+
+    setIsEditing(false);
+  },
+});
+
+
+Make sure LeadConfiguratorEmbed actually receives an onLeadUpdated from lead-edit.tsx if the parent is tracking lead in its own useState. Then in lead-edit.tsx implement:
+
+const [leadState, setLeadState] = useState<Lead | null>(lead ?? null);
+
+useEffect(() => {
+  if (lead) setLeadState(lead);
+}, [lead]);
+
+...
+<LeadConfiguratorEmbed
+  lead={leadState ?? lead}
+  onLeadUpdated={setLeadState}
+/>
+
+
+Or, if you remove leadState entirely, just render directly from lead and skip this part.
+
+5. Final verification
+
+After these changes:
+
+Open a lead detail page. Note the Quote Total.
+
+Change width/length so the price changes.
+
+Click Save Changes.
+
+Confirm:
+
+The Pricing Breakdown on the same page updates immediately (no manual refresh).
+
+When you navigate back to /sales, the My Leads table already shows the new price without needing a browser refresh.
+
+In your summary, explicitly tell me:
+
+Whether updatedLead.totalPrice logged in LeadConfiguratorEmbed.tsx is the new value.
+
+Whether lead-edit.tsx still uses any local lead state that isn’t tied to React Query.
+
+Exactly which query keys are used for lead detail and lead list.

@@ -51,10 +51,10 @@ function ConfiguratorSkeleton({ isEditing }: { isEditing: boolean }) {
 interface LeadConfiguratorEmbedProps {
   lead: Lead;
   leadId: string;
-  onSave?: (updatedLead: Lead) => void;
+  onLeadUpdated?: (updatedLead: Lead) => void;
 }
 
-export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfiguratorEmbedProps) {
+export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfiguratorEmbedProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
@@ -78,9 +78,15 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
       };
 
       const response = await apiRequest('PATCH', `/api/leads/${lead.id}`, payload);
-      return response.json();
+      const data = await response.json();
+      console.log('[LeadConfiguratorEmbed] PATCH response:', data);
+      console.log('[LeadConfiguratorEmbed] updatedLead.totalPrice:', data.totalPrice);
+      return data;
     },
     onSuccess: (updatedLead: Lead) => {
+      console.log('[LeadConfiguratorEmbed] onSuccess called with:', updatedLead);
+      console.log('[LeadConfiguratorEmbed] Cache key for detail:', ["/api/leads", leadId]);
+      
       setIsSaving(false);
       
       // Update individual lead query cache (used by lead detail page)
@@ -92,7 +98,10 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
       // Update leads list query cache (used by /sales My Leads page)
       queryClient.setQueryData<Lead[]>(
         ["/api/leads"],
-        (old) => old ? old.map((l) => (l.id === updatedLead.id ? updatedLead : l)) : [updatedLead]
+        (old) => {
+          console.log('[LeadConfiguratorEmbed] Updating list cache. Old leads count:', old?.length);
+          return old ? old.map((l) => (l.id === updatedLead.id ? updatedLead : l)) : [updatedLead];
+        }
       );
       
       toast({
@@ -100,7 +109,8 @@ export function LeadConfiguratorEmbed({ lead, leadId, onSave }: LeadConfigurator
         description: 'Configuration updated successfully',
       });
       
-      onSave?.(updatedLead);
+      // Notify parent component of the update
+      onLeadUpdated?.(updatedLead);
       
       // Exit edit mode after successful save
       setIsEditing(false);

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Lead, Activity, Deal } from "@shared/schema";
 import { ActionButtons } from "@/components/action-buttons";
 import { AIMessageCard } from "@/components/ai-message-card";
@@ -34,13 +34,27 @@ export default function LeadEditPage() {
   const { toast } = useToast();
   const leadId = params?.id;
 
-  const { data: lead, isLoading: isLoadingLead } = useQuery<Lead>({
+  const { data: queryLead, isLoading: isLoadingLead } = useQuery<Lead>({
     queryKey: ["/api/leads", leadId],
     queryFn: () => fetch(`/api/leads/${leadId}`).then(r => r.json()),
     enabled: !!leadId,
     staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
   });
+
+  // Local state to ensure immediate UI updates after save
+  const [localLead, setLocalLead] = useState<Lead | null>(null);
+  
+  // Sync local state when query data changes
+  useEffect(() => {
+    if (queryLead) {
+      console.log('[lead-edit] Query lead updated:', queryLead.totalPrice);
+      setLocalLead(queryLead);
+    }
+  }, [queryLead]);
+  
+  // Use local state if available, otherwise fall back to query data
+  const lead = localLead || queryLead;
 
   const { data: activities = [] } = useQuery<Activity[]>({
     queryKey: ["/api/activities", leadId],
@@ -57,7 +71,9 @@ export default function LeadEditPage() {
     navigate("/sales");
   };
 
-  const handleLeadUpdate = (updatedLead: Lead) => {
+  const handleLeadUpdated = (updatedLead: Lead) => {
+    console.log('[lead-edit] handleLeadUpdated called with:', updatedLead.totalPrice);
+    setLocalLead(updatedLead);
   };
 
   if (isLoadingLead) {
@@ -220,10 +236,10 @@ export default function LeadEditPage() {
         <div className="flex-1 overflow-hidden w-full">
           <Suspense fallback={<ConfiguratorSkeleton />}>
             <LeadConfiguratorEmbed 
-              key={`${lead.id}-${lead.totalPrice}`} 
+              key={lead.id} 
               lead={lead}
               leadId={leadId!}
-              onSave={handleLeadUpdate} 
+              onLeadUpdated={handleLeadUpdated} 
             />
           </Suspense>
         </div>
