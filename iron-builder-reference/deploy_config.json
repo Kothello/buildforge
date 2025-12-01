@@ -1,0 +1,5 @@
+{
+  "deployment_target": "autoscale",
+  "build": ["npm", "run", "build"],
+  "run": ["npm", "run", "start"]
+}

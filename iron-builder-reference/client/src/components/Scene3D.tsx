@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls, PerspectiveCamera, Environment } from '@react-three/drei';
 import { BuildingModel } from './BuildingModel';
-import type { Door, Window } from './types';
+import type { Door, Window } from '@/pages/Index';
 
 // Camera tracker and auto-zoom component with smooth transitions
 const CameraTracker = ({ 
@@ -351,7 +351,6 @@ export const Scene3D = ({ width, length, height, wallColor, roofColor, trimColor
           />
         </group>
         
-
         <Environment preset="studio" />
       </Canvas>
     </div>
