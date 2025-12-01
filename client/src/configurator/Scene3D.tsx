@@ -107,7 +107,7 @@ const CameraTracker = ({
       const maxSize = diagonal3D * 22.0; // padding so extreme gable lean-tos fully fit
       const fitHeightDistance = maxSize / (2 * halfFovTan);
       const fitWidthDistance = fitHeightDistance / camera.aspect;
-      const requiredDistance = Math.max(fitHeightDistance, fitWidthDistance) * 1.08; // small extra buffer
+      const requiredDistance = Math.max(fitHeightDistance, fitWidthDistance) * 3.8; // match initial zoom level
 
       // Smoothly recenter the orbit target on the logical center
       controls.target.lerp(center, 0.25);
