@@ -1,0 +1,272 @@
+Act as a senior full-stack engineer and scaffold a complete SaaS-style web app in this Replit project.
+
+Goal:
+Build a metal-building sales CRM with:
+- A simple CRM (deals, contacts, pipeline, tasks, notes)
+- A reporting dashboard (basic analytics)
+- Admin settings (users, roles, pipeline stages, margin rules)
+
+Tech stack:
+- Monorepo-style structure inside this Replit:
+  - /server → Node.js 20, TypeScript, Express
+  - /client → React + Vite + TypeScript
+- Database: PostgreSQL (use Prisma ORM)
+- Auth: JWT-based auth (access token + refresh token) with HTTP-only cookies
+- API style: REST JSON under /api/*
+- Package manager: npm
+
+Folder structure (high-level):
+- /server
+  - src/
+    - index.ts
+    - config/
+    - middleware/
+    - modules/
+      - auth/
+      - users/
+      - contacts/
+      - deals/
+      - tasks/
+      - notes/
+      - reports/
+      - admin/
+    - prisma/
+- /client
+  - src/
+    - main.tsx
+    - App.tsx
+    - components/
+    - pages/
+      - Auth/
+      - Deals/
+      - DealDetail/
+      - Contacts/
+      - Reports/
+      - Admin/
+    - hooks/
+    - lib/
+
+Database models (Prisma schema):
+- User:
+  - id (string/uuid)
+  - name
+  - email (unique)
+  - passwordHash
+  - role (enum: ADMIN, MANAGER, REP)
+  - createdAt
+  - updatedAt
+
+- Contact:
+  - id
+  - name
+  - email
+  - phone
+  - company (optional)
+  - createdAt
+  - updatedAt
+
+- PipelineStage:
+  - id
+  - name (e.g., "New", "Qualified", "Quote Sent", "Negotiation", "Won", "Lost")
+  - order (number for sorting)
+  - isClosed (boolean)
+  - isWon (boolean)
+
+- Deal:
+  - id
+  - title
+  - description (optional)
+  - amount (number)
+  - stageId (FK → PipelineStage)
+  - ownerId (FK → User)
+  - contactId (FK → Contact)
+  - createdAt
+  - updatedAt
+
+- Note:
+  - id
+  - content (text)
+  - authorId (FK → User)
+  - dealId (FK → Deal)
+  - createdAt
+
+- Task:
+  - id
+  - title
+  - status (enum: OPEN, DONE)
+  - dueDate (nullable)
+  - dealId (FK → Deal)
+  - assignedToId (FK → User)
+  - createdAt
+  - completedAt (nullable)
+
+- Activity (for history/timeline):
+  - id
+  - dealId (FK → Deal)
+  - userId (FK → User, nullable for system events)
+  - type (enum: DEAL_CREATED, STAGE_CHANGED, NOTE_ADDED, TASK_CREATED, TASK_COMPLETED, QUOTE_SENT)
+  - data (JSON field with extra details)
+  - createdAt
+
+- Settings (for admin-configurable values):
+  - id
+  - key (string, unique)
+  - value (JSON)
+  - createdAt
+  - updatedAt
+
+Server requirements:
+
+1. Auth module
+   - Endpoints:
+     - POST /api/auth/register (admin-only in real use, but ok for now)
+     - POST /api/auth/login
+     - POST /api/auth/logout
+     - GET /api/auth/me
+   - Use bcrypt for password hashing.
+   - Use JWT for auth; protect all /api routes except /auth.
+
+2. Users module
+   - GET /api/users (admin only)
+   - POST /api/users (admin)
+   - PATCH /api/users/:id (admin)
+   - PATCH /api/users/:id/role (admin)
+   - PATCH /api/users/:id/status (active/inactive)
+
+3. Contacts module
+   - GET /api/contacts (pagination + basic search by name/email)
+   - POST /api/contacts
+   - GET /api/contacts/:id
+   - PATCH /api/contacts/:id
+   - DELETE /api/contacts/:id (soft delete or hard delete is fine)
+
+4. Deals module
+   - GET /api/deals (filters: stage, ownerId, date range)
+   - POST /api/deals
+   - GET /api/deals/:id
+   - PATCH /api/deals/:id
+   - PATCH /api/deals/:id/stage (also create an Activity row)
+   - DELETE /api/deals/:id
+   - Link deals to contacts and pipeline stages.
+
+5. Notes module
+   - GET /api/deals/:dealId/notes
+   - POST /api/deals/:dealId/notes
+   - Store authorId and timestamp.
+
+6. Tasks module
+   - GET /api/tasks (filters: status, assignedToId, dueDate range)
+   - GET /api/deals/:dealId/tasks
+   - POST /api/deals/:dealId/tasks
+   - PATCH /api/tasks/:id
+   - Endpoint for “My Tasks”:
+     - GET /api/my/tasks (tasks assigned to current user)
+
+7. Activity module
+   - GET /api/deals/:dealId/activity
+   - Automatically create Activity rows on:
+     - Deal created
+     - Stage change
+     - Note added
+     - Task created/completed
+
+8. Reports module (basic analytics)
+   - GET /api/reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
+     - Return:
+       - totalPipelineValue (sum of open deals)
+       - totalWonValue
+       - newLeadsCount (new deals in that range)
+       - winRate
+   - GET /api/reports/revenue-over-time?interval=month|week
+     - Return array of { periodStart, periodEnd, totalWon }
+   - GET /api/reports/deals-by-stage
+     - Return counts per stage.
+   - GET /api/reports/performance-by-rep
+     - For each rep: { userId, name, dealsCount, wonDealsCount, totalWon }
+
+9. Admin module
+   - Pipeline stages management:
+     - GET /api/admin/pipeline-stages
+     - POST /api/admin/pipeline-stages
+     - PATCH /api/admin/pipeline-stages/:id
+     - DELETE /api/admin/pipeline-stages/:id
+   - Settings:
+     - GET /api/admin/settings
+     - PUT /api/admin/settings
+     - Include a setting like MIN_MARGIN_PERCENT as example.
+   - All admin routes require ADMIN role.
+
+Middleware:
+- Auth middleware that checks JWT and populates req.user.
+- Role-based guard (e.g., requireRole("ADMIN"), requireRole("MANAGER")).
+- Basic error handler that returns JSON with message and status code.
+
+Client requirements (React + Vite + TS):
+
+1. Routing (React Router)
+   - /login
+   - /deals
+   - /deals/:id
+   - /contacts
+   - /reports
+   - /admin
+   - Guard routes to require login; redirect to /login if not authenticated.
+
+2. Auth UI
+   - Login page with email + password.
+   - After login, store auth state (e.g., in context or Redux) and fetch /api/auth/me.
+
+3. Main layout
+   - Simple top nav with links: Deals, Contacts, Reports, Admin (Admin visible only for admin users).
+   - Left sidebar or topbar is fine; keep it clean and minimal.
+
+4. Deals page
+   - Two views:
+     - Table view: list of deals with filters (stage, owner, date range).
+     - Kanban board: columns by pipeline stage; cards draggable between columns.
+   - Columns: New, Qualified, Quote Sent, Negotiation, Won, Lost (read stages dynamically from API).
+   - Each card shows: title, contact name, amount, stage.
+
+5. Deal detail page
+   - Show deal header (title, amount, stage, owner, contact).
+   - Allow stage change via dropdown (calls PATCH /api/deals/:id/stage).
+   - Tabs or sections:
+     - Notes (list + add note form)
+     - Tasks (list, add task, mark done)
+     - Activity timeline (reverse-chronological list of Activity entries)
+
+6. Contacts page
+   - Table of contacts with search bar (name/email).
+   - Add/edit contact form.
+   - Clicking a contact shows their deals.
+
+7. Reports page
+   - Date range filter.
+   - Top-level stats (cards):
+     - Total pipeline value
+     - Total won value
+     - New leads count
+     - Win rate
+   - Charts (simple, you can use a lightweight chart library):
+     - Revenue over time line chart.
+     - Deals by stage chart (bar or donut).
+   - Table: performance by rep.
+
+8. Admin page
+   - Pipeline stages management UI:
+     - List stages, allow reordering, renaming, adding, deleting.
+   - Settings UI:
+     - Input for MIN_MARGIN_PERCENT (just a number field saved via /api/admin/settings).
+
+UX/style:
+- Minimal but clean UI.
+- Use a simple component library if easier (e.g., basic CSS or Tailwind).
+- Focus on correct data flow and working CRUD, not fancy styling.
+
+Please:
+- Set up npm scripts to run server and client.
+- Include .env example for database URL and JWT secrets.
+- Include a short README explaining how to:
+  - Install dependencies
+  - Run Prisma migrations
+  - Start the dev server(s)
