@@ -1,10 +1,12 @@
 import { storage } from "./storage";
+import { hashPassword } from "./auth";
 
 export async function seedData() {
   try {
     const existingLeads = await storage.getLeads();
     if (existingLeads.length > 0) {
       console.log("Database already seeded");
+      await seedCrmData();
       return;
     }
 
@@ -13,7 +15,7 @@ export async function seedData() {
     const user = await storage.createUser({
       name: "John Sales",
       email: "john@steelflow.com",
-      role: "Sales Rep",
+      role: "REP",
       avatar: null,
     });
 
@@ -100,8 +102,67 @@ export async function seedData() {
       });
     }
 
+    await seedCrmData();
+    
     console.log("Database seeded successfully!");
   } catch (error) {
     console.error("Error seeding database:", error);
+  }
+}
+
+async function seedCrmData() {
+  try {
+    const existingStages = await storage.getPipelineStages();
+    if (existingStages.length > 0) {
+      console.log("CRM pipeline stages already seeded");
+      return;
+    }
+
+    console.log("Seeding CRM data...");
+
+    const hashedPassword = await hashPassword("admin123");
+    const adminUser = await storage.getUserByEmail("admin@steelflow.com");
+    if (!adminUser) {
+      await storage.createUser({
+        name: "Admin User",
+        email: "admin@steelflow.com",
+        role: "ADMIN",
+        password: hashedPassword,
+        avatar: null,
+      });
+      console.log("Created admin user (email: admin@steelflow.com, password: admin123)");
+    }
+
+    const defaultStages = [
+      { name: "Lead", order: 1, isClosed: false, isWon: false, color: "#6B7280" },
+      { name: "Qualified", order: 2, isClosed: false, isWon: false, color: "#3B82F6" },
+      { name: "Proposal", order: 3, isClosed: false, isWon: false, color: "#8B5CF6" },
+      { name: "Negotiation", order: 4, isClosed: false, isWon: false, color: "#F59E0B" },
+      { name: "Closed Won", order: 5, isClosed: true, isWon: true, color: "#10B981" },
+      { name: "Closed Lost", order: 6, isClosed: true, isWon: false, color: "#EF4444" },
+    ];
+
+    for (const stageData of defaultStages) {
+      await storage.createPipelineStage(stageData);
+    }
+    console.log("Created default pipeline stages");
+
+    const existingContacts = await storage.getContacts();
+    if (existingContacts.length === 0) {
+      const sampleContacts = [
+        { name: "Robert Smith", email: "robert@smithmfg.com", phone: "+1 (555) 123-4567", company: "Smith Manufacturing" },
+        { name: "Sarah Johnson", email: "sarah@johnsonlogistics.com", phone: "+1 (555) 234-5678", company: "Johnson Logistics" },
+        { name: "Mike Anderson", email: "mike@greenvalley.com", phone: "+1 (555) 345-6789", company: "Green Valley Farm" },
+      ];
+
+      for (const contactData of sampleContacts) {
+        await storage.createContact(contactData);
+      }
+      console.log("Created sample contacts");
+    }
+
+    console.log("CRM data seeded successfully!");
+  } catch (error) {
+    console.error("Error seeding CRM data:", error);
   }
 }
