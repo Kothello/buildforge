@@ -57,6 +57,7 @@ interface LeadConfiguratorEmbedProps {
 export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfiguratorEmbedProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [currentTotalPrice, setCurrentTotalPrice] = useState<string>(lead.totalPrice || '0');
   const { toast } = useToast();
   const saveRef = useRef<(() => void) | null>(null);
   
@@ -159,11 +160,18 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
             isSaving={isSaving}
             showEditPanel={isEditing}
             saveRef={saveRef}
+            onTotalChange={setCurrentTotalPrice}
           />
         </Suspense>
       </div>
       {isEditing && (
-        <div className="shrink-0 p-4 border-t bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
+        <div className="shrink-0 border-t space-y-3 p-4 bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Estimated Total</p>
+            <p className="text-2xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>
+              ${parseFloat(currentTotalPrice || '0').toLocaleString('en-US', { maximumFractionDigits: 0 })}
+            </p>
+          </div>
           <Button
             onClick={triggerSave}
             disabled={isSaving}

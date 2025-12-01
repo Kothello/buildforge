@@ -49,9 +49,10 @@ export interface BuilderPageProps {
   isSaving?: boolean;
   showEditPanel?: boolean;
   saveRef?: React.MutableRefObject<(() => void) | null>;
+  onTotalChange?: (totalPrice: string) => void;
 }
 
-const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true, saveRef }: BuilderPageProps = {}) => {
+const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true, saveRef, onTotalChange }: BuilderPageProps = {}) => {
   const [width, setWidth] = useState(initialConfig?.width ?? 40);
   const [length, setLength] = useState(initialConfig?.length ?? 60);
   const [height, setHeight] = useState(initialConfig?.height ?? 12);
@@ -225,6 +226,7 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true, sa
       console.error('Failed to calculate pricing:', e);
     }
     
+    onTotalChange?.(totalPrice);
     onSave(config, buildingSpecs, totalPrice);
   };
 
