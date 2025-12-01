@@ -1390,7 +1390,7 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: 
 
         {showEditPanel && (
         <div 
-          className="w-full md:w-[38%] lg:w-[38%] mt-1 md:mt-0 lg:mt-0 md:h-full lg:h-full flex flex-col md:border-l lg:border-l"
+          className="w-full md:w-[38%] lg:w-[38%] h-full md:h-full lg:h-full mt-1 md:mt-0 lg:mt-0 flex flex-col md:border-l lg:border-l"
           style={{ 
             background: 'hsl(var(--background))',
             borderColor: 'hsl(var(--border))'
