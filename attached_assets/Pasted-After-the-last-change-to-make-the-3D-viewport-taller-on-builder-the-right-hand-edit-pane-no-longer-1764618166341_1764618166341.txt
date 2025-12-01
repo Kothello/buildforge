@@ -1,0 +1,103 @@
+After the last change to make the 3D viewport taller on /builder, the right-hand edit pane no longer scrolls. I can’t get down to Lean-To, Walls, etc.
+
+I want:
+
+Left side: tall 3D viewport, fixed in place.
+
+Right side: full edit panel that scrolls vertically when content exceeds the viewport height.
+
+Page: normal browser scrolling if the whole layout is taller than the window (no global overflow-hidden lock).
+
+Please fix the layout accordingly.
+
+1. Fix the top-level /builder layout
+
+Open client/src/configurator/BuilderPage.tsx.
+
+Find the top-level container for the builder page (the element that wraps both the left <Scene3D /> column and the right edit pane).
+
+Make sure:
+
+It uses min-h-screen instead of h-screen or h-full, so the page can grow and the browser can scroll:
+
+<div className="min-h-screen ...">
+
+
+It does not have overflow-hidden applied. Remove any overflow-hidden on this top wrapper or any parent of the two columns.
+
+This ensures the page is allowed to be taller than the viewport.
+
+2. Make only the right edit pane scrollable
+
+Still in BuilderPage.tsx, find the JSX for the right column that contains:
+
+Dimensions
+
+Doors & Windows
+
+Colors
+
+Lean-To / Walls controls, etc.
+
+This is the column next to the 3D viewport.
+
+Wrap that column in a container with these properties:
+
+Takes up its fixed width.
+
+Has its own vertical scroll when content exceeds the window height.
+
+Example structure (adapt to your code):
+
+<div className="flex w-full gap-6">
+  <div className="flex-1">
+    {/* Scene3D viewport */}
+  </div>
+  <div className="w-[360px] max-w-[380px]">
+    <div className="max-h-screen overflow-y-auto pr-2">
+      {/* Dimensions / Doors & Windows / Colors / Lean-To / Walls, etc. */}
+    </div>
+  </div>
+</div>
+
+
+The key is that the inner right-pane container has max-h-screen overflow-y-auto, and there is no overflow-hidden above it.
+
+3. Keep the left viewport tall but non-scrolling
+
+For the left column that wraps <Scene3D />, keep the tall viewport classes you added (e.g. flex-1 min-h-[600px] bg-black ...).
+
+Make sure this left column does not have overflow-y-auto; we only want scrolling on the right pane or the page itself.
+
+4. Canvas container sanity check
+
+Open client/src/configurator/Scene3D.tsx.
+
+Confirm the <Canvas> still has something like:
+
+<Canvas className="w-full h-full" ...>
+
+
+and that its parent wrapper in BuilderPage.tsx provides the height (e.g. min-h-[600px]).
+
+Don’t add any overflow-hidden here.
+
+5. Verify and summarize
+
+After the changes:
+
+On /builder, I should be able to scroll the right column to reach all editor sections.
+
+The left 3D viewport remains tall and visible.
+
+The page itself scrolls normally; no part of the layout is “frozen”.
+
+In your summary, show:
+
+The final JSX (or at least the classNames) for:
+
+The top-level builder wrapper.
+
+The left viewport column wrapper.
+
+The right edit pane container (the one with overflow-y-auto).

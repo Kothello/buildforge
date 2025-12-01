@@ -1287,8 +1287,8 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: 
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ background: 'hsl(var(--background))' }}>
-      <div className="flex flex-col md:flex-row lg:flex-row flex-1 m-0 p-0 overflow-hidden">
+    <div className="min-h-screen flex flex-col" style={{ background: 'hsl(var(--background))' }}>
+      <div className="flex flex-col md:flex-row lg:flex-row m-0 p-0">
         <div className={`flex-1 min-h-[600px] z-10 w-full md:w-[62%] lg:w-[62%] px-3 py-2 overflow-hidden flex items-center justify-center`} style={{ background: 'hsl(var(--background))' }}>
           <div className="w-full h-full flex items-center justify-center">
             <ErrorBoundary>
@@ -1390,13 +1390,13 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: 
 
         {showEditPanel && (
         <div 
-          className="w-full md:w-[38%] lg:w-[38%] mt-1 md:mt-0 lg:mt-0 flex flex-col md:border-l lg:border-l md:h-full lg:h-full overflow-hidden"
+          className="w-full md:w-[38%] lg:w-[38%] mt-1 md:mt-0 lg:mt-0 flex flex-col md:border-l lg:border-l max-h-screen overflow-y-auto"
           style={{ 
             background: 'hsl(var(--background))',
             borderColor: 'hsl(var(--border))'
           }}
         >
-          <div className="flex-1 overflow-y-auto px-4">
+          <div className="px-4">
             <ConfigPanel
               width={width}
               length={length}
