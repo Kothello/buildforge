@@ -1390,13 +1390,13 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true }: 
 
         {showEditPanel && (
         <div 
-          className="w-full md:w-[38%] lg:w-[38%] mt-1 md:mt-0 lg:mt-0 flex flex-col md:border-l lg:border-l max-h-screen overflow-y-auto"
+          className="w-full md:w-[38%] lg:w-[38%] mt-1 md:mt-0 lg:mt-0 flex flex-col md:border-l lg:border-l h-screen max-h-screen"
           style={{ 
             background: 'hsl(var(--background))',
             borderColor: 'hsl(var(--border))'
           }}
         >
-          <div className="px-4">
+          <div className="flex-1 overflow-y-auto px-4">
             <ConfigPanel
               width={width}
               length={length}
