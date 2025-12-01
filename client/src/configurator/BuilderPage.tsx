@@ -225,7 +225,7 @@ const BuilderPage = ({ initialConfig, onSave, isSaving, showEditPanel = true, sa
   // Recalculate pricing whenever config changes
   useEffect(() => {
     calculatePricing();
-  }, [width, length, height, roofStyle, roofPitch, doors.length, windows.length, leanTos.length, wallEnclosure]);
+  }, [width, length, height, roofStyle, roofPitch, doors.length, windows.length, leanTos.length, JSON.stringify(leanTos.map(lt => ({ type: lt.type, wall: lt.wall, width: lt.width, length: lt.length, pitch: lt.pitch, height: lt.height }))), wallEnclosure]);
 
   const handleSave = async () => {
     if (!onSave) return;
