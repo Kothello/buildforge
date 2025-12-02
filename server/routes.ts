@@ -41,6 +41,34 @@ import { db } from "./db";
 import { crmDeals, pipelineStages, users } from "@shared/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 
+function computeDaysOnStage(stageEnteredAt: Date | null): number {
+  if (!stageEnteredAt) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const stageDate = new Date(stageEnteredAt);
+  stageDate.setHours(0, 0, 0, 0);
+  const diffMs = today.getTime() - stageDate.getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function computeDaysSinceLastDispo(lastDispositionAt: Date | null): number | null {
+  if (!lastDispositionAt) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dispoDate = new Date(lastDispositionAt);
+  dispoDate.setHours(0, 0, 0, 0);
+  const diffMs = today.getTime() - dispoDate.getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function enrichLeadWithComputedFields(lead: any) {
+  return {
+    ...lead,
+    daysOnStage: computeDaysOnStage(lead.stageEnteredAt),
+    daysSinceLastDispo: computeDaysSinceLastDispo(lead.lastDispositionAt),
+  };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use(cookieParser());
   
