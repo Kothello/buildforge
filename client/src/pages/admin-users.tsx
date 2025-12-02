@@ -9,20 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, ArrowLeft, Trash2, Loader2 } from "lucide-react";
+import { Pencil, ArrowLeft, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import type { User } from "@shared/schema";
 
 export default function AdminUsersPage() {
@@ -33,7 +24,8 @@ export default function AdminUsersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedActive, setSelectedActive] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -65,12 +57,14 @@ export default function AdminUsersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setShowDeleteConfirm(false);
+      setDeleteText("");
+      setEditingUser(null);
+      setIsDialogOpen(false);
       toast({ title: "User deleted successfully" });
-      setDeletingId(null);
     },
     onError: (error: any) => {
       toast({ variant: "destructive", title: "Failed to delete user", description: error.message });
-      setDeletingId(null);
     },
   });
 
@@ -90,6 +84,11 @@ export default function AdminUsersPage() {
         active: selectedActive,
       },
     });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!editingUser || deleteText.trim() !== "Delete") return;
+    deleteUserMutation.mutate(editingUser.id);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -167,27 +166,29 @@ export default function AdminUsersPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Dialog open={isDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
-                            if (!open) {
-                              setEditingUser(null);
-                              setIsDialogOpen(false);
-                            }
-                          }}>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => openEditDialog(user)}
-                                data-testid={`button-edit-user-${user.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Edit User: {user.name}</DialogTitle>
-                              </DialogHeader>
+                        <Dialog open={isDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
+                          if (!open) {
+                            setEditingUser(null);
+                            setIsDialogOpen(false);
+                            setShowDeleteConfirm(false);
+                            setDeleteText("");
+                          }
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => openEditDialog(user)}
+                              data-testid={`button-edit-user-${user.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit User: {user.name}</DialogTitle>
+                            </DialogHeader>
+                            {!showDeleteConfirm ? (
                               <div className="space-y-4 py-4">
                                 <div className="space-y-2">
                                   <Label htmlFor="role">Role</Label>
@@ -211,55 +212,72 @@ export default function AdminUsersPage() {
                                     data-testid="switch-active"
                                   />
                                 </div>
-                                <Button
-                                  onClick={handleSave}
-                                  disabled={updateUserMutation.isPending}
-                                  className="w-full"
-                                  data-testid="button-save-user"
-                                >
-                                  {updateUserMutation.isPending ? "Saving..." : "Save Changes"}
-                                </Button>
+                                <div className="flex flex-col gap-3">
+                                  <Button
+                                    onClick={handleSave}
+                                    disabled={updateUserMutation.isPending}
+                                    className="w-full"
+                                    data-testid="button-save-user"
+                                  >
+                                    {updateUserMutation.isPending ? "Saving..." : "Save Changes"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    disabled={updateUserMutation.isPending}
+                                    data-testid="button-delete-user"
+                                  >
+                                    Delete User
+                                  </Button>
+                                </div>
                               </div>
-                            </DialogContent>
-                          </Dialog>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="text-destructive"
-                                data-testid={`button-delete-user-${user.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete {user.name}? This action cannot be undone. All their assigned leads will be unassigned.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <div className="flex gap-3 justify-end">
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => {
-                                    setDeletingId(user.id);
-                                    deleteUserMutation.mutate(user.id);
-                                  }}
-                                  disabled={deleteUserMutation.isPending}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                  data-testid="button-confirm-delete-user"
-                                >
-                                  {deleteUserMutation.isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                  ) : null}
-                                  Delete
-                                </AlertDialogAction>
+                            ) : (
+                              <div className="space-y-4 py-4">
+                                <div className="text-sm text-muted-foreground">
+                                  Are you sure you want to delete this user? Type "Delete" to confirm.
+                                </div>
+                                <Input
+                                  type="text"
+                                  value={deleteText}
+                                  onChange={(e) => setDeleteText(e.target.value)}
+                                  placeholder='Type "Delete" to confirm'
+                                  data-testid="input-delete-confirm"
+                                />
+                                <div className="flex gap-3 justify-end">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setShowDeleteConfirm(false);
+                                      setDeleteText("");
+                                    }}
+                                    disabled={deleteUserMutation.isPending}
+                                    data-testid="button-cancel-delete"
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={handleConfirmDelete}
+                                    disabled={deleteText.trim() !== "Delete" || deleteUserMutation.isPending}
+                                    data-testid="button-confirm-delete"
+                                  >
+                                    {deleteUserMutation.isPending ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Deleting...
+                                      </>
+                                    ) : (
+                                      "Delete"
+                                    )}
+                                  </Button>
+                                </div>
                               </div>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
                       </TableCell>
                     </TableRow>
                   ))}

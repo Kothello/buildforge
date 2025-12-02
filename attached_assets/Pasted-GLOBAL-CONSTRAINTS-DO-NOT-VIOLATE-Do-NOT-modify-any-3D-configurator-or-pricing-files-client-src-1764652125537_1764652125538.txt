@@ -1,0 +1,177 @@
+GLOBAL CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any 3D configurator or pricing files:
+
+client/src/configurator/BuildingModel.tsx
+
+client/src/configurator/Scene3D.tsx
+
+client/src/configurator/LeanToConfig.tsx
+
+client/src/configurator/BuilderPage.tsx
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any geometry, camera behavior, or pricing logic.
+
+Only touch admin / user management code for the CRM Settings → Users Edit User modal.
+
+GOAL
+
+In the Edit User modal (reachable from CRM Settings → Users), I want:
+
+A Delete User button directly under the existing Update User button.
+
+Clicking Delete User opens a confirmation dialog that says:
+
+Are you sure you want to delete this user? Type "Delete".
+
+The confirmation dialog must:
+
+Have a text input where the admin must type exactly Delete.
+
+Have a Delete button that is disabled until the input value is exactly "Delete" (case-sensitive, leading/trailing spaces ignored).
+
+Have a Cancel button that closes the confirmation dialog without doing anything.
+
+When the user types Delete and clicks the Delete button:
+
+Call the existing delete-user API (if one exists). If there is no existing endpoint, create a DELETE /api/users/:id route that deletes the user by id using the existing users table/model and existing auth/permission patterns.
+
+Only allow delete for admins (and managers if that’s how roles are handled) – reuse the existing role/permission system.
+
+On success:
+
+Close the confirmation dialog.
+
+Close the Edit User modal.
+
+Refresh or invalidate the Users list so the deleted user disappears from the table.
+
+IMPLEMENTATION DETAILS
+
+Find the Edit User modal component
+
+Search for "Edit User" in the client code, likely under something like client/src/pages/admin.tsx or client/src/pages/crm/admin.tsx or a separate EditUserModal component.
+
+This component currently has the Update User button – we want to add the Delete User button just beneath it.
+
+Add the Delete User button under Update User
+
+Under the existing Update button JSX, add a destructive-style button. For example (adapt to existing design system):
+
+<div className="flex flex-col gap-3">
+  <Button
+    type="submit"
+    disabled={isUpdating}
+  >
+    Update User
+  </Button>
+
+  <Button
+    type="button"
+    variant="destructive" // or equivalent danger style in this project
+    onClick={() => setShowDeleteConfirm(true)}
+  >
+    Delete User
+  </Button>
+</div>
+
+
+Introduce local state in the modal component:
+
+const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+const [deleteText, setDeleteText] = useState("");
+
+
+Create the confirmation dialog
+
+Reuse the project’s existing modal/dialog component (if there is a shared Dialog, Modal, AlertDialog, etc.).
+
+Render it conditionally when showDeleteConfirm is true.
+
+Example structure (adapt to the existing UI kit):
+
+{showDeleteConfirm && (
+  <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Delete User</DialogTitle>
+        <DialogDescription>
+          Are you sure you want to delete this user? Type "Delete".
+        </DialogDescription>
+      </DialogHeader>
+
+      <input
+        type="text"
+        value={deleteText}
+        onChange={(e) => setDeleteText(e.target.value)}
+        className="w-full rounded-md bg-muted px-3 py-2 text-sm"
+        placeholder='Type "Delete" to confirm'
+      />
+
+      <div className="mt-4 flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setShowDeleteConfirm(false);
+            setDeleteText("");
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={deleteText.trim() !== "Delete" || deleteMutation.isLoading}
+          onClick={handleConfirmDelete}
+        >
+          Delete
+        </Button>
+      </div>
+    </DialogContent>
+  </Dialog>
+)}
+
+
+Wire up the delete mutation
+
+Define a useMutation hook inside the Edit User modal component for deleting a user:
+
+const deleteMutation = useMutation({
+  mutationFn: async () => {
+    const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Failed to delete user");
+  },
+  onSuccess: () => {
+    // Close dialogs and refresh list
+    setShowDeleteConfirm(false);
+    setDeleteText("");
+    onClose(); // whatever prop closes the Edit User modal
+    queryClient.invalidateQueries(["/api/users"]);
+  },
+});
+
+const handleConfirmDelete = () => {
+  deleteMutation.mutate();
+};
+
+
+If there is an existing React Query key for users (e.g. ["/api/users"]), use that in invalidateQueries.
+
+On the server, ensure only admin/manager roles can perform the delete.
+
+Summarize
+
+In your summary, show:
+
+The JSX for the new Delete User button below Update User.
+
+The JSX for the confirmation dialog.
+
+The delete mutation (client) and the delete route (server) you used or created.
+
+Confirm that no files under client/src/configurator/ or server/pricing* were modified.
