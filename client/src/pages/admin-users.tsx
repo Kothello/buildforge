@@ -11,8 +11,18 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, ArrowLeft } from "lucide-react";
+import { Pencil, ArrowLeft, Trash2, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import type { User } from "@shared/schema";
 
 export default function AdminUsersPage() {
@@ -23,6 +33,7 @@ export default function AdminUsersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedActive, setSelectedActive] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -41,6 +52,25 @@ export default function AdminUsersPage() {
     },
     onError: (error: any) => {
       toast({ variant: "destructive", title: "Failed to update user", description: error.message });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/users/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error("Failed to delete user");
+      }
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "User deleted successfully" });
+      setDeletingId(null);
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Failed to delete user", description: error.message });
+      setDeletingId(null);
     },
   });
 
@@ -137,60 +167,99 @@ export default function AdminUsersPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Dialog open={isDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
-                          if (!open) {
-                            setEditingUser(null);
-                            setIsDialogOpen(false);
-                          }
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => openEditDialog(user)}
-                              data-testid={`button-edit-user-${user.id}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Edit User: {user.name}</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="role">Role</Label>
-                                <Select value={selectedRole} onValueChange={setSelectedRole}>
-                                  <SelectTrigger id="role" data-testid="select-role">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="REP">Sales Rep</SelectItem>
-                                    <SelectItem value="MANAGER">Manager</SelectItem>
-                                    <SelectItem value="ADMIN">Admin</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="active">Active Status</Label>
-                                <Switch
-                                  id="active"
-                                  checked={selectedActive}
-                                  onCheckedChange={setSelectedActive}
-                                  data-testid="switch-active"
-                                />
-                              </div>
+                        <div className="flex items-center justify-end gap-1">
+                          <Dialog open={isDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
+                            if (!open) {
+                              setEditingUser(null);
+                              setIsDialogOpen(false);
+                            }
+                          }}>
+                            <DialogTrigger asChild>
                               <Button
-                                onClick={handleSave}
-                                disabled={updateUserMutation.isPending}
-                                className="w-full"
-                                data-testid="button-save-user"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => openEditDialog(user)}
+                                data-testid={`button-edit-user-${user.id}`}
                               >
-                                {updateUserMutation.isPending ? "Saving..." : "Save Changes"}
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit User: {user.name}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="role">Role</Label>
+                                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                                    <SelectTrigger id="role" data-testid="select-role">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="REP">Sales Rep</SelectItem>
+                                      <SelectItem value="MANAGER">Manager</SelectItem>
+                                      <SelectItem value="ADMIN">Admin</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <Label htmlFor="active">Active Status</Label>
+                                  <Switch
+                                    id="active"
+                                    checked={selectedActive}
+                                    onCheckedChange={setSelectedActive}
+                                    data-testid="switch-active"
+                                  />
+                                </div>
+                                <Button
+                                  onClick={handleSave}
+                                  disabled={updateUserMutation.isPending}
+                                  className="w-full"
+                                  data-testid="button-save-user"
+                                >
+                                  {updateUserMutation.isPending ? "Saving..." : "Save Changes"}
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive"
+                                data-testid={`button-delete-user-${user.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete {user.name}? This action cannot be undone. All their assigned leads will be unassigned.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <div className="flex gap-3 justify-end">
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => {
+                                    setDeletingId(user.id);
+                                    deleteUserMutation.mutate(user.id);
+                                  }}
+                                  disabled={deleteUserMutation.isPending}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                  data-testid="button-confirm-delete-user"
+                                >
+                                  {deleteUserMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : null}
+                                  Delete
+                                </AlertDialogAction>
+                              </div>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

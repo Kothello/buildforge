@@ -271,6 +271,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/users/:id", requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.params.id;
+      
+      if (userId === req.user!.id) {
+        return res.status(400).json({ error: "Cannot delete your own user account" });
+      }
+      
+      const deleted = await storage.deleteUser(userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
   app.get("/api/contacts", async (req, res) => {
     try {
       const search = req.query.search as string | undefined;
