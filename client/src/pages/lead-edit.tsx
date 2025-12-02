@@ -20,6 +20,7 @@ import { FileCheck, Sparkles, DollarSign, ArrowLeft, Send, User, Clock, MessageS
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
+import { getDayDiff } from "@/lib/date-utils";
 
 const BuildingViewer3D = lazy(() => import("@/components/building-viewer-3d").then(m => ({ default: m.BuildingViewer3D })));
 const LeadConfiguratorEmbed = lazy(() => import("@/configurator/LeadConfiguratorEmbed").then(m => ({ default: m.LeadConfiguratorEmbed })));
@@ -299,6 +300,16 @@ export default function LeadEditPage() {
             <Badge variant="outline" className="text-xs">{lead.email}</Badge>
             <Badge variant="outline" className="text-xs">{lead.phone}</Badge>
             <Badge variant="secondary" className="text-xs">{lead.source}</Badge>
+          </div>
+          <div className="flex gap-4 mt-4 text-xs text-muted-foreground">
+            <div>
+              <p className="font-semibold">Days on Stage</p>
+              <p className="text-sm">{getDayDiff(lead.stageEnteredAt) ?? 0} days</p>
+            </div>
+            <div>
+              <p className="font-semibold">Days Since Dispo</p>
+              <p className="text-sm">{getDayDiff(lead.lastDispositionAt) ?? "N/A"}</p>
+            </div>
           </div>
         </div>
 

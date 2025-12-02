@@ -1,0 +1,148 @@
+I’ve just uploaded the latest project snapshot (this is the current, correct codebase).
+I want you to implement “Days on Stage” and “Days Since Last Disposition” for leads, similar to the old CRM screenshots I shared.
+
+What I want:
+
+For each lead:
+
+Track when it entered its current stage.
+
+Track when the last disposition was saved.
+
+Use those to:
+
+Admin/Manager Leads table
+
+Add two columns:
+
+Days on Stage
+
+Days Since Last Dispo
+
+Values should be calculated as whole days from:
+
+stageUpdatedAt → Days on Stage
+
+lastDispositionAt → Days Since Last Dispo
+
+Make sure this shows up on the admin/manager leads list (the page where admins/managers see all leads). If there are multiple leads pages, use the one for ADMIN/MANAGER roles (you can find it via ripgrep).
+
+Lead detail page (/sales/leads/:id)
+
+On the lead detail screen (the one with tabs: Overview / History / Quotes / 3D View Activity), show:
+
+Days on Stage: X
+
+Days Since Last Dispo: Y
+
+This should appear somewhere near the lead’s status / stage / warmth badge, or in the Overview tab next to the Disposition & Notes card.
+
+Backend changes
+
+Schema
+
+In the main database schema file (you can find it with ripgrep, it should be shared/schema.ts), update the leads table to add two nullable timestamp columns:
+
+stageUpdatedAt (or stage_updated_at)
+
+lastDispositionAt (or last_disposition_at)
+
+Make sure these new fields are:
+
+Added to the Drizzle schema.
+
+Included in the Zod schemas.
+
+Exposed in the Lead TypeScript type that the frontend uses.
+
+Update timestamps when things happen
+
+Find the API route that handles saving a disposition / history entry for a lead (you already added lead history + disposition earlier; use ripgrep for leadHistory, disposition, or the history routes you created).
+
+In that route:
+
+Every time a disposition is saved:
+
+Set lastDispositionAt to now for that lead.
+
+If the disposition changes the lead’s stage / status (e.g. stage field changes from Working → Callback, etc.):
+
+Also set stageUpdatedAt to now.
+
+Make sure both timestamps are persisted in the DB along with any existing lead updates.
+
+Expose these fields in the API
+
+Ensure the endpoints that power:
+
+The admin/manager leads list (the one that returns many leads, probably /api/leads).
+
+The lead detail page (/api/leads/:id).
+
+Include stageUpdatedAt and lastDispositionAt in the JSON response.
+
+Frontend changes
+
+Admin/Manager leads table
+
+Find the React page that renders the admin/manager leads grid (the one with columns Customer / Status / Price / Action etc — you can locate it via My Leads, All Leads, or "/api/leads" in client/src/pages).
+
+Add two new table columns:
+
+Days on Stage
+
+Days Since Last Dispo
+
+For each row:
+
+Compute daysOnStage from lead.stageUpdatedAt:
+
+If present: Math.floor((now - stageUpdatedAt) / (1000 * 60 * 60 * 24)).
+
+If missing: show "-" or 0.
+
+Compute daysSinceLastDispo similarly from lead.lastDispositionAt.
+
+Use the existing formatting / typography for other numeric columns, and if the table supports sorting, wire these columns into the sort logic.
+
+Lead detail page (client/src/pages/lead-edit.tsx)
+
+In this page:
+
+Add a small summary block that shows:
+
+Days on Stage: X
+
+Days Since Last Dispo: Y
+
+Use the same date-diff helper logic as in the table.
+
+Place it near the top of the Overview tab (e.g. under the lead name & warmth tag or above the Disposition card) so reps can quickly see how “stale” the lead is.
+
+Implementation details
+
+Create a small helper function, e.g. getDayDiff(from?: string | Date): number | null, to avoid duplicating date math between pages.
+
+Do not change any existing configurator / 3D builder / pricing functionality.
+
+Keep everything type-safe and update any Zod schemas / TypeScript types needed so there are no type errors.
+
+At the end
+
+Show me:
+
+The schema diff you applied to the leads table.
+
+The API route where you update stageUpdatedAt and lastDispositionAt.
+
+The React diff where you added the two columns to the admin/manager leads table.
+
+The React diff where you show Days on Stage and Days Since Last Dispo on the lead detail page.
+
+Confirm that:
+
+Creating a new disposition updates lastDispositionAt.
+
+Changing the lead’s stage also updates stageUpdatedAt.
+
+The numbers on the Admin Leads list & Lead detail screen match each other.
