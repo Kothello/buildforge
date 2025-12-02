@@ -1,0 +1,284 @@
+You are working in the ProductEngineering-1 project (CRM + 3D builder).
+
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any 3D configurator files:
+
+client/src/configurator/BuildingModel.tsx
+
+client/src/configurator/Scene3D.tsx
+
+client/src/configurator/LeanToConfig.tsx
+
+client/src/configurator/BuilderPage.tsx
+
+Any files under configurator/iron-builder-studio-*
+
+Do NOT modify pricing engine files:
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change geometry, camera behavior, or pricing logic.
+
+You may only touch:
+
+Shared schema / migrations for leads
+
+Server routes (new “lead quotes” endpoints)
+
+Lead detail UI files (lead-edit page + configurator wrapper)
+
+Client React Query hooks related to the new quote history feature
+
+GOAL
+
+Implement Quote History per lead:
+
+Every time a rep clicks Save Changes on a lead’s configurator:
+
+Save a snapshot of:
+
+Lead id
+
+Current building specs
+
+Current configuration
+
+Total price
+
+Margin (if available)
+
+Who saved it
+
+When it was saved
+
+On the lead detail page (/sales/leads/:id):
+
+Add a Quote History panel or tab that shows the last few quotes with:
+
+Timestamp
+
+Saved by user
+
+Total price
+
+Maybe a short label like “Edited via CRM” or “Created from Builder”
+
+Existing behaviors (config editing, Save Changes, pricing calculation) must remain unchanged. We are only adding history on top.
+
+1. Schema: add leadQuotes table
+
+Open the shared schema where leads is defined (e.g. shared/schema.ts).
+
+Add a new table leadQuotes with at least:
+
+id – primary key (string/uuid or auto-increment, match existing conventions)
+
+leadId – FK to leads.id
+
+createdAt – timestamp (default now)
+
+createdByUserId – FK to users.id (nullable if system-generated)
+
+source – string enum or varchar (e.g. "builder", "crm"), default "crm"
+
+buildingSpecs – JSON
+
+configuration – JSON
+
+totalPrice – decimal(10,2)
+
+marginPercent – decimal(5,2) nullable (if margin is tracked)
+
+Adapt the types to your existing Drizzle / schema style. Make sure it’s exported in the schema and the TypeScript type is generated / available.
+
+Add / update the migration to create this table in the database.
+
+2. Backend: add quote history endpoints
+
+In server/routes.ts (or your lead routes file):
+
+Add an endpoint to list quotes for a lead:
+
+// GET /api/leads/:id/quotes
+app.get("/api/leads/:id/quotes", authMiddleware(storage), async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    // Optional: enforce that user can see this lead (owner, assigned, or admin/manager)
+    const quotes = await storage.getLeadQuotes(leadId); // implement in storage
+    return res.json(quotes);
+  } catch (err) {
+    console.error("Error fetching lead quotes", err);
+    return res.status(500).json({ error: "Failed to load quote history" });
+  }
+});
+
+
+Add a helper in your storage layer (where other DB functions live), e.g.:
+
+async function getLeadQuotes(leadId: string) {
+  return db
+    .select()
+    .from(leadQuotes)
+    .where(eq(leadQuotes.leadId, leadId))
+    .orderBy(desc(leadQuotes.createdAt));
+}
+
+
+Add a helper to insert a quote snapshot:
+
+async function createLeadQuoteSnapshot(params: {
+  leadId: string;
+  createdByUserId: string | null;
+  buildingSpecs: any;
+  configuration: any;
+  totalPrice: string; // or number, match schema
+  marginPercent?: string | null;
+  source?: string;
+}) {
+  // Insert into leadQuotes with now() timestamp
+}
+
+
+Attach these helpers to your existing storage object so routes can call them.
+
+3. Hook into Save Changes to create snapshots
+
+The Save Changes logic for a lead’s configurator lives in the embedded configurator component used on the lead detail page. You already have something like:
+
+client/src/configurator/LeadConfiguratorEmbed.tsx
+
+client/src/pages/lead-edit.tsx
+
+Do NOT change any 3D math or pricing calculations; just add a quote snapshot call after a successful lead update.
+
+Locate the useMutation in LeadConfiguratorEmbed.tsx (or equivalent) that handles updating a lead when Save Changes is clicked (PATCH /api/leads/:id).
+
+After the lead update succeeds and you have the updated lead (with buildingSpecs, configuration, totalPrice), call a new endpoint to create a quote snapshot, e.g.:
+
+await apiRequest("POST", `/api/leads/${leadId}/quotes`, {
+  body: JSON.stringify({
+    buildingSpecs: updatedLead.buildingSpecs,
+    configuration: updatedLead.configuration,
+    totalPrice: updatedLead.totalPrice,
+    marginPercent: updatedLead.marginPercent ?? null,
+    source: "crm",
+  }),
+});
+
+
+or, if you prefer, insert the snapshot server-side within the same PATCH handler (but keep the client simple).
+
+Implement the corresponding POST route on the server:
+
+app.post("/api/leads/:id/quotes", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  try {
+    const leadId = req.params.id;
+    const userId = req.user?.id ?? null;
+    const { buildingSpecs, configuration, totalPrice, marginPercent, source } = req.body;
+
+    const quote = await storage.createLeadQuoteSnapshot({
+      leadId,
+      createdByUserId: userId,
+      buildingSpecs,
+      configuration,
+      totalPrice,
+      marginPercent: marginPercent ?? null,
+      source: source ?? "crm",
+    });
+
+    return res.status(201).json(quote);
+  } catch (err) {
+    console.error("Error creating lead quote", err);
+    return res.status(500).json({ error: "Failed to save quote snapshot" });
+  }
+});
+
+
+Do not change how totalPrice is calculated. Just reuse the values you already have after a successful update.
+
+4. UI: Quote History panel on lead detail page
+
+On the lead detail page (/sales/leads/:id), you already have a layout with tabs (Overview, Config, 3D Viewer, Activity, etc.).
+
+In client/src/pages/lead-edit.tsx (or wherever the lead detail is composed):
+
+Add a Quote History section (either a new tab or a panel in the right-hand column).
+
+Use React Query to fetch quotes:
+
+const { data: quotes = [], isLoading: quotesLoading } = useQuery<LeadQuote[]>({
+  queryKey: ["/api/leads", leadId, "quotes"],
+  queryFn: async () => {
+    const res = await apiRequest("GET", `/api/leads/${leadId}/quotes`);
+    return res.json();
+  },
+});
+
+
+Render a simple list (most recent first), for example:
+
+<section>
+  <h3 className="text-sm font-semibold mb-2">Quote History</h3>
+  {quotesLoading && <div className="text-xs text-muted-foreground">Loading quotes…</div>}
+  {!quotesLoading && quotes.length === 0 && (
+    <div className="text-xs text-muted-foreground">No quote history yet.</div>
+  )}
+  <ul className="space-y-2">
+    {quotes.map((q) => (
+      <li key={q.id} className="rounded-md border p-2 text-xs flex justify-between">
+        <div className="flex flex-col">
+          <span className="font-medium">
+            {q.totalPrice ? `$${Number(q.totalPrice).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "N/A"}
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            {q.createdAt} • {q.createdByUser?.name ?? "System"} • {q.source ?? "crm"}
+          </span>
+        </div>
+      </li>
+    ))}
+  </ul>
+</section>
+
+
+Adapt styling to match your existing UI and types.
+
+Do not add any “restore from quote” behavior yet; this is just read-only history.
+
+5. Testing checklist
+
+After implementing:
+
+Open /builder, create a lead, then open that lead in /sales/leads/:id.
+
+In Config tab, change something (width, length, etc.), hit Save Changes:
+
+Confirm lead still updates as before.
+
+Confirm a new entry appears in Quote History with the new price and timestamp.
+
+Do a second edit / Save Changes on the same lead:
+
+You should now see multiple quote entries in history, ordered newest → oldest.
+
+Log in as a Rep and as an Admin to ensure both can see quote history on leads they are allowed to view.
+
+6. Summary
+
+In your summary, please show:
+
+The final leadQuotes schema definition (fields + types).
+
+The GET /api/leads/:id/quotes and POST /api/leads/:id/quotes route signatures.
+
+The code snippet where Save Changes calls the quote snapshot API.
+
+The React component (or snippet) that renders the Quote History list on the lead detail page.
+
+Confirm explicitly that:
+
+No files under client/src/configurator/** or configurator/iron-builder-studio-* were modified.
+
+No pricing or 3D geometry logic was changed.

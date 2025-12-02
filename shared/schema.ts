@@ -217,6 +217,18 @@ export const designPricing = pgTable("design_pricing", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const leadQuotes = pgTable("lead_quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  createdByUserId: varchar("created_by_user_id").references(() => users.id),
+  source: text("source").notNull().default("crm"),
+  buildingSpecs: jsonb("building_specs"),
+  configuration: jsonb("configuration"),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull().default("0"),
+  marginPercent: decimal("margin_percent", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   assignedLeads: many(leads),
   activities: many(activities),
@@ -312,6 +324,7 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
   activities: many(activities),
   projects: many(projects),
   callbacks: many(callbacks),
+  quotes: many(leadQuotes),
 }));
 
 export const projectsRelations = relations(projects, ({ one }) => ({
@@ -362,6 +375,17 @@ export const designPricingRelations = relations(designPricing, ({ one }) => ({
   design: one(buildingDesigns, {
     fields: [designPricing.designId],
     references: [buildingDesigns.id],
+  }),
+}));
+
+export const leadQuotesRelations = relations(leadQuotes, ({ one }) => ({
+  lead: one(leads, {
+    fields: [leadQuotes.leadId],
+    references: [leads.id],
+  }),
+  createdByUser: one(users, {
+    fields: [leadQuotes.createdByUserId],
+    references: [users.id],
   }),
 }));
 
@@ -471,6 +495,11 @@ export const insertDesignPricingSchema = createInsertSchema(designPricing).omit(
   updatedAt: true,
 });
 
+export const insertLeadQuoteSchema = createInsertSchema(leadQuotes).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
@@ -509,3 +538,5 @@ export type BuildingDesign = typeof buildingDesigns.$inferSelect;
 export type InsertBuildingDesign = z.infer<typeof insertBuildingDesignSchema>;
 export type DesignPricing = typeof designPricing.$inferSelect;
 export type InsertDesignPricing = z.infer<typeof insertDesignPricingSchema>;
+export type LeadQuote = typeof leadQuotes.$inferSelect;
+export type InsertLeadQuote = z.infer<typeof insertLeadQuoteSchema>;

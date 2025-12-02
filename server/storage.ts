@@ -31,6 +31,8 @@ import {
   type InsertCallback,
   type PricingConfig,
   type InsertPricingConfig,
+  type LeadQuote,
+  type InsertLeadQuote,
 } from "@shared/schema";
 import { db } from "./db";
 import { 
@@ -49,7 +51,8 @@ import {
   zapierWebhooks, 
   projects, 
   callbacks, 
-  pricingConfig 
+  pricingConfig,
+  leadQuotes
 } from "@shared/schema";
 import { eq, and, gte, lte, ilike, or, desc, asc, sql } from "drizzle-orm";
 
@@ -130,6 +133,9 @@ export interface IStorage {
   getPricingConfig(): Promise<PricingConfig | undefined>;
   createPricingConfig(pricing: InsertPricingConfig): Promise<PricingConfig>;
   updatePricingConfig(id: string, updates: Partial<PricingConfig>): Promise<PricingConfig | undefined>;
+
+  getLeadQuotes(leadId: string): Promise<LeadQuote[]>;
+  createLeadQuote(quote: InsertLeadQuote): Promise<LeadQuote>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -529,6 +535,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pricingConfig.id, id))
       .returning();
     return pricing || undefined;
+  }
+
+  async getLeadQuotes(leadId: string): Promise<LeadQuote[]> {
+    return await db
+      .select()
+      .from(leadQuotes)
+      .where(eq(leadQuotes.leadId, leadId))
+      .orderBy(desc(leadQuotes.createdAt));
+  }
+
+  async createLeadQuote(insertQuote: InsertLeadQuote): Promise<LeadQuote> {
+    const [quote] = await db.insert(leadQuotes).values(insertQuote).returning();
+    return quote;
   }
 }
 
