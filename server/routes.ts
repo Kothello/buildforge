@@ -284,9 +284,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
       
-      return res.json({ success: true });
+      return res.status(200).json({ success: true });
     } catch (error) {
-      console.error("Delete user error:", error);
+      console.error("Error deleting user:", error);
       return res.status(500).json({ error: "Failed to delete user" });
     }
   });

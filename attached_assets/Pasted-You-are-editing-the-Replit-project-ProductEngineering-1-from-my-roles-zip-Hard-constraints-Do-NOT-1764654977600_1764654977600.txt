@@ -1,0 +1,101 @@
+You are editing the Replit project ProductEngineering-1 from my roles.zip.
+Hard constraints:
+
+Do NOT modify any files under client/src/configurator, configurator/, or any 3D builder / pricing code.
+
+Only touch code related to user management and admin settings.
+
+Goal: Make deleting a user from CRM Settings → Users actually work end-to-end, without getting stuck on “Deleting…”.
+
+Step 1 – Fix the frontend delete mutation
+
+Open client/src/pages/crm-admin.tsx.
+
+Find the deleteUserMutation = useMutation({ ... }).
+
+Replace the mutationFn with this simpler version that does not depend on a JSON body:
+
+const deleteUserMutation = useMutation({
+  mutationFn: async (id: string) => {
+    // apiRequest throws automatically on non-2xx
+    await apiRequest("DELETE", `/api/users/${id}`);
+    return { success: true };
+  },
+  onSuccess: () => {
+    // Refresh the users list
+    queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    // Close dialogs and clear state
+    setShowDeleteConfirm(false);
+    setDeleteText("");
+    setEditingUser(null);
+    setIsUserDialogOpen(false);
+    toast({ title: "User deleted successfully" });
+  },
+  onError: (error: any) => {
+    console.error("[deleteUserMutation] error", error);
+    toast({
+      variant: "destructive",
+      title: "Failed to delete user",
+      description: error.message ?? "Unknown error deleting user",
+    });
+  },
+});
+
+
+Confirm that handleConfirmDelete still looks like:
+
+const handleConfirmDelete = () => {
+  if (!editingUser || deleteText.trim() !== "Delete") return;
+  deleteUserMutation.mutate(editingUser.id);
+};
+
+
+If it differs, adjust it to match exactly.
+
+Step 2 – Verify and adjust the backend route
+
+Open server/routes.ts.
+
+Locate the app.delete("/api/users/:id", ...) route.
+
+Keep the guard if (userId === req.user!.id) { return res.status(400).json({ error: "Cannot delete your own user account" }); } (we don’t want self-delete).
+
+Make sure the success case looks like:
+
+const deleted = await storage.deleteUser(userId);
+if (!deleted) {
+  return res.status(404).json({ error: "User not found" });
+}
+return res.status(200).json({ success: true });
+
+
+Make sure the catch block logs and returns:
+
+console.error("Error deleting user:", error);
+return res.status(500).json({ error: "Failed to delete user" });
+
+Step 3 – Manual verification (no guessing)
+
+Restart the server in Replit.
+
+In the browser, log in as an ADMIN user.
+
+Go to /crm/admin → “Users” tab.
+
+Create a throwaway test user (e.g. deleteme@test.com, role REP).
+
+Edit that user → click “Delete User” → type Delete → click Delete.
+
+Confirm ALL of the following:
+
+The modal closes.
+
+The user disappears from the list without manual refresh.
+
+No errors appear in the browser console.
+
+The Network tab shows the DELETE /api/users/:id request returning 200 with { success: true }.
+
+Also try to delete the currently logged-in admin and confirm the backend responds with 400 "Cannot delete your own user account" and the toast shows that error.
+
+Do not change anything else in the project, especially no files related to the 3D configurator or builder. When you are done, summarize exactly what you changed (file + lines) and explicitly confirm that you tested the delete flow as described.

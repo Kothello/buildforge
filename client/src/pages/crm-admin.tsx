@@ -83,12 +83,14 @@ export default function CrmAdminPage() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/users/${id}`);
-      // Server returns { success: true } on delete
-      return response.json();
+      // apiRequest throws automatically on non-2xx
+      await apiRequest("DELETE", `/api/users/${id}`);
+      return { success: true };
     },
     onSuccess: () => {
+      // Refresh the users list
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      // Close dialogs and clear state
       setShowDeleteConfirm(false);
       setDeleteText("");
       setEditingUser(null);
@@ -96,7 +98,12 @@ export default function CrmAdminPage() {
       toast({ title: "User deleted successfully" });
     },
     onError: (error: any) => {
-      toast({ variant: "destructive", title: "Failed to delete user", description: error.message });
+      console.error("[deleteUserMutation] error", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to delete user",
+        description: error.message ?? "Unknown error deleting user",
+      });
     },
   });
 
