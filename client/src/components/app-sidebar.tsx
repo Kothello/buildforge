@@ -126,21 +126,23 @@ export function AppSidebar() {
           <SidebarGroupLabel>CRM</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {crmItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                    onMouseEnter={() => prefetchMap[item.url]?.()}
-                  >
-                    <Link href={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {crmItems
+                .filter((item) => item.title !== "CRM Settings" || user?.role === "ADMIN")
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === item.url}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                      onMouseEnter={() => prefetchMap[item.url]?.()}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -150,7 +152,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems
-                .filter((item) => item.title !== "Leads" || user?.role === "ADMIN" || user?.role === "MANAGER")
+                .filter((item) => {
+                  if (item.title === "Leads") return user?.role === "ADMIN" || user?.role === "MANAGER";
+                  if (item.title === "Admin") return user?.role === "ADMIN";
+                  return true;
+                })
                 .map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
