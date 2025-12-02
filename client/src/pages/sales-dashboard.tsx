@@ -3,11 +3,13 @@ import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, Trash2, Loader2 } from "lucide-react";
+import { Search, TrendingUp, Trash2, Loader2, ChevronDown } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Lead } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
 
 const prefetchLeadEdit = () => {
   import("@/pages/lead-edit");
@@ -44,7 +46,7 @@ export default function SalesDashboard() {
       }
     },
     onSuccess: (_data, id) => {
-      queryClient.setQueryData<Lead[]>(["/api/leads"], (old) =>
+      queryClient.setQueryData<Lead[]>(["/api/leads", "mine"], (old) =>
         old ? old.filter((lead) => lead.id !== id) : old
       );
       toast({ title: "Lead deleted", description: "The lead has been permanently removed." });
@@ -53,6 +55,20 @@ export default function SalesDashboard() {
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       setDeletingId(null);
+    },
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: async ({ leadId, userId }: { leadId: string; userId: string }) => {
+      return await apiRequest("PATCH", `/api/leads/${leadId}`, { assignedTo: userId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: "Lead assigned successfully" });
+      setAssigningId(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -175,6 +191,30 @@ export default function SalesDashboard() {
                   </td>
                   <td className="py-3 px-3 sm:px-4 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {(user?.role === "ADMIN" || user?.role === "MANAGER") && (
+                        <div className="relative">
+                          <select
+                            value={lead.assignedTo || ""}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                assignMutation.mutate({ leadId: lead.id, userId: e.target.value });
+                              }
+                            }}
+                            disabled={assigningId === lead.id}
+                            className="px-2 py-1 text-xs bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                            data-testid={`select-assign-lead-${lead.id}`}
+                          >
+                            <option value="">Assign...</option>
+                            {allUsers
+                              .filter((u: any) => u.role === "REP" || u.role === "MANAGER")
+                              .map((u: any) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      )}
                       <Button 
                         size="sm" 
                         variant="ghost" 
