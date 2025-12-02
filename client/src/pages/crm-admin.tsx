@@ -89,7 +89,6 @@ export default function CrmAdminPage() {
     mutationFn: async (id: string) => {
       // apiRequest throws automatically on non-2xx
       await apiRequest("DELETE", `/api/users/${id}`);
-      return { success: true };
     },
     onSuccess: () => {
       // Refresh the users list
@@ -99,11 +98,14 @@ export default function CrmAdminPage() {
       setDeleteText("");
       setEditingUser(null);
       setIsUserDialogOpen(false);
-      toast({ title: "User deleted successfully" });
+      toast({
+        title: "User deleted successfully",
+      });
     },
     onError: (error: any) => {
-      console.error("[deleteUserMutation] error", error);
-      if (error.message?.includes("Cannot delete your own user account")) {
+      const message = String(error?.message ?? "Unknown error");
+
+      if (message.includes("Cannot delete your own user account")) {
         toast({
           variant: "destructive",
           title: "You can't delete your own account",
@@ -113,7 +115,7 @@ export default function CrmAdminPage() {
         toast({
           variant: "destructive",
           title: "Failed to delete user",
-          description: error.message ?? "Unknown error deleting user",
+          description: message,
         });
       }
     },

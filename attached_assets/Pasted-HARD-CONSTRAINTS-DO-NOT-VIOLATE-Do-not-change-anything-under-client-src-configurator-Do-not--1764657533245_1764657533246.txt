@@ -1,0 +1,163 @@
+HARD CONSTRAINTS (DO NOT VIOLATE)
+
+Do not change anything under client/src/configurator/**.
+
+Do not change any pricing-related files (server/pricing*, client/src/configurator/Pricing* etc.).
+
+Only modify:
+
+client/src/pages/crm-admin.tsx
+
+server/routes.ts only if absolutely necessary for the DELETE response format
+
+GOAL
+
+Fix the Delete User flow in CRM Settings so that:
+
+Clicking “Delete” in the confirmation dialog actually calls DELETE /api/users/:id.
+
+The UI uses React Query’s loading state (isPending) instead of a separate isDeleting state, so the “Deleting…” button never gets stuck.
+
+On success:
+
+The user is removed from the list (by refetching /api/users).
+
+Both dialogs close.
+
+The confirmation input is cleared.
+
+A success toast is shown.
+
+On error:
+
+The button goes back to normal (no permanent “Deleting…” state).
+
+An error toast is shown.
+
+If the error is “Cannot delete your own user account” we keep the special message:
+
+title: "You can't delete your own account"
+
+description: "Log in as a different admin to delete this user."
+
+1. Normalize the delete mutation (client/src/pages/crm-admin.tsx)
+
+In crm-admin.tsx, find the existing deleteUserMutation (React Query useMutation). Replace it with this shape (adapt to your file’s imports and toast helper):
+
+const deleteUserMutation = useMutation({
+  mutationFn: async (id: string) => {
+    // apiRequest already throws on non-2xx. No need to parse JSON.
+    await apiRequest("DELETE", `/api/users/${id}`);
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    setShowDeleteConfirm(false);
+    setDeleteText("");
+    setEditingUser(null);
+    setIsUserDialogOpen(false);
+    toast({
+      title: "User deleted successfully",
+    });
+  },
+  onError: (error: any) => {
+    const message = String(error?.message ?? "Unknown error");
+
+    if (message.includes("Cannot delete your own user account")) {
+      toast({
+        variant: "destructive",
+        title: "You can't delete your own account",
+        description: "Log in as a different admin to delete this user.",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete user",
+        description: message,
+      });
+    }
+  },
+});
+
+2. Use isPending instead of a manual deleting state
+
+In the delete confirmation dialog:
+
+Remove any separate isDeleting / setIsDeleting state (do not keep a manual loading flag).
+
+Use deleteUserMutation.isPending for the button:
+
+<Button
+  variant="destructive"
+  onClick={handleConfirmDelete}
+  disabled={deleteUserMutation.isPending || deleteText.trim() !== "Delete"}
+>
+  {deleteUserMutation.isPending ? "Deleting..." : "Delete"}
+</Button>
+
+3. Make sure the confirm handler only validates then fires the mutation
+
+Still in crm-admin.tsx, update handleConfirmDelete so it:
+
+const handleConfirmDelete = () => {
+  if (!editingUser) return;
+
+  if (deleteText.trim() !== "Delete") {
+    // Optional: show a small toast, but do NOT call mutate.
+    return;
+  }
+
+  deleteUserMutation.mutate(editingUser.id);
+};
+
+
+Do not set any local isDeleting flag here.
+
+Do not wrap mutate in try/catch; let onError handle failures.
+
+4. Verify the server response (server/routes.ts)
+
+Check the DELETE /api/users/:id route:
+
+On successful delete it must respond with HTTP 200 and a JSON body:
+
+return res.json({ success: true });
+
+
+On self-delete attempts it should keep:
+
+if (userId === req.user!.id) {
+  return res.status(400).json({ error: "Cannot delete your own user account" });
+}
+
+
+Do not change any of the role/permission checks.
+
+5. Don’t touch configurator or builder
+
+Confirm at the end that:
+
+No files under client/src/configurator/** changed.
+
+No pricing or 3D builder code was modified.
+
+Only client/src/pages/crm-admin.tsx (and possibly the DELETE /api/users/:id route) were edited.
+
+Finally, summarize:
+
+what the old delete flow looked like,
+
+what the new mutation & UI states are,
+
+and show one example log of a successful delete and one of a self-delete attempt.
+
+After applying these changes, I’ll test by:
+
+Creating a throwaway test user.
+
+Deleting that user as admin and verifying:
+
+the Network tab shows DELETE /api/users/<id> with 200,
+
+the user disappears from the table without page reload,
+
+the dialog closes and the button doesn’t stay stuck on “Deleting…”.
