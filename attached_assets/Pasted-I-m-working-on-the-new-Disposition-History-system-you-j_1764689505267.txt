@@ -1,0 +1,62 @@
+I’m working on the new Disposition & History system you just added.
+On /sales/leads/:id (the lead detail page, client/src/pages/lead-edit.tsx), the History tab currently shows only a small chip like “No Show – Kaiz – 31 minutes ago”.
+
+When I click that chip, nothing happens. I want to be able to see the full details that were saved with that history record.
+
+Goal
+
+In the History tab:
+
+Each history entry should be expandable (accordion style).
+
+Default state: collapsed row showing:
+
+Disposition label (e.g. “No Show”)
+
+Stage change summary if present (e.g. Working → Callback)
+
+User name
+
+Relative time (e.g. “31 minutes ago”).
+
+When I click a row, it should expand inline to show:
+
+Full note text
+
+Previous stage → new stage (with labels, not raw IDs)
+
+Disposition code if different from label
+
+Next callback date/time (if that field was saved)
+
+Exact timestamp (ISO or formatted) and user again.
+
+I want this to work purely in the UI – the GET /api/leads/:id/history endpoint already returns note, stage, disposition, etc. Use that existing data, don’t add new DB columns.
+
+Implementation details
+
+Work in client/src/pages/lead-edit.tsx.
+
+Create a small LeadHistoryItem subcomponent inside that file (or in a nearby component file if you prefer) that:
+
+Accepts a single history record + possibly a stageLabelMap so it can render “Working”, “Callback”, etc.
+
+Manages its own isOpen state with useState(false).
+
+Renders a clickable header row (card or list item) and a collapsible detail section.
+
+Use the existing design system (cards / typography / spacings) so it matches the rest of the CRM. No new 3D builder code.
+
+Make sure the whole row is clickable, not just the text chip, and use proper keyboard accessibility (role="button" and tabIndex={0} or a real <button>).
+
+DO NOT
+
+Do not modify any files under client/src/configurator/** (the 3D building builder).
+
+Do not change the backend data model again; just consume what /api/leads/:id/history already returns.
+
+At the end, please:
+
+Confirm which props the history records have (e.g. disposition, note, prevStage, newStage, nextCallbackAt, createdAt, createdByUserId).
+
+Show me a short code snippet of one rendered history item so I know what the expanded details look like.

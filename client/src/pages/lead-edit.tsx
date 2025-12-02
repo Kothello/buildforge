@@ -63,6 +63,92 @@ const STAGE_LABELS: Record<string, string> = {
   canceled: "Canceled",
 };
 
+function LeadHistoryItem({ entry, user }: { entry: LeadHistory; user?: { id: string; name: string } }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <Card
+      className="cursor-pointer transition-all hover-elevate"
+      onClick={() => setIsOpen(!isOpen)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setIsOpen(!isOpen);
+        }
+      }}
+      data-testid={`card-history-item-${entry.id}`}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-[9px]">
+                {DISPOSITION_LABELS[entry.disposition || ""] || entry.disposition}
+              </Badge>
+              {entry.newStage && entry.prevStage && (
+                <Badge variant="secondary" className="text-[9px]">
+                  {STAGE_LABELS[entry.prevStage]} → {STAGE_LABELS[entry.newStage]}
+                </Badge>
+              )}
+              <span className="text-[9px] text-muted-foreground ml-auto">
+                {user?.name || "Unknown"} • {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}
+              </span>
+            </div>
+          </div>
+          <div className="text-muted-foreground flex-shrink-0">
+            {isOpen ? "−" : "+"}
+          </div>
+        </div>
+
+        {isOpen && (
+          <div className="mt-3 pt-3 border-t border-border space-y-2">
+            {entry.note && (
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground mb-1">Note</p>
+                <p className="text-xs text-foreground">{entry.note}</p>
+              </div>
+            )}
+            {entry.newStage && entry.prevStage && (
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground mb-1">Stage Change</p>
+                <p className="text-xs text-foreground">
+                  {STAGE_LABELS[entry.prevStage]} → {STAGE_LABELS[entry.newStage]}
+                </p>
+              </div>
+            )}
+            {entry.disposition && (
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground mb-1">Disposition Code</p>
+                <p className="text-xs text-foreground font-mono">{entry.disposition}</p>
+              </div>
+            )}
+            {entry.nextCallbackAt && (
+              <div className="flex items-center gap-2">
+                <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground">Next Callback</p>
+                  <p className="text-xs text-foreground">{format(new Date(entry.nextCallbackAt), "MMM d, yyyy h:mm a")}</p>
+                </div>
+              </div>
+            )}
+            <div className="pt-2 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                  <User className="h-3 w-3" />
+                  <span>{user?.name || "Unknown"}</span>
+                </div>
+                <span className="text-[9px] text-muted-foreground">{format(new Date(entry.createdAt), "MMM d, yyyy h:mm:ss a")}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function LeadEditPage() {
   const [, params] = useRoute("/sales/leads/:id");
   const [, navigate] = useLocation();
@@ -368,58 +454,17 @@ export default function LeadEditPage() {
               </TabsContent>
 
               <TabsContent value="history" className="mt-3 space-y-3">
+                {historyLoading && (
+                  <div className="text-xs text-muted-foreground">Loading history...</div>
+                )}
+                {!historyLoading && history.length === 0 && (
+                  <div className="text-xs text-muted-foreground">No disposition history yet.</div>
+                )}
                 <div className="space-y-2">
-                  {historyLoading && (
-                    <div className="text-xs text-muted-foreground">Loading history...</div>
-                  )}
-                  {!historyLoading && history.length === 0 && (
-                    <div className="text-xs text-muted-foreground">No disposition history yet.</div>
-                  )}
-                  <div className="space-y-2">
-                    {history.map((entry) => {
-                      const user = users.find((u) => u.id === entry.createdByUserId);
-                      return (
-                        <div
-                          key={entry.id}
-                          className="rounded-md border border-border p-3 text-xs"
-                          data-testid={`card-history-${entry.id}`}
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-[9px]">
-                                {DISPOSITION_LABELS[entry.disposition || ""] || entry.disposition}
-                              </Badge>
-                              {entry.newStage && entry.prevStage && (
-                                <Badge variant="secondary" className="text-[9px]">
-                                  {STAGE_LABELS[entry.prevStage]} → {STAGE_LABELS[entry.newStage]}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          {entry.note && (
-                            <p className="text-muted-foreground mb-2">{entry.note}</p>
-                          )}
-                          {entry.nextCallbackAt && (
-                            <div className="flex items-center gap-1 text-muted-foreground mb-2">
-                              <Clock className="h-3 w-3" />
-                              <span>Callback: {format(new Date(entry.nextCallbackAt), "MMM d, yyyy h:mm a")}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              <span>{user?.name || "Unknown"}</span>
-                            </div>
-                            <span>
-                              {entry.createdAt
-                                ? formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })
-                                : "Unknown"}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {history.map((entry) => {
+                    const user = users.find((u) => u.id === entry.createdByUserId);
+                    return <LeadHistoryItem key={entry.id} entry={entry} user={user} />;
+                  })}
                 </div>
               </TabsContent>
 
