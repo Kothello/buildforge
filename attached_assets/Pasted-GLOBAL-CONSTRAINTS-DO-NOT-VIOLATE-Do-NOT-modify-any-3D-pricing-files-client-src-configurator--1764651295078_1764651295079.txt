@@ -1,0 +1,153 @@
+GLOBAL CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any 3D / pricing files:
+
+client/src/configurator/BuildingModel.tsx
+
+client/src/configurator/Scene3D.tsx
+
+client/src/configurator/LeanToConfig.tsx
+
+client/src/configurator/BuilderPage.tsx
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any geometry math or pricing logic.
+
+Only change lead/CRM code: schema, lead API routes, and Leads/My Leads pages.
+
+GOAL
+
+Admins and managers:
+
+Can open the Leads menu/page.
+
+See all leads in the system.
+
+Can assign each lead to a specific sales rep user.
+
+Sales reps:
+
+Should not be able to use the Leads page to assign; they only work from My Leads.
+
+Use the existing auth/role system in the project (e.g. useAuth() / user.role or similar).
+
+1. Make /api/leads return all leads for admin/manager
+
+Open the server handler for GET /api/leads (likely under server/routes.ts or a dedicated leads route file).
+
+Using the existing auth helper, get the current user and their role.
+
+Implement this logic:
+
+If user.role is "admin" or "manager":
+
+Return all leads (no assignedToUserId filter).
+
+If user.role is anything else:
+
+Either:
+
+return only leads where assignedToUserId === user.id, or
+
+return 403 (forbidden) for this endpoint and rely on /api/leads?mine=true for reps.
+
+Keep support for mine=true if it already exists; don’t break My Leads.
+
+Do not change the lead insert/update logic here, just the read/filtering logic for this route.
+
+2. Restrict the Leads page to admin/manager only
+
+Find the React page component used for the Leads menu item (the “all leads” view – not “My Leads”). It’s probably under something like client/src/pages/leads.tsx or similar.
+
+In this component:
+
+Use the existing auth hook (e.g. useAuth()):
+
+const { user } = useAuth(); // or whatever the existing pattern is
+
+
+If user.role is not "admin" or "manager":
+
+Immediately redirect to the My Leads page (e.g. /sales) and optionally show a small toast/snackbar like “Access denied – ask a manager to assign leads to you.”
+
+For the Leads page’s React Query call:
+
+Make sure it calls the plain endpoint for all leads, e.g.:
+
+useQuery(["/api/leads", "all"], () => fetch("/api/leads").then(res => res.json()))
+
+
+Do not filter client-side by user; admins/managers must see everything from the server.
+
+3. Add “assign to sales rep” controls on the Leads page
+
+Reuse the assignedToUserId field on the Lead model (or add it if it does not exist yet – nullable string/UUID that references the users table).
+
+Make sure the Lead TypeScript type includes assignedToUserId?: string | null.
+
+Find the table/list rendering each lead row on the Leads page.
+
+For each row, add an assignment control visible only to admin/manager:
+
+If you have an API that lists users (e.g. /api/users), load all users with a role of "rep" / "sales" and show them in a <select>.
+
+If not, at minimum add an “Assign to me” button that sets assignedToUserId = currentUser.id.
+
+Example structure (adapt to existing design system):
+
+{user.role === "admin" || user.role === "manager" ? (
+  <AssignLeadControl lead={lead} />
+) : null}
+
+
+Implement AssignLeadControl (either inline or as a separate component):
+
+Uses useMutation to call PATCH /api/leads/:id with:
+
+{ "assignedToUserId": "<selectedUserId>" }
+
+
+On success:
+
+Update React Query cache for:
+
+The all-leads query (Leads page): ["/api/leads", "all"]
+
+The my-leads query: ["/api/leads", "mine"] (so if a lead is assigned to the current user, it appears in My Leads).
+
+Only admins/managers can change assignedToUserId:
+
+On the server side, in PATCH /api/leads/:id, reject or ignore assignedToUserId changes if user.role is not "admin" or "manager".
+
+4. Verify behavior
+
+Please verify and then summarize:
+
+As an admin/manager:
+
+You can open the Leads menu.
+
+You see all leads, regardless of assignment.
+
+You can assign a lead to a specific sales rep; after assignment:
+
+The Leads table updates.
+
+The My Leads list for that rep shows the new lead.
+
+As a sales rep:
+
+You cannot access the Leads page (redirected to My Leads).
+
+You only see leads where assignedToUserId === your user id in My Leads.
+
+In your summary, show:
+
+The updated GET /api/leads logic (role checks and filters).
+
+The guard/redirect logic on the Leads page for non-admin/manager.
+
+The JSX snippet for the per-row assignment UI and the mutation it calls.

@@ -749,11 +749,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/leads", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.get("/api/leads", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
     try {
-      const mine = req.query.mine === "true";
-      const userId = mine ? req.user?.id : undefined;
-      const leads = await storage.getLeads(userId);
+      const user = req.user!;
+      const isAdminOrManager = user.role === "ADMIN" || user.role === "MANAGER";
+      
+      let leads;
+      if (isAdminOrManager) {
+        leads = await storage.getLeads();
+      } else if (user.role === "REP") {
+        leads = await storage.getLeads(user.id);
+      } else {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
       res.json(leads);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch leads" });
@@ -845,6 +854,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(lead);
     } catch (error) {
       res.status(500).json({ error: "Failed to parse lead: " + (error as Error).message });
+    }
+  });
+
+  app.patch("/api/leads/:id/assign", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = req.user!;
+      const isAdminOrManager = user.role === "ADMIN" || user.role === "MANAGER";
+      
+      if (!isAdminOrManager) {
+        return res.status(403).json({ error: "Only admins or managers can assign leads" });
+      }
+      
+      const { assignedTo } = req.body;
+      if (!assignedTo) {
+        return res.status(400).json({ error: "assignedTo is required" });
+      }
+      
+      const lead = await storage.updateLead(req.params.id, { assignedTo });
+      
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      res.json(lead);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to assign lead" });
     }
   });
 

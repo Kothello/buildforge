@@ -19,6 +19,7 @@ const LazyAdminDashboard = lazy(() => import("@/pages/admin"));
 const LazyAdminUsersPage = lazy(() => import("@/pages/admin-users"));
 const LazyPricingAdminPage = lazy(() => import("@/admin/PricingAdminPage"));
 const LazySalesDashboard = lazy(() => import("@/pages/sales-dashboard"));
+const LazyLeadsPage = lazy(() => import("@/pages/leads"));
 const LazyLeadEditPage = lazy(() => import("@/pages/lead-edit"));
 const LazyBuilderPage = lazy(() => import("@/configurator/BuilderPage"));
 const LazyLoginPage = lazy(() => import("@/pages/login"));
@@ -97,6 +98,7 @@ function Router() {
         <Route path="/admin/users">{() => <AdminRoute><LazyAdminUsersPage /></AdminRoute>}</Route>
         <Route path="/admin/pricing">{() => <AdminRoute><LazyPricingAdminPage /></AdminRoute>}</Route>
         <Route path="/sales/leads/:id">{() => <LazyLeadEditPage />}</Route>
+        <Route path="/sales/all-leads">{() => <LazyLeadsPage />}</Route>
         <Route path="/sales">{() => <LazySalesDashboard />}</Route>
         <Route path="/my-leads">{() => <LazySalesDashboard />}</Route>
         <Route path="/projects">{() => <LazyProjectsPage />}</Route>

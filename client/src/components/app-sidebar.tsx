@@ -19,6 +19,7 @@ import { LogOut } from "lucide-react";
 
 const prefetchMap: Record<string, () => void> = {
   "/": () => import("@/pages/dashboard"),
+  "/sales/all-leads": () => import("@/pages/leads"),
   "/sales": () => import("@/pages/sales-dashboard"),
   "/my-leads": () => import("@/pages/sales-dashboard"),
   "/admin": () => import("@/pages/admin"),
@@ -69,8 +70,9 @@ const menuItems = [
   },
   {
     title: "Leads",
-    url: "/sales",
+    url: "/sales/all-leads",
     icon: Users,
+    adminOnly: true,
   },
   {
     title: "My Leads",
