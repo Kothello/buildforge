@@ -33,6 +33,8 @@ import {
   type InsertPricingConfig,
   type LeadQuote,
   type InsertLeadQuote,
+  type LeadHistory,
+  type InsertLeadHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { 
@@ -52,7 +54,8 @@ import {
   projects, 
   callbacks, 
   pricingConfig,
-  leadQuotes
+  leadQuotes,
+  leadHistory
 } from "@shared/schema";
 import { eq, and, gte, lte, ilike, or, desc, asc, sql } from "drizzle-orm";
 
@@ -136,6 +139,9 @@ export interface IStorage {
 
   getLeadQuotes(leadId: string): Promise<LeadQuote[]>;
   createLeadQuote(quote: InsertLeadQuote): Promise<LeadQuote>;
+
+  getLeadHistory(leadId: string): Promise<LeadHistory[]>;
+  createLeadHistory(entry: InsertLeadHistory): Promise<LeadHistory>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -548,6 +554,19 @@ export class DatabaseStorage implements IStorage {
   async createLeadQuote(insertQuote: InsertLeadQuote): Promise<LeadQuote> {
     const [quote] = await db.insert(leadQuotes).values(insertQuote).returning();
     return quote;
+  }
+
+  async getLeadHistory(leadId: string): Promise<LeadHistory[]> {
+    return await db
+      .select()
+      .from(leadHistory)
+      .where(eq(leadHistory.leadId, leadId))
+      .orderBy(desc(leadHistory.createdAt));
+  }
+
+  async createLeadHistory(insertHistory: InsertLeadHistory): Promise<LeadHistory> {
+    const [history] = await db.insert(leadHistory).values(insertHistory).returning();
+    return history;
   }
 }
 
