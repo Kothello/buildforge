@@ -1387,7 +1387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/run-lead-aging", authMiddleware(storage), requireRole(["ADMIN", "MANAGER"]), async (req: AuthenticatedRequest, res) => {
+  app.post("/api/admin/run-lead-aging", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const result = await runLeadAgingAutomation();
       res.json(result);
