@@ -19,9 +19,18 @@ const prefetchLeadEdit = () => {
 const STALE_DISPO_DAYS = 7;
 const STALE_STAGE_DAYS = 14;
 
+type StageFilter = "ALL" | string;
+
+const STAGE_LABELS: Record<string, string> = {
+  "new": "New",
+  "in_progress": "In Progress",
+  "sold": "Sold",
+};
+
 export default function LeadsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState<StageFilter>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [, navigate] = useLocation();
@@ -105,7 +114,34 @@ export default function LeadsPage() {
     if (statusFilter !== "all") {
       filtered = filtered.filter((lead: any) => lead.status === statusFilter);
     }
-    return filtered;
+    // Apply stage filter
+    const filteredByStage = filtered.filter((lead: any) => {
+      if (stageFilter === "ALL") return true;
+      const stageKey = lead.status ?? "";
+      return stageKey === stageFilter;
+    });
+    return filteredByStage;
+  }, [leads, searchTerm, statusFilter, stageFilter]);
+
+  const stageBuckets = useMemo(() => {
+    const buckets: Record<string, { count: number }> = {};
+    // Use leads after search and status filters but before stage filter
+    if (!Array.isArray(leads)) return buckets;
+    let filtered = leads.filter((lead: any) =>
+      lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((lead: any) => lead.status === statusFilter);
+    }
+
+    filtered.forEach((lead: any) => {
+      const stageKey = lead.status ?? "unknown";
+      if (!buckets[stageKey]) {
+        buckets[stageKey] = { count: 0 };
+      }
+      buckets[stageKey].count += 1;
+    });
+    return buckets;
   }, [leads, searchTerm, statusFilter]);
 
   const stats = useMemo(() => {
@@ -268,6 +304,28 @@ export default function LeadsPage() {
           <option value="in_progress">In Progress</option>
           <option value="sold">Sold</option>
         </select>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-3">
+        <Button
+          size="sm"
+          variant={stageFilter === "ALL" ? "default" : "outline"}
+          onClick={() => setStageFilter("ALL")}
+          data-testid="button-stage-all-all-leads"
+        >
+          All ({filteredLeads.length})
+        </Button>
+        {Object.entries(stageBuckets).map(([stageKey, stats]) => (
+          <Button
+            key={stageKey}
+            size="sm"
+            variant={stageFilter === stageKey ? "default" : "outline"}
+            onClick={() => setStageFilter(stageKey)}
+            data-testid={`button-stage-${stageKey}-all-leads`}
+          >
+            {STAGE_LABELS[stageKey] ?? stageKey} ({stats.count})
+          </Button>
+        ))}
       </div>
 
       {isLoading ? (
