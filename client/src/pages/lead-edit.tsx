@@ -161,6 +161,7 @@ export default function LeadEditPage() {
   const [newStage, setNewStage] = useState<string>("");
   const [note, setNote] = useState("");
   const [nextCallbackAt, setNextCallbackAt] = useState("");
+  const [statusValue, setStatusValue] = useState<string>("");
 
   const { data: queryLead, isLoading: isLoadingLead } = useQuery<Lead>({
     queryKey: ["/api/leads", leadId],
@@ -202,6 +203,20 @@ export default function LeadEditPage() {
 
   const { data: users = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["/api/users"],
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: async (status: string) => {
+      return await apiRequest("PATCH", `/api/leads/${leadId}`, { status });
+    },
+    onSuccess: (data) => {
+      toast({ title: "Status updated", description: "Lead status changed successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+    },
   });
 
   const dispositionMutation = useMutation({
@@ -389,6 +404,33 @@ export default function LeadEditPage() {
                     </div>
                   </div>
                 )}
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Pipeline Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Status</Label>
+                      <Select 
+                        value={statusValue || lead?.status || ""} 
+                        onValueChange={(val) => {
+                          setStatusValue(val);
+                          statusMutation.mutate(val);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs" data-testid="select-pipeline-status">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new" className="text-xs">New</SelectItem>
+                          <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
+                          <SelectItem value="sold" className="text-xs">Sold</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 <Card>
                   <CardHeader className="pb-2">
