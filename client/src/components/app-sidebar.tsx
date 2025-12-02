@@ -150,7 +150,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems
-                .filter((item) => item.title !== "Leads" || user?.role === "ADMIN")
+                .filter((item) => item.title !== "Leads" || user?.role === "ADMIN" || user?.role === "MANAGER")
                 .map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
