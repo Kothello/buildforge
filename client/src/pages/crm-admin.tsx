@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, GripVertical, Users, Layers, Settings, Save, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, GripVertical, Users, Layers, Settings, Save, Loader2, Zap } from "lucide-react";
 import type { User, PipelineStage } from "@shared/schema";
 
 export default function CrmAdminPage() {

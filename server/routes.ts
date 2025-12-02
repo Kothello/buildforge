@@ -69,6 +69,81 @@ function enrichLeadWithComputedFields(lead: any) {
   };
 }
 
+async function runLeadAgingAutomation() {
+  try {
+    const allLeads = await storage.getLeads();
+    const nonSoldLeads = allLeads.filter(lead => lead.status !== "sold");
+    
+    const stageMappings = [
+      { minDays: 30, maxDays: 90, stageName: "reactivation_30" },
+      { minDays: 90, maxDays: 180, stageName: "reactivation_90" },
+      { minDays: 180, maxDays: 730, stageName: "reactivation_180" },
+      { minDays: 730, maxDays: Infinity, stageName: "aged_out" },
+    ];
+    
+    let updatedCount = 0;
+    const updateLog: any[] = [];
+    
+    for (const lead of nonSoldLeads) {
+      if (!lead.lastDispositionAt) continue;
+      
+      const daysSince = computeDaysSinceLastDispo(lead.lastDispositionAt);
+      if (daysSince === null) continue;
+      
+      const mapping = stageMappings.find(m => daysSince >= m.minDays && daysSince < m.maxDays);
+      if (!mapping) continue;
+      
+      const oldStage = lead.stage;
+      
+      const existingStage = (await storage.getPipelineStages()).find(s => s.name === mapping.stageName);
+      if (!existingStage) {
+        console.log(`[Lead Aging] Stage "${mapping.stageName}" not found, creating it`);
+        await storage.createPipelineStage({
+          name: mapping.stageName,
+          order: 99,
+          isClosed: false,
+          isWon: false,
+          color: "#6B7280",
+        });
+      }
+      
+      const automationMessage = `Auto-moved by aging rule (${daysSince} days since last disposition)`;
+      
+      await storage.updateLead(lead.id, {
+        stage: mapping.stageName,
+        stageEnteredAt: new Date(),
+      });
+      
+      await storage.createLeadHistory({
+        leadId: lead.id,
+        type: "stage_change",
+        prevStage: oldStage,
+        newStage: mapping.stageName,
+        note: automationMessage,
+        createdByUserId: null,
+      });
+      
+      console.log(`[Lead Aging] Lead ${lead.id} (${lead.companyName}): moved from "${oldStage}" to "${mapping.stageName}" (${daysSince} days since dispo)`);
+      
+      updateLog.push({
+        leadId: lead.id,
+        company: lead.companyName,
+        oldStage,
+        newStage: mapping.stageName,
+        daysSince,
+      });
+      
+      updatedCount++;
+    }
+    
+    console.log(`[Lead Aging] Automation complete: ${updatedCount} leads updated`);
+    return { updatedCount, details: updateLog };
+  } catch (error) {
+    console.error("[Lead Aging] Error during automation:", error);
+    throw error;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use(cookieParser());
   
@@ -1309,6 +1384,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(pricing);
     } catch (error) {
       res.status(500).json({ error: "Failed to update pricing" });
+    }
+  });
+
+  app.post("/api/admin/run-lead-aging", authMiddleware(storage), requireRole(["ADMIN", "MANAGER"]), async (req: AuthenticatedRequest, res) => {
+    try {
+      const result = await runLeadAgingAutomation();
+      res.json(result);
+    } catch (error) {
+      console.error("[Lead Aging API] Error:", error);
+      res.status(500).json({ error: "Failed to run lead aging automation" });
     }
   });
 
