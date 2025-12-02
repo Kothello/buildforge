@@ -1,0 +1,143 @@
+GLOBAL CONSTRAINTS – DO NOT TOUCH
+
+Do NOT modify any 3D / pricing files:
+
+client/src/configurator/BuildingModel.tsx
+
+client/src/configurator/Scene3D.tsx
+
+client/src/configurator/LeanToConfig.tsx
+
+client/src/configurator/BuilderPage.tsx
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Only work on user delete logic (admin → CRM Settings → Users → Edit User).
+
+GOAL
+
+The delete confirmation dialog already appears and shows “Deleting…”, but the user is not removed.
+
+You already added logging on:
+
+the client mutation ([deleteUserMutation], [handleConfirmDelete])
+
+the server route ([DELETE /api/users/:id])
+
+Now actually diagnose and fix the delete user flow end-to-end so that:
+
+DELETE /api/users/:id returns a 2xx status when called with a valid user id.
+
+The user is really removed from the database.
+
+The Edit User modal + confirmation dialog close.
+
+The user disappears from the Users table without reloading the whole page.
+
+1. Inspect the current client mutation and network response
+
+Open the component for the Edit User modal (the one that shows:
+“Are you sure you want to delete this user? Type "Delete" to confirm.”).
+
+Locate the delete mutation (useMutation) and the function called by the Delete button.
+
+Confirm:
+
+Exact URL and HTTP method used (e.g. DELETE /api/users/${user.id}).
+
+It awaits the response and throws on non-OK:
+
+const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
+if (!res.ok) {
+  const text = await res.text();
+  throw new Error(`Failed to delete user: ${res.status} ${text}`);
+}
+
+
+The onSuccess handler closes both dialogs and invalidates the users list query (["/api/users"]).
+
+If any of these are missing or incorrect, fix them.
+
+2. Inspect and fix the server route
+
+Find the server handler that should handle the client’s URL (e.g. DELETE /api/users/:id).
+It may be in a users router file or in the main server/routes.ts.
+
+Make sure:
+
+The path matches the client exactly (/api/users/:id vs /crm/api/users/:id, etc.).
+
+The method is DELETE.
+
+It reads the id correctly from req.params.id and matches the DB type (string vs integer/UUID).
+
+It actually deletes the user row from the users table.
+
+It responds with 2xx on success, e.g.:
+
+// pseudo-code, adapt to your db
+await db.delete(users).where(eq(users.id, userId));
+return res.status(204).end();
+
+
+It enforces permission (admin/manager only) but returns a clear 403 if unauthorized, not a silent failure.
+
+If the route does not exist, create it and mount it in the main Express app under /api/users.
+
+3. Wire client and server together and handle errors
+
+Ensure the mutation URL and method exactly match the server route you just confirmed.
+
+In the useMutation definition:
+
+On success:
+
+Reset local state (deleteText, showDeleteConfirm).
+
+Call the prop or function that closes the Edit User modal.
+
+queryClient.invalidateQueries(["/api/users"]) so the list refetches.
+
+On error:
+
+Log the error with console.error.
+
+Show a small inline error message in the confirmation dialog (e.g. “Failed to delete user. Check console for details.”).
+
+Ensure the loading state is cleared so the Delete button is usable again.
+
+You can keep minimal logging, but remove any noisy or duplicate console.log if not needed.
+
+4. Self-test programmatically
+
+After wiring everything:
+
+Pick a non-admin test user from the database.
+
+Call the delete handler directly from a small script or via a REST client inside the project:
+
+Example: curl -X DELETE http://localhost:5000/api/users/<testUserId> with the same auth mechanism you use elsewhere.
+
+Confirm:
+
+The route returns 204 (or 200) with no error.
+
+The user disappears from the users table.
+
+Then test via UI:
+
+Edit that test user, click Delete User, type Delete, click Delete.
+
+Confirm the modals close and the user row disappears from the list without manual refresh.
+
+SUMMARY
+
+In your summary, show:
+
+The final delete mutation code (URL, method, onSuccess/onError).
+
+The server route code for DELETE /api/users/:id.
+
+Confirmation that a test user was successfully deleted and removed from the Users list through the UI.

@@ -83,35 +83,19 @@ export default function CrmAdminPage() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      console.log("[deleteUserMutation] Starting delete for ID:", id);
-      try {
-        const response = await apiRequest("DELETE", `/api/users/${id}`);
-        console.log("[deleteUserMutation] Response status:", response.status);
-        const data = await response.json();
-        console.log("[deleteUserMutation] Response data:", data);
-        return data;
-      } catch (error) {
-        console.error("[deleteUserMutation] Error during delete:", error);
-        throw error;
-      }
+      const response = await apiRequest("DELETE", `/api/users/${id}`);
+      // Server returns { success: true } on delete
+      return response.json();
     },
-    onSuccess: (data) => {
-      console.log("[deleteUserMutation] onSuccess called with data:", data);
-      try {
-        queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-        console.log("[deleteUserMutation] Invalidated query");
-        setShowDeleteConfirm(false);
-        setDeleteText("");
-        setEditingUser(null);
-        setIsUserDialogOpen(false);
-        console.log("[deleteUserMutation] State cleared, showing toast");
-        toast({ title: "User deleted successfully" });
-      } catch (e) {
-        console.error("[deleteUserMutation] Error in onSuccess:", e);
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setShowDeleteConfirm(false);
+      setDeleteText("");
+      setEditingUser(null);
+      setIsUserDialogOpen(false);
+      toast({ title: "User deleted successfully" });
     },
     onError: (error: any) => {
-      console.error("[deleteUserMutation] onError called:", error);
       toast({ variant: "destructive", title: "Failed to delete user", description: error.message });
     },
   });
@@ -186,11 +170,7 @@ export default function CrmAdminPage() {
   };
 
   const handleConfirmDelete = () => {
-    if (!editingUser || deleteText.trim() !== "Delete") {
-      console.log("[handleConfirmDelete] Guard check failed - editingUser:", !!editingUser, "deleteText:", deleteText);
-      return;
-    }
-    console.log("[handleConfirmDelete] Calling mutation for user:", editingUser.id);
+    if (!editingUser || deleteText.trim() !== "Delete") return;
     deleteUserMutation.mutate(editingUser.id);
   };
 
