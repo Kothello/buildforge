@@ -1,0 +1,109 @@
+I want to implement “Days on Stage” and “Days Since Last Disposition” for leads, similar to the old CRM screenshots I shared.
+
+Desired behavior
+
+Every lead should track:
+
+When it entered its current stage.
+
+When the last disposition was saved.
+
+The admin/manager leads table should display two new columns:
+
+Days on Stage – number of full days since stageUpdatedAt.
+
+Days Since Last Dispo – number of full days since lastDispositionAt.
+
+On the lead detail page (/sales/leads/:id):
+
+Show these values near the status / stage area (for example under the lead name and warmth badge).
+
+Backend changes
+
+Schema
+
+In shared/schema.ts, update the leads table to include two nullable timestamp columns:
+
+stageUpdatedAt (or stage_updated_at depending on naming convention)
+
+lastDispositionAt (or last_disposition_at)
+
+Add these fields to the Zod schemas and TypeScript types for Lead.
+
+When to update the timestamps
+
+In the disposition / lead-history logic (where we handle the “Save Disposition & Notes” on the lead detail page):
+
+Every time a disposition is saved:
+
+Set lastDispositionAt = now.
+
+If the disposition changes the lead’s stage (e.g. moving from “Working Lead” to “Callback” / “Storage” / “Sold” etc):
+
+Also set stageUpdatedAt = now.
+
+This is probably inside the POST /api/leads/:id/disposition or equivalent route that creates a leadHistory record and updates the lead’s stage / status.
+
+Make sure both timestamps are persisted in the DB when appropriate.
+
+Expose the data
+
+Ensure the API responses that power:
+
+The admin/manager leads table (/api/leads).
+
+The lead detail page (/api/leads/:id).
+
+Include stageUpdatedAt and lastDispositionAt in the lead JSON.
+
+Frontend changes
+
+Admin/Manager leads table (pipeline-style list)
+
+In the file that renders the admin/manager leads grid (the page that currently shows Customer, Status, Price, etc):
+
+Add two new columns:
+
+Days on Stage
+
+Days Since Last Dispo
+
+For each lead:
+
+Compute daysOnStage on the client as:
+
+If stageUpdatedAt is present: difference in full days between now and stageUpdatedAt.
+
+Otherwise, 0 or "-" (whichever you prefer).
+
+Compute daysSinceLastDispo similarly from lastDispositionAt.
+
+These should be sortable columns (if the table supports sorting) and visible only to ADMIN/MANAGER roles.
+
+Lead detail page (client/src/pages/lead-edit.tsx)
+
+In the header area under the lead name / warmth tag (or near the Disposition card), display:
+
+Days on Stage: X
+
+Days Since Last Dispo: Y
+
+Use the same client-side calculation as for the table.
+
+Important constraints
+
+Do not break any existing builder, pricing, or history functionality.
+
+Re-use the existing stage/status field on the lead; do not introduce a new, conflicting stage concept.
+
+Keep all date math in one helper function if possible (e.g. getDayDiff(fromDate, toDate)).
+
+At the end
+
+Show me:
+
+The new leads columns you added.
+
+Where in the code the timestamps are updated on new dispositions.
+
+A screenshot (or description) of the leads table with the two new columns visible.
