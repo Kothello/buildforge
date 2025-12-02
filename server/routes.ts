@@ -284,7 +284,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
       
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete user" });
