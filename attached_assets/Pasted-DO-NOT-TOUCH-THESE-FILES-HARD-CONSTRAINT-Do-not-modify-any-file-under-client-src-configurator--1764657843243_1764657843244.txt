@@ -1,0 +1,186 @@
+DO NOT TOUCH THESE FILES (HARD CONSTRAINT)
+
+Do not modify any file under client/src/configurator/**.
+
+Do not modify pricing or 3D files (BuildingModel.tsx, Scene3D.tsx, pricing engine, etc.).
+
+Only modify:
+
+client/src/pages/crm-admin.tsx
+
+server/routes.ts only if you find a concrete bug in DELETE /api/users/:id.
+
+GOAL
+
+The Delete User flow in CRM Settings is still not working. When I type “Delete” and click the red Delete button:
+
+The button shows Deleting…
+
+The dialog never closes
+
+The user is not removed from the list
+
+Previously added fixes did not solve it
+
+You must:
+
+Prove whether the click handler is firing at all.
+
+Prove whether the mutation is actually calling the API.
+
+Fix whatever is broken so that:
+
+The DELETE request is sent
+
+The user is deleted on the server
+
+The users table updates
+
+The dialog closes, with no page reload
+
+Keep the implementation simple and bullet-proof.
+
+1. Instrument the flow with minimal logging
+
+In client/src/pages/crm-admin.tsx:
+
+Find handleConfirmDelete. Add a single console log at the top:
+
+const handleConfirmDelete = () => {
+  console.log("[handleConfirmDelete] called", { editingUser, deleteText });
+  ...
+};
+
+
+Find the deleteUserMutation definition. Inside mutationFn, add:
+
+const deleteUserMutation = useMutation({
+  mutationFn: async (id: string) => {
+    console.log("[deleteUserMutation] mutationFn start", { id });
+    await apiRequest("DELETE", `/api/users/${id}`);
+    console.log("[deleteUserMutation] mutationFn success", { id });
+  },
+  ...
+});
+
+
+In onError, log the error:
+
+  onError: (error: any) => {
+    console.error("[deleteUserMutation] onError", error);
+    ...
+  },
+
+
+Do not add any other noisy logs.
+
+2. Make the Delete button actually call handleConfirmDelete
+
+In the delete confirmation modal in crm-admin.tsx:
+
+Ensure the red Delete button is:
+
+<Button
+  type="button"
+  variant="destructive"
+  onClick={handleConfirmDelete}
+  disabled={deleteUserMutation.isPending || deleteText.trim() !== "Delete"}
+>
+  {deleteUserMutation.isPending ? "Deleting..." : "Delete"}
+</Button>
+
+
+Requirements:
+
+type="button" (so a parent <form> doesn’t swallow it).
+
+onClick={handleConfirmDelete} (not an inline function that does something else).
+
+Leave the “Delete” text check as deleteText.trim() !== "Delete" (case-sensitive is fine).
+
+Confirm there is no second Delete button wired to a different handler.
+
+3. Simplify the mutation to the bare minimum
+
+Still in crm-admin.tsx, normalize deleteUserMutation to:
+
+const deleteUserMutation = useMutation({
+  mutationFn: async (id: string) => {
+    console.log("[deleteUserMutation] mutationFn start", { id });
+    await apiRequest("DELETE", `/api/users/${id}`);
+    console.log("[deleteUserMutation] mutationFn success", { id });
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    setShowDeleteConfirm(false);
+    setDeleteText("");
+    setEditingUser(null);
+    setIsUserDialogOpen(false);
+    toast({ title: "User deleted successfully" });
+  },
+  onError: (error: any) => {
+    console.error("[deleteUserMutation] onError", error);
+    const message = String(error?.message ?? "Unknown error");
+
+    if (message.includes("Cannot delete your own user account")) {
+      toast({
+        variant: "destructive",
+        title: "You can't delete your own account",
+        description: "Log in as a different admin to delete this user.",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete user",
+        description: message,
+      });
+    }
+  },
+});
+
+
+Do not return anything from mutationFn. apiRequest throwing/non-throwing is enough.
+
+Do not maintain a separate isDeleting state anywhere; use deleteUserMutation.isPending only.
+
+4. Verify the server route one last time
+
+In server/routes.ts, inspect DELETE /api/users/:id:
+
+It must:
+
+Prevent self-delete with:
+
+if (userId === req.user!.id) {
+  return res.status(400).json({ error: "Cannot delete your own user account" });
+}
+
+
+Call await storage.deleteUser(userId) and if it returns true:
+
+return res.status(200).json({ success: true });
+
+
+Do not change anything else in that route unless you find a clear bug.
+
+5. Explain exactly what you observed
+
+After implementing the above, run the app and manually test deleting a non-admin test user.
+
+In your final summary, tell me:
+
+What logs you saw in the browser console:
+
+Did [handleConfirmDelete] called appear?
+
+Did [deleteUserMutation] mutationFn start and success appear?
+
+What the Network tab shows for DELETE /api/users/:id (status code).
+
+Whether the user disappeared from the table without reload.
+
+Whether the dialog closed.
+
+If any of these steps fail, state which one and what you changed to fix it.
+
+Again: do not touch any files under client/src/configurator/** or any builder/pricing code.
