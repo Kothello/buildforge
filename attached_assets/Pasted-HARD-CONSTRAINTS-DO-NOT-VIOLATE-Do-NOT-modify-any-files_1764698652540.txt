@@ -1,0 +1,299 @@
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any files under:
+
+- client/src/configurator/**
+- configurator/iron-builder-studio-*/**
+
+Do NOT modify:
+
+- server/pricingEngine.ts
+- server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+Allowed for this task:
+
+- client/src/pages/sales-dashboard.tsx   // “My Leads” view
+- client/src/pages/leads.tsx             // Admin/manager “All Leads”
+- client/src/pages/lead-edit.tsx         // Lead detail (display-only tweaks if absolutely needed)
+- client/src/components/**               // New small UI components IF needed for filters/summary
+- client/src/lib/date-utils.ts           // Only if a tiny helper is needed; do NOT alter existing behavior
+
+Do NOT touch shared/schema.ts, server/routes.ts, server/storage.ts, or any backend/pricing files.
+All work for this task stays client-side, using existing API responses.
+
+CONTEXT
+
+The app already has:
+
+- Role-based leads views:
+  - /sales → “My Leads” (reps & higher)
+  - /leads → Admin/Manager “All Leads”
+- Aging metrics provided by backend:
+  - daysOnStage: number
+  - daysSinceLastDispo: number | null
+- These appear:
+  - On /sales:
+    - Table shows at least “Days Since Dispo”, and (from previous task) “Days on Stage”.
+    - Sorting and a “Needs Attention” indicator were added in a prior change:
+      - needsAttention if:
+        - daysSinceLastDispo >= 7 OR
+        - daysOnStage >= 14
+  - On /leads:
+    - Table shows both aging metrics in dedicated columns.
+
+You must preserve all existing table behavior, links, and actions (edit, open configurator, etc.). Only extend filtering and summary UI using existing lead data.
+
+GOAL
+
+1) For Reps on **My Leads** (/sales):
+   - Add simple, prominent quick filters using aging metrics:
+     - View all (default)
+     - Stale Since Dispo (e.g. daysSinceLastDispo >= 7)
+     - Long on Stage (e.g. daysOnStage >= 14)
+     - Needs Attention (combination of both conditions)
+   - They must stack cleanly with existing:
+     - searchTerm filter
+     - statusFilter (if present)
+   - Do NOT change how leads are loaded; only filter client-side from already-fetched leads.
+
+2) For Admin/Manager on **All Leads** (/leads):
+   - Add a compact “Pipeline Health” summary above the table, computed client-side from the full leads array:
+     - Total leads count
+     - Count of “Needs Attention” leads using the same logic as on /sales:
+       - daysSinceLastDispo >= 7 OR daysOnStage >= 14
+     - Count of leads with daysSinceLastDispo >= 7
+     - Count of leads with daysOnStage >= 14
+   - Optional but preferred:
+     - Show average daysOnStage per-stage in a simple textual format:
+       - e.g. “Avg Days on Stage – New: 3.2, Working: 10.5, Closed: 1.0”
+     - Do this purely client-side; no new API calls, no backend changes.
+
+REQUIREMENTS
+
+A. My Leads – Quick Filters (/sales, client/src/pages/sales-dashboard.tsx)
+
+1. Define constants at the top of the component (or near existing thresholds if already defined):
+
+   const STALE_DISPO_DAYS = 7;
+   const STALE_STAGE_DAYS = 14;
+
+2. Introduce a new piece of state:
+
+   type AgingFilter = "ALL" | "STALE_DISPO" | "LONG_STAGE" | "NEEDS_ATTENTION";
+
+   const [agingFilter, setAgingFilter] = useState<AgingFilter>("ALL");
+
+3. In the existing derived-leads logic (where you already:
+   - filter by searchTerm
+   - filter by stage/status
+   - sort by the chosen sort mode):
+
+   - After applying search/status filters, apply the agingFilter:
+
+     const filteredBySearchAndStatus = ...existing logic...;
+
+     const filteredByAging = filteredBySearchAndStatus.filter((lead) => {
+       const daysOnStage = lead.daysOnStage ?? 0;
+       const daysSinceDispo = lead.daysSinceLastDispo ?? 0;
+       const needsAttention =
+         daysSinceDispo >= STALE_DISPO_DAYS ||
+         daysOnStage >= STALE_STAGE_DAYS;
+
+       switch (agingFilter) {
+         case "STALE_DISPO":
+           return lead.daysSinceLastDispo !== null && daysSinceDispo >= STALE_DISPO_DAYS;
+         case "LONG_STAGE":
+           return daysOnStage >= STALE_STAGE_DAYS;
+         case "NEEDS_ATTENTION":
+           return needsAttention;
+         case "ALL":
+         default:
+           return true;
+       }
+     });
+
+   - Then apply the existing sort logic to filteredByAging and use that as the final array for rendering.
+
+   - Use the exact same `needsAttention` computation here as in the row styling so behavior is consistent.
+
+4. UI: Quick filter controls
+
+   - In the toolbar area above the table (where search, status filter, and sort controls already live), add a small group of buttons or badges for aging filters.
+
+   - Use existing Button components and styling patterns from the page; example:
+
+     <div className="flex flex-wrap items-center gap-2">
+       <span className="text-xs text-muted-foreground">Aging:</span>
+       <Button
+         size="xs"
+         variant={agingFilter === "ALL" ? "default" : "outline"}
+         onClick={() => setAgingFilter("ALL")}
+       >
+         All
+       </Button>
+       <Button
+         size="xs"
+         variant={agingFilter === "STALE_DISPO" ? "default" : "outline"}
+         onClick={() => setAgingFilter("STALE_DISPO")}
+       >
+         Stale ≥ {STALE_DISPO_DAYS}d since dispo
+       </Button>
+       <Button
+         size="xs"
+         variant={agingFilter === "LONG_STAGE" ? "default" : "outline"}
+         onClick={() => setAgingFilter("LONG_STAGE")}
+       >
+         On stage ≥ {STALE_STAGE_DAYS}d
+       </Button>
+       <Button
+         size="xs"
+         variant={agingFilter === "NEEDS_ATTENTION" ? "default" : "outline"}
+         onClick={() => setAgingFilter("NEEDS_ATTENTION")}
+       >
+         Needs attention
+       </Button>
+     </div>
+
+   - Keep layout responsive and consistent with existing flex/grid.
+
+5. Do not change any existing actions:
+   - Row click -> lead detail
+   - Edit / open configurator button
+   - Delete or other actions
+
+B. All Leads – Pipeline Health Summary (/leads, client/src/pages/leads.tsx)
+
+1. At the top of the component (inside the React function), derive simple stats from the leads array that is already fetched for this page.
+
+   - If data is still loading or error, skip summary and keep current behavior.
+   - Once you have leads, compute:
+
+     - totalLeads
+     - staleDispoCount   = leads with daysSinceLastDispo !== null && daysSinceLastDispo >= STALE_DISPO_DAYS
+     - longStageCount    = leads with daysOnStage >= STALE_STAGE_DAYS
+     - needsAttentionCount = leads where (staleDispo || longStage)
+
+   - For averages per stage:
+     - Group by lead.stage (or whatever property your stage field uses).
+     - For each stage:
+       - averageDaysOnStage = sum(daysOnStage) / count(leadsInStage with daysOnStage !== null)
+     - Skip stages where count == 0.
+
+   - Reuse the same STALE_DISPO_DAYS and STALE_STAGE_DAYS constants (define locally in this file as well to avoid cross-file imports).
+
+2. Render a compact summary above the table, after any page title/description:
+
+   - Example using your existing Card/Stat components (adapt to what you already use):
+
+     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+       <Card>
+         <CardHeader className="pb-2">
+           <CardTitle className="text-xs font-medium text-muted-foreground">Total Leads</CardTitle>
+         </CardHeader>
+         <CardContent>
+           <div className="text-2xl font-bold">{totalLeads}</div>
+         </CardContent>
+       </Card>
+       <Card>
+         <CardHeader className="pb-2">
+           <CardTitle className="text-xs font-medium text-muted-foreground">
+             Needs Attention
+           </CardTitle>
+         </CardHeader>
+         <CardContent>
+           <div className="text-2xl font-bold">{needsAttentionCount}</div>
+           <p className="text-xs text-muted-foreground">
+             ≥ {STALE_DISPO_DAYS}d since dispo or ≥ {STALE_STAGE_DAYS}d on stage
+           </p>
+         </CardContent>
+       </Card>
+       <Card>
+         <CardHeader className="pb-2">
+           <CardTitle className="text-xs font-medium text-muted-foreground">
+             Stale Since Dispo
+           </CardTitle>
+         </CardHeader>
+         <CardContent>
+           <div className="text-2xl font-bold">{staleDispoCount}</div>
+         </CardContent>
+       </Card>
+       <Card>
+         <CardHeader className="pb-2">
+           <CardTitle className="text-xs font-medium text-muted-foreground">
+             Long On Stage
+           </CardTitle>
+         </CardHeader>
+         <CardContent>
+           <div className="text-2xl font-bold">{longStageCount}</div>
+         </CardContent>
+       </Card>
+     </div>
+
+   - Below this grid, add a small text block for per-stage averages:
+
+     {Object.entries(avgDaysOnStageByStage).length > 0 && (
+       <p className="mb-4 text-xs text-muted-foreground">
+         Avg days on stage:
+         {" "}
+         {Object.entries(avgDaysOnStageByStage).map(([stage, avg]) => (
+           <span key={stage} className="mr-2">
+             {stage}: {avg.toFixed(1)}
+           </span>
+         ))}
+       </p>
+     )}
+
+3. Do not change:
+   - How leads are fetched.
+   - Any existing filters, sorting, or actions in the table.
+   - Any role/route logic; this page is already admin/manager-only.
+
+C. General Constraints
+
+- No backend changes.
+- No db/schema changes.
+- No changes to configurator files, embedding, or pricing logic.
+- Only display/UX logic and client-side filtering/summarization.
+
+SUMMARY (WHAT TO REPORT BACK)
+
+In your final message:
+
+1) List the exact files modified:
+   - e.g. client/src/pages/sales-dashboard.tsx
+   - client/src/pages/leads.tsx
+   - client/src/components/... (only if you created any new small components)
+
+2) Describe:
+   - AgingFilter options and their exact conditions.
+   - Thresholds used:
+     - STALE_DISPO_DAYS
+     - STALE_STAGE_DAYS
+   - How “Needs Attention” is computed (must match My Leads and All Leads behavior).
+
+3) Testing steps:
+
+   As REP (My Leads):
+   - Go to /sales
+   - Confirm aging filters:
+     - “All” shows all assigned leads.
+     - “Stale ≥ 7d since dispo” only shows leads with daysSinceLastDispo >= 7.
+     - “On stage ≥ 14d” only shows leads with daysOnStage >= 14.
+     - “Needs attention” only shows leads that satisfy either condition.
+   - Confirm that search and status filters still work and combine with aging filters.
+   - Confirm sorting still behaves as before (by aging metrics), now applied after aging filtering.
+
+   As ADMIN/MANAGER (All Leads):
+   - Go to /leads
+   - Confirm new “Pipeline Health” summary is visible above the table.
+   - Validate counts:
+     - Total leads matches table.
+     - Needs attention / stale / long-stage counts align with the visible data.
+   - Confirm per-stage averages look reasonable given sample data.
+
+4) Explicitly confirm:
+   - No files under client/src/configurator/** or configurator/iron-builder-studio-*/** were touched.
+   - No changes to server/pricingEngine.ts or server/pricingRoutes.ts.
+   - No configurator, 3D model, camera, geometry, or pricing logic was changed.

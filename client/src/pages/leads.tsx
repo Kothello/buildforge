@@ -16,6 +16,9 @@ const prefetchLeadEdit = () => {
   import("@/configurator/BuilderPage");
 };
 
+const STALE_DISPO_DAYS = 7;
+const STALE_STAGE_DAYS = 14;
+
 export default function LeadsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -115,6 +118,56 @@ export default function LeadsPage() {
     };
   }, [leads]);
 
+  const pipelineHealth = useMemo(() => {
+    if (!Array.isArray(leads)) {
+      return {
+        totalLeads: 0,
+        staleDispoCount: 0,
+        longStageCount: 0,
+        needsAttentionCount: 0,
+        avgDaysOnStageByStage: {},
+      };
+    }
+
+    const staleDispoCount = leads.filter(
+      (l: any) => l.daysSinceLastDispo !== null && l.daysSinceLastDispo >= STALE_DISPO_DAYS
+    ).length;
+
+    const longStageCount = leads.filter(
+      (l: any) => (l.daysOnStage ?? 0) >= STALE_STAGE_DAYS
+    ).length;
+
+    const needsAttentionCount = leads.filter((l: any) => {
+      const daysSinceDispo = l.daysSinceLastDispo ?? 0;
+      const daysOnStage = l.daysOnStage ?? 0;
+      return daysSinceDispo >= STALE_DISPO_DAYS || daysOnStage >= STALE_STAGE_DAYS;
+    }).length;
+
+    // Calculate average days on stage per stage
+    const stageGroups: { [key: string]: { sum: number; count: number } } = {};
+    leads.forEach((lead: any) => {
+      const stage = lead.stage || "unknown";
+      if (!stageGroups[stage]) {
+        stageGroups[stage] = { sum: 0, count: 0 };
+      }
+      stageGroups[stage].sum += lead.daysOnStage ?? 0;
+      stageGroups[stage].count += 1;
+    });
+
+    const avgDaysOnStageByStage: { [key: string]: number } = {};
+    Object.entries(stageGroups).forEach(([stage, data]) => {
+      avgDaysOnStageByStage[stage] = data.sum / data.count;
+    });
+
+    return {
+      totalLeads: leads.length,
+      staleDispoCount,
+      longStageCount,
+      needsAttentionCount,
+      avgDaysOnStageByStage,
+    };
+  }, [leads]);
+
   const handleLeadClick = (lead: Lead) => {
     navigate(`/sales/leads/${lead.id}`);
   };
@@ -150,6 +203,47 @@ export default function LeadsPage() {
           </Card>
         ))}
       </div>
+
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <div className="p-3 sm:p-4">
+            <p className="text-xs font-medium text-muted-foreground">Total Leads</p>
+            <div className="text-2xl font-bold mt-2">{pipelineHealth.totalLeads}</div>
+          </div>
+        </Card>
+        <Card className="bg-destructive/5 backdrop-blur-sm border-border/50">
+          <div className="p-3 sm:p-4">
+            <p className="text-xs font-medium text-muted-foreground">Needs Attention</p>
+            <div className="text-2xl font-bold mt-2">{pipelineHealth.needsAttentionCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">≥ {STALE_DISPO_DAYS}d or ≥ {STALE_STAGE_DAYS}d</p>
+          </div>
+        </Card>
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <div className="p-3 sm:p-4">
+            <p className="text-xs font-medium text-muted-foreground">Stale Since Dispo</p>
+            <div className="text-2xl font-bold mt-2">{pipelineHealth.staleDispoCount}</div>
+          </div>
+        </Card>
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <div className="p-3 sm:p-4">
+            <p className="text-xs font-medium text-muted-foreground">Long On Stage</p>
+            <div className="text-2xl font-bold mt-2">{pipelineHealth.longStageCount}</div>
+          </div>
+        </Card>
+      </div>
+
+      {Object.entries(pipelineHealth.avgDaysOnStageByStage).length > 0 && (
+        <div className="text-xs text-muted-foreground px-3 sm:px-4">
+          <p className="font-medium mb-1">Avg days on stage:</p>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(pipelineHealth.avgDaysOnStageByStage).map(([stage, avg]) => (
+              <span key={stage}>
+                <span className="font-medium">{stage}:</span> {(avg as number).toFixed(1)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <div className="flex-1 relative">

@@ -19,10 +19,13 @@ const prefetchLeadEdit = () => {
 const STALE_DISPO_DAYS = 7;
 const STALE_STAGE_DAYS = 14;
 
+type AgingFilter = "ALL" | "STALE_DISPO" | "LONG_STAGE" | "NEEDS_ATTENTION";
+
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortMode, setSortMode] = useState<"daysSinceDispo" | "daysOnStage">("daysSinceDispo");
+  const [agingFilter, setAgingFilter] = useState<AgingFilter>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [, navigate] = useLocation();
@@ -98,8 +101,29 @@ export default function SalesDashboard() {
       filtered = filtered.filter((lead: any) => lead.status === statusFilter);
     }
     
+    // Apply aging filter
+    const filteredByAging = filtered.filter((lead: any) => {
+      const daysOnStage = lead.daysOnStage ?? 0;
+      const daysSinceDispo = lead.daysSinceLastDispo ?? 0;
+      const needsAttention =
+        daysSinceDispo >= STALE_DISPO_DAYS ||
+        daysOnStage >= STALE_STAGE_DAYS;
+
+      switch (agingFilter) {
+        case "STALE_DISPO":
+          return lead.daysSinceLastDispo !== null && daysSinceDispo >= STALE_DISPO_DAYS;
+        case "LONG_STAGE":
+          return daysOnStage >= STALE_STAGE_DAYS;
+        case "NEEDS_ATTENTION":
+          return needsAttention;
+        case "ALL":
+        default:
+          return true;
+      }
+    });
+    
     // Sort by aging metrics
-    const sorted = [...filtered].sort((a: any, b: any) => {
+    const sorted = [...filteredByAging].sort((a: any, b: any) => {
       if (sortMode === "daysSinceDispo") {
         const aVal = a.daysSinceLastDispo ?? -1;
         const bVal = b.daysSinceLastDispo ?? -1;
@@ -115,7 +139,7 @@ export default function SalesDashboard() {
       }
     });
     return sorted;
-  }, [leads, searchTerm, statusFilter, sortMode]);
+  }, [leads, searchTerm, statusFilter, sortMode, agingFilter]);
 
   const stats = useMemo(() => ({
     total: leads.length,
@@ -198,6 +222,46 @@ export default function SalesDashboard() {
             className="text-xs h-8"
           >
             Days on Stage
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">Aging:</span>
+          <Button
+            size="sm"
+            variant={agingFilter === "ALL" ? "default" : "outline"}
+            onClick={() => setAgingFilter("ALL")}
+            data-testid="button-aging-all"
+            className="text-xs h-8"
+          >
+            All
+          </Button>
+          <Button
+            size="sm"
+            variant={agingFilter === "STALE_DISPO" ? "default" : "outline"}
+            onClick={() => setAgingFilter("STALE_DISPO")}
+            data-testid="button-aging-stale-dispo"
+            className="text-xs h-8"
+          >
+            Stale ≥ {STALE_DISPO_DAYS}d since dispo
+          </Button>
+          <Button
+            size="sm"
+            variant={agingFilter === "LONG_STAGE" ? "default" : "outline"}
+            onClick={() => setAgingFilter("LONG_STAGE")}
+            data-testid="button-aging-long-stage"
+            className="text-xs h-8"
+          >
+            On stage ≥ {STALE_STAGE_DAYS}d
+          </Button>
+          <Button
+            size="sm"
+            variant={agingFilter === "NEEDS_ATTENTION" ? "default" : "outline"}
+            onClick={() => setAgingFilter("NEEDS_ATTENTION")}
+            data-testid="button-aging-needs-attention"
+            className="text-xs h-8"
+          >
+            Needs attention
           </Button>
         </div>
       </div>
