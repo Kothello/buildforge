@@ -83,10 +83,20 @@ export default function CrmAdminPage() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/users/${id}`);
-      return await response.json();
+      console.log("[deleteUserMutation] Starting delete for ID:", id);
+      try {
+        const response = await apiRequest("DELETE", `/api/users/${id}`);
+        console.log("[deleteUserMutation] Response status:", response.status);
+        const data = await response.json();
+        console.log("[deleteUserMutation] Response data:", data);
+        return data;
+      } catch (error) {
+        console.error("[deleteUserMutation] Error during delete:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[deleteUserMutation] onSuccess called with data:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setShowDeleteConfirm(false);
       setDeleteText("");
@@ -95,6 +105,7 @@ export default function CrmAdminPage() {
       toast({ title: "User deleted successfully" });
     },
     onError: (error: any) => {
+      console.error("[deleteUserMutation] onError called:", error);
       toast({ variant: "destructive", title: "Failed to delete user", description: error.message });
     },
   });
