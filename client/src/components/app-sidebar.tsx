@@ -35,11 +35,6 @@ const prefetchMap: Record<string, () => void> = {
 
 const crmItems = [
   {
-    title: "My Leads",
-    url: "/my-leads",
-    icon: Users,
-  },
-  {
     title: "Deals",
     url: "/crm/deals",
     icon: FileText,
@@ -76,6 +71,12 @@ const menuItems = [
     title: "Leads",
     url: "/sales",
     icon: Users,
+  },
+  {
+    title: "My Leads",
+    url: "/my-leads",
+    icon: Users,
+    requiresAuth: true,
   },
   {
     title: "Projects",
