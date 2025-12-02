@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, GripVertical, Users, Layers, Settings, Save } from "lucide-react";
+import { Plus, Trash2, Pencil, GripVertical, Users, Layers, Settings, Save, Loader2 } from "lucide-react";
 import type { User, PipelineStage } from "@shared/schema";
 
 export default function CrmAdminPage() {
@@ -22,6 +22,8 @@ export default function CrmAdminPage() {
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userForm, setUserForm] = useState({ name: "", email: "", password: "", role: "REP" });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
 
   const [isStageDialogOpen, setIsStageDialogOpen] = useState(false);
   const [editingStage, setEditingStage] = useState<PipelineStage | null>(null);
@@ -76,6 +78,27 @@ export default function CrmAdminPage() {
     },
     onError: (error: any) => {
       toast({ variant: "destructive", title: "Failed to update user", description: error.message });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/users/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error("Failed to delete user");
+      }
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setShowDeleteConfirm(false);
+      setDeleteText("");
+      setEditingUser(null);
+      setIsUserDialogOpen(false);
+      toast({ title: "User deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ variant: "destructive", title: "Failed to delete user", description: error.message });
     },
   });
 
@@ -148,6 +171,11 @@ export default function CrmAdminPage() {
     }
   };
 
+  const handleConfirmDelete = () => {
+    if (!editingUser || deleteText.trim() !== "Delete") return;
+    deleteUserMutation.mutate(editingUser.id);
+  };
+
   const handleStageSubmit = () => {
     if (editingStage) {
       updateStageMutation.mutate({ id: editingStage.id, data: stageForm });
@@ -215,6 +243,8 @@ export default function CrmAdminPage() {
                   setIsUserDialogOpen(false);
                   setEditingUser(null);
                   setUserForm({ name: "", email: "", password: "", role: "REP" });
+                  setShowDeleteConfirm(false);
+                  setDeleteText("");
                 }
               }}>
                 <DialogTrigger asChild>
@@ -227,62 +257,120 @@ export default function CrmAdminPage() {
                   <DialogHeader>
                     <DialogTitle>{editingUser ? "Edit User" : "Create New User"}</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Name</Label>
+                  {!showDeleteConfirm ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Name</Label>
+                        <Input
+                          value={userForm.name}
+                          onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                          placeholder="Full name"
+                          data-testid="input-user-name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input
+                          type="email"
+                          value={userForm.email}
+                          onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                          placeholder="email@company.com"
+                          data-testid="input-user-email"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{editingUser ? "New Password (leave blank to keep current)" : "Password"}</Label>
+                        <Input
+                          type="password"
+                          value={userForm.password}
+                          onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                          placeholder={editingUser ? "Enter new password" : "Create password"}
+                          data-testid="input-user-password"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Role</Label>
+                        <Select value={userForm.role} onValueChange={(v) => setUserForm({ ...userForm, role: v })}>
+                          <SelectTrigger data-testid="select-user-role">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="REP">Sales Rep</SelectItem>
+                            <SelectItem value="MANAGER">Manager</SelectItem>
+                            <SelectItem value="ADMIN">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        <Button
+                          className="w-full"
+                          onClick={handleUserSubmit}
+                          disabled={!userForm.name || !userForm.email || (!editingUser && !userForm.password) || createUserMutation.isPending || updateUserMutation.isPending}
+                          data-testid="button-submit-user"
+                        >
+                          {createUserMutation.isPending || updateUserMutation.isPending
+                            ? "Saving..."
+                            : editingUser
+                            ? "Update User"
+                            : "Create User"}
+                        </Button>
+                        {editingUser && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            disabled={createUserMutation.isPending || updateUserMutation.isPending}
+                            data-testid="button-delete-user"
+                          >
+                            Delete User
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="text-sm text-muted-foreground">
+                        Are you sure you want to delete this user? Type "Delete" to confirm.
+                      </div>
                       <Input
-                        value={userForm.name}
-                        onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                        placeholder="Full name"
-                        data-testid="input-user-name"
+                        type="text"
+                        value={deleteText}
+                        onChange={(e) => setDeleteText(e.target.value)}
+                        placeholder='Type "Delete" to confirm'
+                        data-testid="input-delete-confirm"
                       />
+                      <div className="flex gap-3 justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setDeleteText("");
+                          }}
+                          disabled={deleteUserMutation.isPending}
+                          data-testid="button-cancel-delete"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={handleConfirmDelete}
+                          disabled={deleteText.trim() !== "Delete" || deleteUserMutation.isPending}
+                          data-testid="button-confirm-delete"
+                        >
+                          {deleteUserMutation.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              Deleting...
+                            </>
+                          ) : (
+                            "Delete"
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input
-                        type="email"
-                        value={userForm.email}
-                        onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                        placeholder="email@company.com"
-                        data-testid="input-user-email"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{editingUser ? "New Password (leave blank to keep current)" : "Password"}</Label>
-                      <Input
-                        type="password"
-                        value={userForm.password}
-                        onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                        placeholder={editingUser ? "Enter new password" : "Create password"}
-                        data-testid="input-user-password"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Role</Label>
-                      <Select value={userForm.role} onValueChange={(v) => setUserForm({ ...userForm, role: v })}>
-                        <SelectTrigger data-testid="select-user-role">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="REP">Sales Rep</SelectItem>
-                          <SelectItem value="MANAGER">Manager</SelectItem>
-                          <SelectItem value="ADMIN">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      className="w-full"
-                      onClick={handleUserSubmit}
-                      disabled={!userForm.name || !userForm.email || (!editingUser && !userForm.password) || createUserMutation.isPending || updateUserMutation.isPending}
-                      data-testid="button-submit-user"
-                    >
-                      {createUserMutation.isPending || updateUserMutation.isPending
-                        ? "Saving..."
-                        : editingUser
-                        ? "Update User"
-                        : "Create User"}
-                    </Button>
-                  </div>
+                  )}
                 </DialogContent>
               </Dialog>
             </CardHeader>
