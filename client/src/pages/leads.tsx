@@ -214,6 +214,12 @@ export default function LeadsPage() {
                     </Badge>
                   </td>
                   <td className="py-3 px-3 sm:px-4">
+                    <p className="text-xs text-muted-foreground">{lead.daysOnStage ?? 0} days</p>
+                  </td>
+                  <td className="py-3 px-3 sm:px-4">
+                    <p className="text-xs text-muted-foreground">{lead.daysSinceLastDispo !== null ? `${lead.daysSinceLastDispo} days` : "N/A"}</p>
+                  </td>
+                  <td className="py-3 px-3 sm:px-4">
                     <select
                       value={lead.assignedTo || ""}
                       onChange={(e) => {

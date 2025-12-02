@@ -176,6 +176,7 @@ export default function SalesDashboard() {
               <tr className="border-b border-border">
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Customer</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Status</th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days Since Dispo</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Price</th>
                 <th className="text-right py-3 px-3 sm:px-4 font-semibold">Action</th>
               </tr>
@@ -193,6 +194,9 @@ export default function SalesDashboard() {
                     <Badge variant={lead.status === "sold" ? "default" : "outline"} className="text-xs">
                       {lead.status}
                     </Badge>
+                  </td>
+                  <td className="py-3 px-3 sm:px-4">
+                    <p className="text-xs text-muted-foreground">{lead.daysSinceLastDispo !== null ? `${lead.daysSinceLastDispo} days` : "N/A"}</p>
                   </td>
                   <td className="py-3 px-3 sm:px-4">
                     ${parseFloat(lead.totalPrice || "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
