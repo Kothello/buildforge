@@ -44,7 +44,7 @@ export default function LoginPage() {
               <Building2 className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle>Metal Building CRM</CardTitle>
+          <CardTitle>Prefabricated Iron CRM</CardTitle>
           <CardDescription>Sign in to manage your deals and contacts</CardDescription>
         </CardHeader>
         <CardContent>
