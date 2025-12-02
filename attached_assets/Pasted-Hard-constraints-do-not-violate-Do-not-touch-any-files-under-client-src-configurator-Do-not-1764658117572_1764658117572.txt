@@ -1,0 +1,226 @@
+Hard constraints (do not violate):
+
+Do not touch any files under client/src/configurator/**.
+
+Do not touch any 3D builder or pricing engine files.
+
+Only modify:
+
+client/src/pages/crm-admin.tsx
+
+server/routes.ts if and only if you find a concrete bug in DELETE /api/users/:id.
+
+Current state
+
+I still cannot delete a user from CRM Settings → Users.
+
+When I type Delete and click the red Delete button:
+
+The button shows Deleting…
+
+The dialog never closes
+
+The user does not disappear from the table
+
+You already added logs like:
+
+[handleConfirmDelete] called
+
+[deleteUserMutation] mutationFn start
+
+[deleteUserMutation] mutationFn success
+
+[deleteUserMutation] onError
+
+But the flow still doesn’t work.
+
+Your job now is to trace the logs end-to-end, identify exactly which step is broken, and fix it.
+
+1. Reproduce the bug and read the logs
+
+Open client/src/pages/crm-admin.tsx and confirm:
+
+There is a single Delete confirmation button in the modal.
+
+It is wired as:
+
+<Button
+  type="button"
+  variant="destructive"
+  onClick={handleConfirmDelete}
+  disabled={deleteUserMutation.isPending || deleteText.trim() !== "Delete"}
+>
+  {deleteUserMutation.isPending ? "Deleting..." : "Delete"}
+</Button>
+
+
+Start the app and open the Preview at /crm/admin.
+
+In DevTools Console, clear logs.
+
+Edit a non-admin test user, click “Delete User”, type Delete, click Delete.
+
+Observe exactly which of these logs appear:
+
+[handleConfirmDelete] called
+
+[deleteUserMutation] mutationFn start
+
+[deleteUserMutation] mutationFn success
+
+[deleteUserMutation] onError
+
+In DevTools Network tab, look for DELETE /api/users/:id:
+
+What is the status code? (200, 400, 401, 404, 500?)
+
+Use those observations to decide which step is broken:
+
+Case A – no [handleConfirmDelete] called log:
+
+The Delete button isn’t wired to handleConfirmDelete.
+
+Case B – [handleConfirmDelete] called but no mutationFn start:
+
+handleConfirmDelete isn’t calling deleteUserMutation.mutate with the correct id.
+
+Case C – mutationFn start logs but no Network request:
+
+apiRequest call is throwing before fetch, or the URL is wrong.
+
+Case D – Network request returns non-200:
+
+Bug in DELETE /api/users/:id route or auth.
+
+Case E – 200 response and mutationFn success, but UI doesn’t update:
+
+React Query cache not invalidated or table not bound to users query.
+
+2. Fix the broken step (concrete edits required)
+A. Ensure handleConfirmDelete calls the mutation correctly
+
+In crm-admin.tsx, make handleConfirmDelete look like this and nothing fancier:
+
+const handleConfirmDelete = () => {
+  console.log("[handleConfirmDelete] called", { editingUser, deleteText });
+  if (!editingUser) return;
+  if (deleteText.trim() !== "Delete") return;
+
+  deleteUserMutation.mutate(editingUser.id);
+};
+
+
+Use editingUser.id (string) as the mutation argument.
+
+Do not wrap it in other objects; the mutationFn should receive just the id.
+
+B. Keep the mutation minimal and correct
+
+Normalize deleteUserMutation to:
+
+const deleteUserMutation = useMutation({
+  mutationFn: async (id: string) => {
+    console.log("[deleteUserMutation] mutationFn start", { id });
+    await apiRequest("DELETE", `/api/users/${id}`);
+    console.log("[deleteUserMutation] mutationFn success", { id });
+  },
+  onSuccess: () => {
+    console.log("[deleteUserMutation] onSuccess fired");
+    queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    setShowDeleteConfirm(false);
+    setDeleteText("");
+    setEditingUser(null);
+    setIsUserDialogOpen(false);
+  },
+  onError: (error: any) => {
+    console.error("[deleteUserMutation] onError", error);
+    const message = String(error?.message ?? "Unknown error");
+    if (message.includes("Cannot delete your own user account")) {
+      toast({
+        variant: "destructive",
+        title: "You can't delete your own account",
+        description: "Log in as a different admin to delete this user.",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete user",
+        description: message,
+      });
+    }
+  },
+});
+
+
+No extra local isDeleting state.
+
+Rely only on deleteUserMutation.isPending for button disabled/loading.
+
+C. Verify the users query really drives the table
+
+In crm-admin.tsx:
+
+const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
+  queryKey: ["/api/users"],
+  queryFn: async () => {
+    const res = await fetch("/api/users");
+    if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+    return res.json() as Promise<User[]>;
+  },
+});
+
+
+And in the table, rows must come directly from users.map(user => ...).
+Do not maintain a separate rows state that can get out of sync.
+
+D. Confirm the server route returns 200 on success
+
+In server/routes.ts, for DELETE /api/users/:id, ensure:
+
+app.delete("/api/users/:id", requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+
+  if (userId === req.user!.id) {
+    return res
+      .status(400)
+      .json({ error: "Cannot delete your own user account" });
+  }
+
+  try {
+    const deleted = await storage.deleteUser(userId);
+    if (!deleted) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("Error deleting user", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+Do not add anything else here unless absolutely necessary.
+
+3. Re-test and report in your summary
+
+After making the changes:
+
+Restart the app.
+
+Open /crm/admin as an admin.
+
+Delete a non-admin test user.
+
+In your summary, explicitly state:
+
+Which logs appeared (in order).
+
+The HTTP status of DELETE /api/users/:id.
+
+Whether the user disappeared from the table without reload.
+
+Whether the dialog closed automatically.
+
+If any of these still fail, explain which step fails and show the exact snippet you fixed to resolve it.
+
+Remember: do not modify any configurator/3D builder files.

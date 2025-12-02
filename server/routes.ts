@@ -251,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/users/:id", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
     try {
       const updates = { ...req.body };
       if (updates.password) {
@@ -271,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", authMiddleware, requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
+  app.delete("/api/users/:id", authMiddleware(storage), requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.params.id;
       
