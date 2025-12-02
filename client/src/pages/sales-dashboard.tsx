@@ -16,9 +16,13 @@ const prefetchLeadEdit = () => {
   import("@/configurator/BuilderPage");
 };
 
+const STALE_DISPO_DAYS = 7;
+const STALE_STAGE_DAYS = 14;
+
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortMode, setSortMode] = useState<"daysSinceDispo" | "daysOnStage">("daysSinceDispo");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [, navigate] = useLocation();
@@ -93,8 +97,25 @@ export default function SalesDashboard() {
     if (statusFilter !== "all") {
       filtered = filtered.filter((lead: any) => lead.status === statusFilter);
     }
-    return filtered;
-  }, [leads, searchTerm, statusFilter]);
+    
+    // Sort by aging metrics
+    const sorted = [...filtered].sort((a: any, b: any) => {
+      if (sortMode === "daysSinceDispo") {
+        const aVal = a.daysSinceLastDispo ?? -1;
+        const bVal = b.daysSinceLastDispo ?? -1;
+        // Nulls (represented as -1) go to the end
+        if (aVal === -1 && bVal === -1) return 0;
+        if (aVal === -1) return 1;
+        if (bVal === -1) return -1;
+        return bVal - aVal; // descending
+      } else {
+        const aVal = a.daysOnStage ?? 0;
+        const bVal = b.daysOnStage ?? 0;
+        return bVal - aVal; // descending
+      }
+    });
+    return sorted;
+  }, [leads, searchTerm, statusFilter, sortMode]);
 
   const stats = useMemo(() => ({
     total: leads.length,
@@ -132,29 +153,53 @@ export default function SalesDashboard() {
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by customer name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            data-testid="input-search-leads"
-          />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by customer name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              data-testid="input-search-leads"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            data-testid="select-status-filter"
+          >
+            <option value="all">All Status</option>
+            <option value="new">New</option>
+            <option value="in_progress">In Progress</option>
+            <option value="sold">Sold</option>
+          </select>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          data-testid="select-status-filter"
-        >
-          <option value="all">All Status</option>
-          <option value="new">New</option>
-          <option value="in_progress">In Progress</option>
-          <option value="sold">Sold</option>
-        </select>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">Sort by:</span>
+          <Button
+            variant={sortMode === "daysSinceDispo" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSortMode("daysSinceDispo")}
+            data-testid="button-sort-dispo"
+            className="text-xs h-8"
+          >
+            Days Since Dispo
+          </Button>
+          <Button
+            variant={sortMode === "daysOnStage" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSortMode("daysOnStage")}
+            data-testid="button-sort-stage"
+            className="text-xs h-8"
+          >
+            Days on Stage
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -176,14 +221,23 @@ export default function SalesDashboard() {
               <tr className="border-b border-border">
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Customer</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Status</th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days on Stage</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days Since Dispo</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Price</th>
                 <th className="text-right py-3 px-3 sm:px-4 font-semibold">Action</th>
               </tr>
             </thead>
             <tbody>
-              {myLeads.map((lead: any) => (
-                <tr key={lead.id} className="border-b border-border/50 hover:bg-card/30 transition" onMouseEnter={prefetchLeadEdit}>
+              {myLeads.map((lead: any) => {
+                const needsAttention =
+                  (lead.daysSinceLastDispo ?? 0) >= STALE_DISPO_DAYS ||
+                  (lead.daysOnStage ?? 0) >= STALE_STAGE_DAYS;
+                return (
+                <tr 
+                  key={lead.id} 
+                  className={`border-b border-border/50 hover:bg-card/30 transition ${needsAttention ? "bg-destructive/5" : ""}`} 
+                  onMouseEnter={prefetchLeadEdit}
+                >
                   <td className="py-3 px-3 sm:px-4">
                     <div>
                       <p className="font-medium truncate">{lead.companyName}</p>
@@ -191,9 +245,19 @@ export default function SalesDashboard() {
                     </div>
                   </td>
                   <td className="py-3 px-3 sm:px-4">
-                    <Badge variant={lead.status === "sold" ? "default" : "outline"} className="text-xs">
-                      {lead.status}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant={lead.status === "sold" ? "default" : "outline"} className="text-xs w-fit">
+                        {lead.status}
+                      </Badge>
+                      {needsAttention && (
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide w-fit">
+                          Needs Attention
+                        </Badge>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-3 sm:px-4">
+                    <p className="text-xs text-muted-foreground">{lead.daysOnStage ?? 0} days</p>
                   </td>
                   <td className="py-3 px-3 sm:px-4">
                     <p className="text-xs text-muted-foreground">{lead.daysSinceLastDispo !== null ? `${lead.daysSinceLastDispo} days` : "N/A"}</p>
@@ -238,7 +302,8 @@ export default function SalesDashboard() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -1,0 +1,244 @@
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any files under:
+
+- client/src/configurator/**
+- configurator/iron-builder-studio-*/**
+
+Do NOT modify:
+
+- server/pricingEngine.ts
+- server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+Only touch (for this task):
+
+- client/src/pages/sales-dashboard.tsx   // “My Leads” view
+- client/src/pages/leads.tsx             // Admin/manager All Leads view (read-only tweaks allowed if needed)
+- client/src/pages/lead-edit.tsx         // Lead detail (optional small display adjustment only if required)
+- client/src/lib/date-utils.ts           // Only if absolutely necessary for shared helpers
+
+Do NOT touch shared/schema.ts or any server files for this task. Backend already exposes the needed computed fields.
+
+CONTEXT
+
+The backend already computes lead aging metrics:
+
+- In server/routes.ts:
+  - computeDaysOnStage(stageEnteredAt)
+  - computeDaysSinceLastDispo(lastDispositionAt)
+  - enrichLeadWithComputedFields(lead) returns:
+    - daysOnStage: number
+    - daysSinceLastDispo: number | null
+
+- /api/leads and /api/leads/:id both return leads enriched with:
+  - daysOnStage
+  - daysSinceLastDispo
+
+The frontend already uses these in some places:
+
+- client/src/pages/leads.tsx (admin/manager All Leads):
+  - Table headers include “Days on Stage” and “Days Since Dispo”.
+  - Rows display:
+    - lead.daysOnStage ?? 0
+    - lead.daysSinceLastDispo !== null ? `${lead.daysSinceLastDispo} days` : "N/A"
+
+- client/src/pages/lead-edit.tsx:
+  - Header shows:
+    - “Days on Stage”
+    - “Days Since Dispo”
+  - Uses getDayDiff(lead.stageEnteredAt) and getDayDiff(lead.lastDispositionAt).
+
+- client/src/lib/date-utils.ts:
+  - getDayDiff(date): number | null
+  - Normalizes to midnight and returns full day difference.
+
+- client/src/pages/sales-dashboard.tsx (My Leads):
+  - Table headers currently include:
+    - Customer, Status, Days Since Dispo, Price, Action
+  - Rows show:
+    - lead.daysSinceLastDispo !== null ? `${lead.daysSinceLastDispo} days` : "N/A"
+  - No “Days on Stage” column yet.
+  - This page fetches from /api/leads?mine=true and already receives daysOnStage and daysSinceLastDispo as part of each lead object (enriched by the backend).
+
+GOAL
+
+Upgrade the **My Leads** page so reps see both aging metrics and basic urgency cues, while keeping behavior consistent with the admin All Leads view:
+
+1. Add a “Days on Stage” column to the My Leads table on /sales.
+2. Add simple client-side sorting by aging metrics:
+   - Default sort: highest daysSinceLastDispo first (most stale at top).
+   - Allow switching sort to highest daysOnStage.
+3. Add a subtle “Needs Attention” indicator for rows that cross configured thresholds:
+   - Needs Attention if daysSinceLastDispo >= 7 OR daysOnStage >= 14.
+4. Keep all existing behavior (fetching, deleting, assigning, navigation, configurator launch) intact.
+
+DETAILS / IMPLEMENTATION STEPS
+
+1. Wire aging data on the My Leads page (sales-dashboard.tsx)
+
+- In client/src/pages/sales-dashboard.tsx:
+  - Confirm that the leads from useQuery([ "/api/leads", "mine" ]) already contain:
+    - daysOnStage
+    - daysSinceLastDispo
+  - Do NOT change the API URL or backend logic.
+
+- Introduce local sort state:
+  - sortMode: "daysSinceDispo" | "daysOnStage"
+    - Default: "daysSinceDispo"
+
+- Use useMemo to derive a sorted and filtered list:
+  - Start from leads already filtered by searchTerm and statusFilter (existing logic).
+  - Then sort by:
+
+    if (sortMode === "daysSinceDispo") {
+      // sort descending, nulls last
+    } else {
+      // sort by daysOnStage descending, nulls treated as 0 and pushed down
+    }
+
+  - Name this final array myLeads (or similar) and keep the rest of the component working off this value.
+
+2. Add “Days on Stage” column to My Leads table
+
+- Update the table header:
+
+  Currently:
+    Customer | Status | Days Since Dispo | Price | Action
+
+  Change to:
+    Customer | Status | Days on Stage | Days Since Dispo | Price | Action
+
+- In the row rendering map (myLeads.map):
+  - Insert a new <td> for “Days on Stage”:
+
+    <td className="py-3 px-3 sm:px-4">
+      <p className="text-xs text-muted-foreground">
+        {lead.daysOnStage ?? 0} days
+      </p>
+    </td>
+
+  - Keep the existing “Days Since Dispo” cell but ensure consistency with All Leads:
+
+    <td className="py-3 px-3 sm:px-4">
+      <p className="text-xs text-muted-foreground">
+        {lead.daysSinceLastDispo !== null ? `${lead.daysSinceLastDispo} days` : "N/A"}
+      </p>
+    </td>
+
+- Do NOT change pricing display, actions, or navigation behavior.
+
+3. Add sorting controls to the My Leads header
+
+- Above the table (in the existing header area where stats and search live), add a small sort control:
+
+  Example (adapt to existing design using Button, Badge, or a simple segmented control):
+
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground">Sort by:</span>
+      <Button
+        variant={sortMode === "daysSinceDispo" ? "default" : "outline"}
+        size="xs"
+        onClick={() => setSortMode("daysSinceDispo")}
+      >
+        Days Since Dispo
+      </Button>
+      <Button
+        variant={sortMode === "daysOnStage" ? "default" : "outline"}
+        size="xs"
+        onClick={() => setSortMode("daysOnStage")}
+      >
+        Days on Stage
+      </Button>
+    </div>
+
+- Keep the UI compact and consistent with existing styling (use existing Button component and spacing utilities).
+
+4. Add “Needs Attention” indicator per lead row
+
+- Define thresholds inside SalesDashboard (top-level constants):
+
+  const STALE_DISPO_DAYS = 7;
+  const STALE_STAGE_DAYS = 14;
+
+- For each lead in myLeads, compute:
+
+  const needsAttention =
+    (lead.daysSinceLastDispo ?? 0) >= STALE_DISPO_DAYS ||
+    (lead.daysOnStage ?? 0) >= STALE_STAGE_DAYS;
+
+- Use this to:
+
+  - Add a subtle visual cue on the row:
+    - e.g. add `bg-destructive/5` or similar mild background if needsAttention is true.
+      - Apply via conditional className, for example:
+
+        className={`border-b border-border hover:bg-card/30 transition ${
+          needsAttention ? "bg-destructive/5" : ""
+        }`}
+
+  - And/or add a small Badge under the status:
+
+    {needsAttention && (
+      <Badge variant="outline" className="mt-1 text-[10px] uppercase tracking-wide">
+        Needs Attention
+      </Badge>
+    )}
+
+- Keep this purely visual; do not change any existing click handlers.
+
+5. Optional consistency tweak (only if needed and safe)
+
+- If you adjust anything on:
+
+  - client/src/pages/leads.tsx
+  - client/src/pages/lead-edit.tsx
+
+  it must be display-only:
+
+  - For leads.tsx:
+    - Confirm it uses lead.daysOnStage / lead.daysSinceLastDispo as today, matching the My Leads formatting.
+
+  - For lead-edit.tsx:
+    - You MAY switch from getDayDiff(lead.stageEnteredAt) to lead.daysOnStage and from getDayDiff(lead.lastDispositionAt) to lead.daysSinceLastDispo to keep values 100% in sync with the backend, but only if this can be done without touching any configurator logic, pricing logic, or API wiring.
+
+- If you touch lead-edit.tsx at all:
+  - Do not change the configurator embedding, Save Changes behavior, or pricing breakdown components.
+
+6. Do NOT change backend behavior
+
+- No edits to server/routes.ts or storage.
+- No edits to schema or pricing code.
+- The /api/leads behavior must remain identical; the frontend simply consumes the existing computed fields.
+
+7. Summary for this task (in your final message)
+
+In your final response, include:
+
+1) Files modified:
+   - e.g. client/src/pages/sales-dashboard.tsx
+   - (and any others if actually changed, but keep the list minimal and accurate)
+
+2) Behavior changes:
+   - How “Days on Stage” is displayed on My Leads.
+   - How sorting works (default mode and the alternative).
+   - How “Needs Attention” is computed (exact thresholds and logic).
+
+3) Testing steps:
+   - As a REP user:
+     - Open /sales.
+     - Confirm the My Leads table shows both “Days on Stage” and “Days Since Dispo”.
+     - Confirm default sort by Days Since Dispo (desc).
+     - Toggle sort to Days on Stage and verify ordering.
+     - Confirm rows with:
+       - daysSinceLastDispo >= 7 OR daysOnStage >= 14
+       show the “Needs Attention” cue.
+   - As an ADMIN/MANAGER:
+     - Open /leads (All Leads).
+     - Confirm display remains correct and consistent with My Leads (no regressions).
+
+4) Explicit confirmation that:
+   - No files under client/src/configurator/** were changed.
+   - No configurator behavior, 3D model, camera, geometry, or pricing logic was modified.
+   - server/pricingEngine.ts and server/pricingRoutes.ts were not touched.
