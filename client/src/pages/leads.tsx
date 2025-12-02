@@ -35,14 +35,22 @@ export default function LeadsPage() {
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads", "all"],
-    queryFn: () => fetch("/api/leads").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/leads");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
     staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
   });
 
   const { data: allUsers = [] } = useQuery({
     queryKey: ["/api/users"],
-    queryFn: () => fetch("/api/users").then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/users");
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const deleteLeadMutation = useMutation({
