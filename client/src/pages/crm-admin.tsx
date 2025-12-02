@@ -33,6 +33,10 @@ export default function CrmAdminPage() {
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/users");
+      return res.json();
+    },
   });
 
   const { data: stages = [], isLoading: stagesLoading } = useQuery<PipelineStage[]>({
