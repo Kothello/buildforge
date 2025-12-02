@@ -19,8 +19,6 @@ interface LeanTo {
   wraparound: boolean;
   wraparoundCorner?: 'left' | 'right' | 'both';
   parentId?: string;
-  gableAttachmentSide?: 'front' | 'back' | 'left' | 'right';
-  enclosure?: 'fully-enclosed' | 'fully-open' | 'customize';
 }
 
 interface LeanToConfigProps {
@@ -88,8 +86,6 @@ export const LeanToConfig = ({
       position: 0.5,
       wraparound: false,
       parentId: undefined,
-      gableAttachmentSide: undefined,
-      enclosure: 'fully-enclosed',
     };
     onLeanTosChange([...leanTos, newLeanTo]);
   };
@@ -233,8 +229,6 @@ export const LeanToConfig = ({
           wraparound: true,
           wraparoundCorner: 'left',
           parentId: leanTo.id,
-          gableAttachmentSide: leanTo.gableAttachmentSide,
-          enclosure: leanTo.enclosure,
         };
         newLeanTos.push(leftLeanTo);
       }
@@ -268,8 +262,6 @@ export const LeanToConfig = ({
           wraparound: true,
           wraparoundCorner: 'right',
           parentId: leanTo.id,
-          gableAttachmentSide: leanTo.gableAttachmentSide,
-          enclosure: leanTo.enclosure,
         };
         newLeanTos.push(rightLeanTo);
       }
@@ -426,33 +418,26 @@ export const LeanToConfig = ({
               
               <button
                 onClick={() => {
+                  if (leanTo.wraparound) return; // Can't change to gable when wraparound
+                  
                   const wallDimension = (leanTo.wall === 'left' || leanTo.wall === 'right') 
                     ? buildingLength 
                     : buildingWidth;
                   // Gable: 10ft shorter than max width, centered
                   const defaultWidth = Math.max(15, wallDimension - 10);
-                  
-                  if (leanTo.wraparound) {
-                    handleUpdateWraparoundGroup(leanTo, { 
-                      type: 'gable',
-                      width: leanTo.type === 'gable' ? leanTo.width : defaultWidth,
-                      length: leanTo.type === 'gable' ? leanTo.length : 20,
-                      position: 0.5
-                    });
-                  } else {
-                    handleUpdateLeanTo(leanTo.id, { 
-                      type: 'gable',
-                      width: leanTo.type === 'gable' ? leanTo.width : defaultWidth,
-                      length: leanTo.type === 'gable' ? leanTo.length : 20,
-                      position: 0.5
-                    });
-                  }
+                  handleUpdateLeanTo(leanTo.id, { 
+                    type: 'gable',
+                    width: leanTo.type === 'gable' ? leanTo.width : defaultWidth,
+                    length: leanTo.type === 'gable' ? leanTo.length : 20,
+                    position: 0.5
+                  });
                 }}
                 className={`h-5 text-xs py-0 rounded-sm transition-all ${
                   leanTo.type === 'gable'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
+                disabled={leanTo.wraparound}
               >
                 Gable
               </button>
@@ -661,7 +646,7 @@ export const LeanToConfig = ({
                     return (leftSide?.length || rightSide?.length || 30).toString();
                   })()} 
                   onValueChange={(value) => {
-                    const connectedWalls: string[] = [];
+                    const connectedWalls = [];
                     if (leanTo.wraparoundCorner === 'left' || leanTo.wraparoundCorner === 'both') {
                       connectedWalls.push('left');
                     }

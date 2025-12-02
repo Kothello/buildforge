@@ -71,7 +71,6 @@ interface ConfigPanelProps {
   }>) => void;
   editingLeanToId: string | null;
   onEditingLeanToIdChange: (id: string | null) => void;
-  onTotalChange?: (total: string) => void;
 }
 
 export const ConfigPanel = ({
@@ -105,8 +104,7 @@ export const ConfigPanel = ({
   leanTos,
   onLeanTosChange,
   editingLeanToId,
-  onEditingLeanToIdChange,
-  onTotalChange
+  onEditingLeanToIdChange
 }: ConfigPanelProps) => {
   const [colorTab, setColorTab] = useState<'walls' | 'roof' | 'trim'>('walls');
   // Generate width options: 35-120ft in 5ft increments
@@ -247,12 +245,13 @@ export const ConfigPanel = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="grid grid-cols-3 gap-2 w-full" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={onAddRollupDoor}
-              className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-all hover:scale-105 hover:border-accent aspect-square"
+              className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-all hover:scale-105 hover:border-accent"
               style={{
                 borderColor: 'hsl(var(--border))',
+                height: '75px'
               }}
             >
               <DoorOpen className="h-6 w-6 text-muted-foreground" />
@@ -261,9 +260,10 @@ export const ConfigPanel = ({
             
             <button
               onClick={onAddPersonnelDoor}
-              className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-all hover:scale-105 hover:border-accent aspect-square"
+              className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-all hover:scale-105 hover:border-accent"
               style={{
                 borderColor: 'hsl(var(--border))',
+                height: '75px'
               }}
             >
               <RectangleVertical className="h-6 w-6 text-muted-foreground" />
@@ -272,9 +272,10 @@ export const ConfigPanel = ({
             
             <button
               onClick={onAddWindow}
-              className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-all hover:scale-105 hover:border-accent aspect-square"
+              className="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-all hover:scale-105 hover:border-accent"
               style={{
                 borderColor: 'hsl(var(--border))',
+                height: '75px'
               }}
             >
               <Square className="h-6 w-6 text-muted-foreground" />
@@ -458,7 +459,7 @@ export const ConfigPanel = ({
       </Card>
 
       {/* Pricing Box - Last on Panel */}
-      <div className="pb-4" data-testid="pricing-section">
+      <div data-testid="pricing-section">
         <PricingHeader
           config={{
             width,
@@ -474,7 +475,6 @@ export const ConfigPanel = ({
             leanTos: leanTos
           }}
           region="midwest"
-          onTotalChange={onTotalChange}
         />
       </div>
     </div>

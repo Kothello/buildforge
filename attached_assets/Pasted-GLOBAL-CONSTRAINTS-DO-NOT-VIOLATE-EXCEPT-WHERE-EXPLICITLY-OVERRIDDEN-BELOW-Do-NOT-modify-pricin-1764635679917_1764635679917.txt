@@ -1,0 +1,98 @@
+GLOBAL CONSTRAINTS – DO NOT VIOLATE (EXCEPT WHERE EXPLICITLY OVERRIDDEN BELOW)
+
+Do NOT modify pricing or CRM logic:
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Any files under server/ other than simple imports if needed.
+
+Do NOT change any React Query logic or lead APIs in this step.
+
+The only files you are allowed to overwrite are the 3D builder UI + geometry files, and only by copying from the reference ZIP.
+
+0. Unzip the working reference project
+
+Unzip the previously working project ZIP into a dedicated folder:
+
+mkdir -p builder-working
+unzip -n "YOUR_WORKING_ZIP_NAME.zip" -d builder-working
+
+
+Use find to locate the canonical builder files inside builder-working:
+
+find builder-working -iname "BuildingModel.tsx"
+find builder-working -iname "Scene3D.tsx"
+find builder-working -iname "ConfigPanel.tsx"
+find builder-working -iname "BuilderPage.tsx"
+
+
+In your summary, show me the four paths you found (these are the reference files).
+
+1. Overwrite broken builder files with the reference versions
+
+We are in the current CRM+builder project. The active files live under client/src/configurator/.
+
+Overwrite these current files with the reference versions from builder-working, adjusting only import paths as needed:
+
+client/src/configurator/BuildingModel.tsx
+
+client/src/configurator/Scene3D.tsx
+
+client/src/configurator/ConfigPanel.tsx (or equivalent)
+
+client/src/configurator/BuilderPage.tsx
+
+For each file:
+
+Copy the entire contents from the builder-working/... version.
+
+Fix imports so they point to the current project’s structure (for example import type { Door, Window } from './types' instead of any old aliases).
+
+Do not add or remove geometry/panel logic beyond what the reference file already has.
+
+If the current CRM version had extra props or callbacks needed for CRM integration (for example onTotalChange, onLeadUpdate, etc.), re-add only those small pieces:
+
+Bring over those props from the current file before overwriting (or re-apply them after copying), but do not alter the core 3D logic from the reference.
+
+Example: keep onTotalChange prop wired to the pricing component, but use the reference ConfigPanel body.
+
+2. Keep routing and CRM wiring intact
+
+Do not change the routing setup: the /builder route and the /sales/leads/:id embedded configurator must still use the same components they do now.
+
+If necessary, adjust only the exports from the overwritten files so existing imports in:
+
+client/src/App.tsx
+
+client/src/pages/lead-edit.tsx
+
+client/src/configurator/LeadConfiguratorEmbed.tsx
+continue to work without modification.
+
+3. Verify that builder behavior matches the working reference
+
+After copying:
+
+Run the app and open:
+
+/builder
+
+A lead detail page /sales/leads/:id that uses the embedded configurator.
+
+Confirm that:
+
+The 3D building renders correctly (no missing roofs/panels, no weird beams).
+
+Camera behavior matches the reference (no crazy zoom, rotates as before).
+
+Lean-tos, walls, doors & windows behave the same as in the working project.
+
+In your summary, show:
+
+The reference paths you read from builder-working.
+
+Which current files you overwrote.
+
+Any minimal CRM-specific props you re-applied (e.g. onTotalChange) and where.
