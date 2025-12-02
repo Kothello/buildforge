@@ -1,0 +1,154 @@
+GLOBAL CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any of these files (3D builder + pricing must stay untouched):
+
+client/src/configurator/BuildingModel.tsx
+
+client/src/configurator/Scene3D.tsx
+
+client/src/configurator/LeanToConfig.tsx
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any 3D geometry or pricing math.
+
+You may only change:
+
+DB/schema files for leads
+
+Lead API routes
+
+Lead list pages (Leads / My Leads) and any assignment UI components.
+
+GOAL
+
+There are two menus: Leads and My Leads.
+
+Leads = admins/managers see all leads and can assign them to specific users.
+
+My Leads = each user only sees leads where they are the assigned rep.
+
+If a lead is not assigned to the current user, it must not appear in My Leads.
+
+1. Add an assignedToUserId field to leads
+
+Open the shared schema file that defines the leads table (likely shared/schema.ts or similar).
+
+Add a nullable foreign key field to link a lead to a user:
+
+Name: assignedToUserId
+
+Type: string/UUID matching your users table primary key.
+
+Foreign key reference to the users table if the schema tooling supports it.
+
+Example (adapt to existing style):
+
+assignedToUserId: varchar("assigned_to_user_id", { length: 255 }).references(() => users.id).nullable(),
+
+
+Create or update the migration for this schema change so the database has the new column.
+
+Make sure the Lead TypeScript type exposed to the client includes assignedToUserId?: string | null.
+
+2. Update lead API to support “my leads” and assignment
+
+Find the server route that handles GET /api/leads.
+
+Extend it to support a query parameter mine=true:
+
+Get the current authenticated user (whatever auth helper you already use).
+
+If req.query.mine === "true":
+
+Filter leads where assignedToUserId === currentUser.id.
+
+Otherwise, keep existing behavior (return all leads, or whatever it currently does).
+
+Allow admins/managers to set assignedToUserId:
+
+In the route that handles PATCH /api/leads/:id (or equivalent):
+
+If the request body contains assignedToUserId, only allow this change when the current user has role admin or manager (use your existing role/permission system).
+
+For non-admins, ignore or reject changes to assignedToUserId.
+
+Optionally, add a helper endpoint if it’s cleaner, e.g. POST /api/leads/:id/assign, but re-use the existing auth/DB stack.
+
+3. Filter My Leads to only show assigned leads
+
+Open the React page/component used for the My Leads menu item (this was previously showing all leads assigned to the user; in code it’s probably something like client/src/pages/sales-dashboard.tsx or a similar file).
+
+Find the React Query hook that fetches leads, e.g.:
+
+useQuery(["/api/leads"], ...)
+
+
+Change the request it makes so it calls the API with mine=true, for example:
+
+URL: /api/leads?mine=true
+
+Query key: ["/api/leads", "mine"] or similar, so it’s distinct from the “all leads” query.
+
+Do not implement any client-side filter based on assignedToUserId; the server must enforce this with the mine=true logic.
+
+Result: the My Leads page will now only receive leads where assignedToUserId matches the logged-in user.
+
+4. Allow admins/managers to assign leads from the main “Leads” view
+
+Open the React page used for the general Leads list (not “My Leads” – the one where admins/managers see everything).
+
+For each row in the leads table:
+
+Add a simple assignment control. Options (choose whichever matches your existing UI conventions):
+
+A dropdown that lists all sales reps (users with role “rep” / “sales”).
+
+Or at minimum, an “Assign to me” button that sets assignedToUserId = currentUser.id.
+
+Wire the control to a mutation that calls the existing PATCH /api/leads/:id with:
+
+{ "assignedToUserId": "<selectedUserId>" }
+
+
+On successful mutation:
+
+Update React Query cache for:
+
+The all-leads query (e.g. ["/api/leads"]).
+
+The my-leads query (e.g. ["/api/leads", "mine"]) – either via invalidateQueries or setQueryData so that:
+
+If the lead was just assigned to the current user, it appears in My Leads.
+
+If it was reassigned away from the current user, it disappears from My Leads.
+
+Only render the assignment UI for users with admin or manager role. For other roles, they should see the leads but not be able to reassign them.
+
+5. Verify behavior
+
+Log in as an admin/manager:
+
+Go to Leads: see all leads.
+
+Assign a lead to a specific user (or to yourself).
+
+Confirm the API updates assignedToUserId.
+
+Log in as that specific user:
+
+Go to My Leads: only see leads where assignedToUserId equals your user id.
+
+You should not see unassigned leads or leads assigned to other users.
+
+In your summary, please show:
+
+The final Lead type (with the new assignedToUserId field).
+
+The updated GET /api/leads handler logic for mine=true.
+
+The React Query call used by My Leads (URL and query key).
+
+The assignment UI snippet and mutation for the main Leads page.
