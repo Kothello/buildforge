@@ -1,0 +1,299 @@
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any files under:
+
+- client/src/configurator/**
+- configurator/iron-builder-studio-*/**
+
+Do NOT modify:
+
+- server/pricingEngine.ts
+- server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+ALLOWED SCOPE FOR THIS TASK
+
+Client:
+
+- client/src/App.tsx
+- client/src/pages/sales-dashboard.tsx        // My Leads
+- client/src/pages/leads.tsx                  // Admin/Manager all leads
+- client/src/pages/crm-admin.tsx              // CRM Settings / Users
+- client/src/components/**                    // Layout / nav / protected-route components as needed
+- client/src/lib/**                           // ONLY if you add small auth/role helper utilities
+
+Server:
+
+- server/routes.ts                            // Lead/user routes + auth/role checks only
+- server/storage.ts                           // ONLY if needed for role helpers
+- server/auth/** or similar auth middleware   // ONLY to reuse existing auth, not to redesign it
+
+Do NOT change:
+
+- shared/schema.ts
+- Any pricing logic files
+- Any configurator-related routes
+
+CONTEXT
+
+The app already has:
+
+- Roles: "ADMIN", "MANAGER", "REP".
+- Routes:
+  - /sales                 → My Leads (per-rep)
+  - /leads or similar      → Admin/Manager all-leads view
+  - /crm/admin or similar  → CRM Settings / Users
+- Auth system:
+  - There is an existing auth middleware on the server (authMiddleware(storage) or similar).
+  - On the client there is a hook or context (useAuth or equivalent) that exposes the current user and role.
+
+CURRENT REQUIREMENT
+
+Enforce clean role-based navigation and access rules:
+
+- ADMIN and MANAGER:
+  - Can see and access:
+    - All Leads view (all leads)
+    - CRM Settings / Users
+    - My Leads, Pipeline, etc.
+- REP:
+  - Can see and access:
+    - My Leads, Pipeline, callbacks, etc.
+  - Must NOT see, in the UI:
+    - All Leads (admin/manager leads view)
+    - CRM Settings / Users
+  - Must NOT be able to access these pages by URL:
+    - Direct hit should result in redirect to /sales (+ optional access denied message).
+
+You MUST use the existing auth system:
+- Reuse whatever useAuth() / AuthContext you already have on the client.
+- Reuse authMiddleware(storage) or equivalent on the server.
+
+GOAL
+
+1) Centralize role checks on the client.
+2) Hide/show navigation entries based on role.
+3) Add client-side route guards for admin-only pages.
+4) Enforce the same permissions on the server routes.
+5) Preserve all existing configurator, pricing, and lead behavior.
+
+DETAILED STEPS
+
+1. Centralize role checks on the client
+
+- Locate the main layout / navigation and auth hook:
+  - Find where the current user is read in the client, e.g.:
+    - useAuth(), useSession(), or similar.
+  - Find the main layout / shell that renders the sidebar/top nav and route container:
+    - Often client/src/App.tsx or a layout component under client/src/components/layout/**.
+
+- Create a small role helper (either in the layout or a tiny utility file under client/src/lib/ or client/src/components/auth/):
+
+  Example:
+
+    const { user } = useAuth(); // or existing hook/context
+
+    const role = user?.role;
+    const isAdmin = role === "ADMIN";
+    const isManager = role === "MANAGER";
+    const isRep = role === "REP";
+    const isAdminOrManager = isAdmin || isManager;
+
+- Reuse these booleans in:
+  - Navigation rendering (sidebar/topbar).
+  - Protected routes for admin-only pages.
+
+2. Hide / show navigation entries by role
+
+- In the sidebar or menu component (where you render links to /sales, /leads, /crm/admin, etc.):
+
+  - Ensure My Leads (/sales) is visible to ALL authenticated roles.
+
+  - Only show Admin/Manager links when isAdminOrManager is true:
+
+    {isAdminOrManager && (
+      <NavItem to="/leads" label="All Leads" />
+    )}
+
+    <NavItem to="/sales" label="My Leads" />
+
+    {isAdminOrManager && (
+      <NavItem to="/crm/admin" label="CRM Settings" />
+    )}
+
+- Remove any unconditional or rep-visible entries that point to:
+  - /leads (admin all-leads)
+  - /crm/admin (CRM Settings / Users)
+
+- Do NOT remove any configurator-related nav, routes, or buttons.
+
+3. Add route guards for admin-only pages on the client
+
+- Identify the routes that render admin/manager-only pages:
+
+  - All Leads view (e.g. /leads or /sales/all-leads)
+  - CRM Settings / Users (e.g. /crm/admin)
+
+- Implement a small ProtectedRoute component OR inline checks:
+
+  Example ProtectedRoute:
+
+    function AdminOrManagerRoute({ children }: { children: React.ReactNode }) {
+      const { user } = useAuth();
+      const role = user?.role;
+      const isAdminOrManager = role === "ADMIN" || role === "MANAGER";
+
+      if (!user) {
+        return <Navigate to="/login" replace />;
+      }
+
+      if (!isAdminOrManager) {
+        // Optionally trigger a toast "Access denied – managers/admins only"
+        return <Navigate to="/sales" replace />;
+      }
+
+      return <>{children}</>;
+    }
+
+- Wrap admin pages in this guard when defining routes in App.tsx (or wherever your routes live):
+
+  <Route
+    path="/leads"
+    element={
+      <AdminOrManagerRoute>
+        <AllLeadsPage />
+      </AdminOrManagerRoute>
+    }
+  />
+
+  <Route
+    path="/crm/admin"
+    element={
+      <AdminOrManagerRoute>
+        <CrmAdminPage />
+      </AdminOrManagerRoute>
+    }
+  />
+
+- For REP users:
+  - If they manually type /leads or /crm/admin:
+    - They must be redirected to /sales.
+    - Optional: show a toast "Access denied – only managers and admins can view that page."
+  - Implement the toast only if you already have a toast system in place; do not introduce a new third-party library.
+
+4. Enforce the same rules on the server
+
+- Open server/routes.ts.
+
+- Identify routes that return admin-level data:
+
+  - All leads list:
+    - Example: GET /api/leads
+    - Distinguish between:
+      - “my leads” (per-rep) endpoint: often GET /api/leads?mine=true or a dedicated route.
+      - “all leads” endpoint: returns every lead.
+
+  - User/CRM management routes:
+    - Example: GET /api/users, POST /api/users, DELETE /api/users/:id, etc.
+
+- Ensure each admin-level route uses both:
+  - authMiddleware(storage) (or equivalent) to authenticate.
+  - A role check to restrict to ADMIN or MANAGER.
+
+- If there is already a requireRole or similar helper, reuse it:
+
+  Example:
+
+    app.get(
+      "/api/leads",
+      authMiddleware(storage),
+      requireRole("ADMIN", "MANAGER"),
+      async (req, res) => {
+        // return all leads
+      }
+    );
+
+- If the same route currently branches based on user role (e.g. “if query.mine → only mine, else all”), refactor explicitly:
+
+  - Use one code path for “my leads” that allows REP:
+    - Example: GET /api/leads?mine=true
+      - authMiddleware(storage) only, no requireRole
+      - uses req.user.id to filter to leads assigned to that user.
+
+  - Use another code path for “all leads” that only ADMIN/MANAGER can access:
+    - Example: GET /api/leads?scope=all or just GET /api/leads without mine=true
+      - authMiddleware(storage) + requireRole("ADMIN", "MANAGER")
+
+- For users / CRM settings routes:
+
+  - Enforce:
+
+    app.get("/api/users", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), ...);
+    app.post("/api/users", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), ...);
+    app.delete("/api/users/:id", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), ...);
+
+- Make sure a REP hitting those endpoints receives:
+  - HTTP 403 Forbidden (or 401 if your convention is unauthorized), not full data.
+
+5. Keep existing behavior intact
+
+- Do NOT change:
+  - Disposition handling.
+  - Lead history.
+  - Configurator embedding or Save Changes flow.
+  - Pricing recalculation behavior.
+  - Any Days on Stage / Days Since Dispo logic.
+
+- Only add conditional nav, route guards, and role checks as described.
+
+SUMMARY (WHAT TO REPORT BACK)
+
+In your final message, include:
+
+1) Files modified on the client:
+   - Example:
+     - client/src/App.tsx
+     - client/src/components/Sidebar.tsx (or whichever nav/layout file)
+     - client/src/components/routes/AdminOrManagerRoute.tsx (if created)
+
+2) Files modified on the server:
+   - server/routes.ts
+   - Any auth helper file if touched (list explicitly).
+
+3) Exact role logic used:
+   - e.g. isAdmin, isManager, isRep, isAdminOrManager.
+   - How you distinguished:
+     - My Leads (rep + higher) vs All Leads (admin/manager only).
+
+4) Behavior verification instructions:
+
+   As ADMIN:
+   - Log in as ADMIN.
+   - Confirm sidebar shows:
+     - My Leads
+     - All Leads
+     - CRM Settings / Users.
+   - Confirm /leads and /crm/admin load successfully.
+   - Confirm calling admin endpoints (GET /api/leads for all, GET /api/users, etc.) succeeds.
+
+   As MANAGER:
+   - Same as ADMIN.
+
+   As REP:
+   - Log in as REP.
+   - Confirm sidebar shows:
+     - My Leads (and any other rep-appropriate links).
+   - Confirm sidebar does NOT show:
+     - All Leads
+     - CRM Settings / Users.
+   - Manually visit /leads and /crm/admin:
+     - Confirm redirect to /sales.
+     - Confirm any access-denied toast appears if implemented.
+   - Confirm calling admin endpoints directly returns 403/401, not full data.
+
+5) Explicitly confirm:
+
+   - No files under client/src/configurator/** or configurator/iron-builder-studio-*/** were changed.
+   - server/pricingEngine.ts and server/pricingRoutes.ts were not modified.
+   - No 3D configurator, camera, geometry, or pricing logic changes.

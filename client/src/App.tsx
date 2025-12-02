@@ -143,7 +143,7 @@ function Router() {
         <Route path="/crm/deals/:id">{() => <LazyCrmDealDetailPage />}</Route>
         <Route path="/crm/contacts">{() => <LazyCrmContactsPage />}</Route>
         <Route path="/crm/reports">{() => <LazyCrmReportsPage />}</Route>
-        <Route path="/crm/admin">{() => <AdminRoute><LazyCrmAdminPage /></AdminRoute>}</Route>
+        <Route path="/crm/admin">{() => <ManagerOrAdminRoute><LazyCrmAdminPage /></ManagerOrAdminRoute>}</Route>
         <Route component={NotFound} />
       </Switch>
     </Suspense>

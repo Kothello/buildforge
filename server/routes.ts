@@ -319,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(userWithoutPassword);
   });
 
-  app.get("/api/users", async (req, res) => {
+  app.get("/api/users", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const allUsers = await storage.getUsers();
       const usersWithoutPasswords = allUsers.map(({ passwordHash, ...user }) => user);
@@ -329,7 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const { name, email, password, role = "REP" } = req.body;
       
@@ -358,7 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/users/:id", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const updates = { ...req.body };
       if (updates.password) {
@@ -378,7 +378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", authMiddleware(storage), requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
+  app.delete("/api/users/:id", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.params.id;
       
