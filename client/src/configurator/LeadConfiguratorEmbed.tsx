@@ -85,9 +85,28 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
       console.log('[LeadConfiguratorEmbed] updatedLead.totalPrice:', data.totalPrice);
       return data;
     },
-    onSuccess: (updatedLead: Lead) => {
+    onSuccess: async (updatedLead: Lead) => {
       console.log('[LeadConfiguratorEmbed] onSuccess called with:', updatedLead);
       console.log('[LeadConfiguratorEmbed] Cache key for detail:', ["/api/leads", leadId]);
+      
+      // Create a quote snapshot after successful lead update
+      try {
+        await apiRequest('POST', `/api/leads/${leadId}/quotes`, {
+          body: JSON.stringify({
+            buildingSpecs: updatedLead.buildingSpecs,
+            configuration: updatedLead.configuration,
+            totalPrice: updatedLead.totalPrice,
+            marginPercent: null,
+            source: 'crm',
+          }),
+        });
+        
+        // Invalidate quote history cache to refetch latest
+        queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId, "quotes"] });
+      } catch (quoteError) {
+        console.error('Failed to create quote snapshot:', quoteError);
+        // Don't fail the mutation if quote creation fails
+      }
       
       setIsSaving(false);
       

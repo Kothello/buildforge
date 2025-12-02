@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { lazy, Suspense, useState, useEffect } from "react";
-import { Lead, Activity, Deal } from "@shared/schema";
+import { Lead, Activity, Deal, LeadQuote } from "@shared/schema";
 import { ActionButtons } from "@/components/action-buttons";
 import { AIMessageCard } from "@/components/ai-message-card";
 import { PricingBreakdown } from "@/components/pricing-breakdown";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileCheck, Sparkles, DollarSign, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
 
 const BuildingViewer3D = lazy(() => import("@/components/building-viewer-3d").then(m => ({ default: m.BuildingViewer3D })));
 const LeadConfiguratorEmbed = lazy(() => import("@/configurator/LeadConfiguratorEmbed").then(m => ({ default: m.LeadConfiguratorEmbed })));
@@ -63,6 +64,11 @@ export default function LeadEditPage() {
 
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["/api/deals"],
+  });
+
+  const { data: quotes = [], isLoading: quotesLoading } = useQuery<LeadQuote[]>({
+    queryKey: ["/api/leads", leadId, "quotes"],
+    enabled: !!leadId,
   });
 
   const deal = lead ? deals.find((d) => d.leadId === lead.id) : undefined;
@@ -131,8 +137,9 @@ export default function LeadEditPage() {
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 h-8">
+              <TabsList className="grid w-full grid-cols-4 h-8">
                 <TabsTrigger value="overview" data-testid="tab-overview" className="text-xs">Overview</TabsTrigger>
+                <TabsTrigger value="quotes" data-testid="tab-quotes" className="text-xs">Quotes</TabsTrigger>
                 <TabsTrigger value="3d-viewer" data-testid="tab-3d" className="text-xs">3D View</TabsTrigger>
                 <TabsTrigger value="activity" data-testid="tab-activity" className="text-xs">Activity</TabsTrigger>
               </TabsList>
@@ -202,6 +209,55 @@ export default function LeadEditPage() {
                     </div>
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="quotes" className="mt-3 space-y-3">
+                <div className="space-y-2">
+                  {quotesLoading && (
+                    <div className="text-xs text-muted-foreground">Loading quotes...</div>
+                  )}
+                  {!quotesLoading && quotes.length === 0 && (
+                    <div className="text-xs text-muted-foreground">No quote history yet.</div>
+                  )}
+                  <div className="space-y-2">
+                    {quotes.map((quote) => (
+                      <div
+                        key={quote.id}
+                        className="rounded-md border border-border p-3 text-xs hover-elevate"
+                        data-testid={`card-quote-${quote.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-foreground">
+                              {quote.totalPrice
+                                ? `$${Number(quote.totalPrice).toLocaleString("en-US", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}`
+                                : "N/A"}
+                            </div>
+                            <div className="text-muted-foreground text-[10px] mt-1">
+                              {quote.createdAt
+                                ? formatDistanceToNow(new Date(quote.createdAt), {
+                                    addSuffix: true,
+                                  })
+                                : "Unknown"}
+                            </div>
+                          </div>
+                          {quote.source && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] shrink-0"
+                              data-testid={`badge-quote-source-${quote.id}`}
+                            >
+                              {quote.source}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="3d-viewer" className="mt-6">

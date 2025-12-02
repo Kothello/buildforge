@@ -16,6 +16,7 @@ import {
   insertDealNoteSchema,
   insertTaskSchema,
   insertDealActivitySchema,
+  insertLeadQuoteSchema,
 } from "@shared/schema";
 import { parseLeadFromText, generateFirstMessage, generateCallSummary, generateUnstickSuggestion, generateMorningBrief } from "./ai";
 import { triggerWebhook } from "./webhooks";
@@ -900,6 +901,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(lead);
     } catch (error) {
       res.status(500).json({ error: "Failed to assign lead" });
+    }
+  });
+
+  app.get("/api/leads/:id/quotes", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const leadId = req.params.id;
+      const quotes = await storage.getLeadQuotes(leadId);
+      res.json(quotes);
+    } catch (error) {
+      console.error("Error fetching lead quotes", error);
+      res.status(500).json({ error: "Failed to load quote history" });
+    }
+  });
+
+  app.post("/api/leads/:id/quotes", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const leadId = req.params.id;
+      const userId = req.user?.id ?? null;
+      const { buildingSpecs, configuration, totalPrice, marginPercent, source } = req.body;
+
+      const validatedData = insertLeadQuoteSchema.parse({
+        leadId,
+        createdByUserId: userId,
+        buildingSpecs,
+        configuration,
+        totalPrice,
+        marginPercent: marginPercent ?? null,
+        source: source ?? "crm",
+      });
+
+      const quote = await storage.createLeadQuote(validatedData);
+      res.status(201).json(quote);
+    } catch (error) {
+      console.error("Error creating lead quote", error);
+      res.status(500).json({ error: "Failed to save quote snapshot" });
     }
   });
 
