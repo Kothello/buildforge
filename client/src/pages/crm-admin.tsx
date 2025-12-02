@@ -184,6 +184,27 @@ export default function CrmAdminPage() {
     },
   });
 
+  const runAgingAutomationMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/run-lead-aging", {});
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ 
+        title: "Lead aging automation complete", 
+        description: `Updated ${data.updatedCount} leads`
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        variant: "destructive", 
+        title: "Failed to run automation", 
+        description: error.message 
+      });
+    },
+  });
+
   const handleUserSubmit = () => {
     if (editingUser) {
       const updates: any = { name: userForm.name, email: userForm.email, role: userForm.role };
@@ -640,6 +661,45 @@ export default function CrmAdminPage() {
                   </Button>
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-amber-500/20 bg-amber-500/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Lead Aging Automation
+              </CardTitle>
+              <CardDescription>Automatically move stale leads to reactivation stages</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This automation moves non-sold leads based on days since last disposition:
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
+                <li>30-90 days → reactivation_30</li>
+                <li>90-180 days → reactivation_90</li>
+                <li>180-730 days → reactivation_180</li>
+                <li>730+ days → aged_out</li>
+              </ul>
+              <Button
+                onClick={() => runAgingAutomationMutation.mutate()}
+                disabled={runAgingAutomationMutation.isPending}
+                variant="default"
+                data-testid="button-run-aging-automation"
+              >
+                {runAgingAutomationMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    Run Lead Aging Automation Now
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
