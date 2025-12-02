@@ -251,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", async (req, res) => {
+  app.patch("/api/users/:id", authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const updates = { ...req.body };
       if (updates.password) {
@@ -284,8 +284,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
       
-      res.status(200).json({ success: true });
+      res.json({ success: true });
     } catch (error) {
+      console.error("Delete user error:", error);
       res.status(500).json({ error: "Failed to delete user" });
     }
   });
