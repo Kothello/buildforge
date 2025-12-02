@@ -54,6 +54,38 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect to="/login" />;
+  }
+
+  if (user?.role !== "ADMIN") {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-base font-medium">Access Denied</div>
+          <p className="text-muted-foreground text-sm">You need admin privileges to access this page.</p>
+          <button
+            onClick={() => setLocation("/")}
+            className="text-primary text-sm underline hover:no-underline"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -61,9 +93,9 @@ function Router() {
         <Route path="/login">{() => <LazyLoginPage />}</Route>
         <Route path="/builder">{() => <LazyBuilderPage />}</Route>
         <Route path="/">{() => <LazyDashboard />}</Route>
-        <Route path="/admin">{() => <LazyAdminDashboard />}</Route>
-        <Route path="/admin/users">{() => <LazyAdminUsersPage />}</Route>
-        <Route path="/admin/pricing">{() => <LazyPricingAdminPage />}</Route>
+        <Route path="/admin">{() => <AdminRoute><LazyAdminDashboard /></AdminRoute>}</Route>
+        <Route path="/admin/users">{() => <AdminRoute><LazyAdminUsersPage /></AdminRoute>}</Route>
+        <Route path="/admin/pricing">{() => <AdminRoute><LazyPricingAdminPage /></AdminRoute>}</Route>
         <Route path="/sales/leads/:id">{() => <LazyLeadEditPage />}</Route>
         <Route path="/sales">{() => <LazySalesDashboard />}</Route>
         <Route path="/projects">{() => <LazyProjectsPage />}</Route>
@@ -75,7 +107,7 @@ function Router() {
         <Route path="/crm/deals/:id">{() => <LazyCrmDealDetailPage />}</Route>
         <Route path="/crm/contacts">{() => <LazyCrmContactsPage />}</Route>
         <Route path="/crm/reports">{() => <LazyCrmReportsPage />}</Route>
-        <Route path="/crm/admin">{() => <LazyCrmAdminPage />}</Route>
+        <Route path="/crm/admin">{() => <AdminRoute><LazyCrmAdminPage /></AdminRoute>}</Route>
         <Route component={NotFound} />
       </Switch>
     </Suspense>
