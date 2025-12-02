@@ -271,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
+  app.delete("/api/users/:id", authMiddleware, requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.params.id;
       
