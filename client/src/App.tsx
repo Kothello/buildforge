@@ -74,10 +74,43 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
           <div className="text-base font-medium">Access Denied</div>
           <p className="text-muted-foreground text-sm">You need admin privileges to access this page.</p>
           <button
-            onClick={() => setLocation("/")}
+            onClick={() => setLocation("/sales")}
             className="text-primary text-sm underline hover:no-underline"
           >
-            Go to Dashboard
+            Go to My Leads
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+function ManagerOrAdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect to="/login" />;
+  }
+
+  const isAdminOrManager = user?.role === "ADMIN" || user?.role === "MANAGER";
+  if (!isAdminOrManager) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-base font-medium">Access Denied</div>
+          <p className="text-muted-foreground text-sm">Only managers and admins can view this page.</p>
+          <button
+            onClick={() => setLocation("/sales")}
+            className="text-primary text-sm underline hover:no-underline"
+          >
+            Go to My Leads
           </button>
         </div>
       </div>
@@ -98,7 +131,7 @@ function Router() {
         <Route path="/admin/users">{() => <AdminRoute><LazyAdminUsersPage /></AdminRoute>}</Route>
         <Route path="/admin/pricing">{() => <AdminRoute><LazyPricingAdminPage /></AdminRoute>}</Route>
         <Route path="/sales/leads/:id">{() => <LazyLeadEditPage />}</Route>
-        <Route path="/sales/all-leads">{() => <LazyLeadsPage />}</Route>
+        <Route path="/sales/all-leads">{() => <ManagerOrAdminRoute><LazyLeadsPage /></ManagerOrAdminRoute>}</Route>
         <Route path="/sales">{() => <LazySalesDashboard />}</Route>
         <Route path="/my-leads">{() => <LazySalesDashboard />}</Route>
         <Route path="/projects">{() => <LazyProjectsPage />}</Route>

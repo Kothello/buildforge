@@ -1,0 +1,196 @@
+You are working in the ProductEngineering-1 project.
+
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any files under:
+
+client/src/configurator/**
+
+configurator/iron-builder-studio-*/**
+
+Do NOT modify:
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+Only touch:
+
+Client: layout/nav, route components, and pages for Leads / My Leads / Admin / Settings.
+
+Server: lead/user routes and auth/role checks as needed.
+
+GOAL
+
+Implement clean role-based navigation and route protection:
+
+Admin and Manager:
+
+Can see and access:
+
+Admin Leads view (all leads)
+
+CRM Settings / Users
+
+My Leads, Pipeline, etc.
+
+Rep:
+
+Can see and access:
+
+My Leads, Pipeline, callbacks, etc.
+
+Must NOT see:
+
+Admin Leads page in the sidebar
+
+CRM Settings / Users in the sidebar
+
+Must NOT be able to access those pages by URL (redirect + access denied).
+
+Use the existing auth system (whatever useAuth() / user.role structure you already have).
+
+1. Centralize role checks on the client
+
+Find the main layout / navigation component that renders the sidebar and top-level routes (likely client/src/App.tsx and/or a layout under client/src/components or client/src/pages).
+
+Identify the hook used to get the current user and role, e.g.:
+
+const { user } = useAuth();
+// user.role might be "ADMIN", "MANAGER", "REP", etc.
+
+
+Create simple utility booleans:
+
+const isAdmin = user?.role === "ADMIN";
+const isManager = user?.role === "MANAGER";
+const isRep = user?.role === "REP";
+const isAdminOrManager = isAdmin || isManager;
+
+2. Hide / show navigation entries by role
+
+In the sidebar / menu component:
+
+Only show Admin Leads and CRM Settings / Users to isAdminOrManager.
+
+For reps, remove those items entirely from the sidebar.
+
+Example (pseudo-code, adapt to your UI):
+
+{isAdminOrManager && (
+  <NavItem to="/admin/leads" label="Leads" />
+)}
+
+<NavItem to="/sales" label="My Leads" />
+
+{isAdminOrManager && (
+  <NavItem to="/crm/admin" label="CRM Settings" />
+)}
+
+
+Do NOT remove My Leads or sales views for reps.
+
+3. Add route guards for admin-only pages
+
+For the routes that render:
+
+Admin Leads page (all leads)
+
+CRM Settings / Users page
+
+Wrap them in a guard component or inline logic:
+
+if (!isAdminOrManager) {
+  // Show access denied and redirect to /sales (My Leads)
+  return <Navigate to="/sales" replace />;
+}
+
+return <AdminLeadsPage />;
+
+
+or use your existing router’s equivalent of a protected route.
+
+Requirements:
+
+If a Rep manually types /crm/admin or the admin Leads URL, they should:
+
+Be redirected to /sales (My Leads).
+
+Optionally see a small toast like “Access denied – only managers and admins can view this page.”
+
+4. Enforce the same rules on the server
+
+On the backend:
+
+Find the route(s) that:
+
+Return the all-leads list (admin Leads view).
+
+Return / manage users and CRM settings.
+
+Ensure they are using the proper role check, e.g.:
+
+app.get("/api/leads", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (...) => { ... })
+
+
+or equivalent, so reps cannot hit the admin all-leads endpoint directly.
+
+If you already have a “my leads” endpoint or query behavior (e.g. GET /api/leads?mine=true), keep that as the Rep’s path; do not break it.
+
+Result:
+
+Admin/Manager can call the all-leads API.
+
+Rep gets 403/401 if they try to call the admin version.
+
+5. Verify behavior
+
+Log in as an Admin:
+
+Sidebar should show:
+
+Admin Leads
+
+My Leads
+
+CRM Settings / Users
+
+Admin Leads + CRM Settings pages should load.
+
+Log in as a Rep:
+
+Sidebar should show:
+
+My Leads, Pipeline, etc.
+
+Sidebar should not show:
+
+Admin Leads
+
+CRM Settings / Users
+
+Manually visiting /crm/admin or the admin Leads URL should:
+
+Redirect to /sales.
+
+Optionally show an “Access denied” toast.
+
+6. Summary
+
+In your summary, list:
+
+Files you modified on the client (nav, routes).
+
+Routes you guarded on the server.
+
+The exact boolean role checks you used (e.g. isAdminOrManager).
+
+A short step-by-step: how to test as Admin vs as Rep.
+
+Confirm explicitly that:
+
+No files under client/src/configurator/** were changed.
+
+No changes were made to the 3D builder or pricing logic.

@@ -136,7 +136,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {crmItems
-                .filter((item) => item.title !== "CRM Settings" || user?.role === "ADMIN")
+                .filter((item) => item.title !== "CRM Settings" || user?.role === "ADMIN" || user?.role === "MANAGER")
                 .map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
