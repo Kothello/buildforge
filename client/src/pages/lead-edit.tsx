@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { lazy, Suspense, useState, useEffect } from "react";
-import { Lead, Activity, Deal, LeadQuote } from "@shared/schema";
+import { Lead, Activity, Deal, LeadQuote, LeadHistory, DISPOSITIONS, STAGES } from "@shared/schema";
 import { ActionButtons } from "@/components/action-buttons";
 import { AIMessageCard } from "@/components/ai-message-card";
 import { PricingBreakdown } from "@/components/pricing-breakdown";
@@ -11,9 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileCheck, Sparkles, DollarSign, ArrowLeft } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileCheck, Sparkles, DollarSign, ArrowLeft, Send, User, Clock, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
+import { apiRequest } from "@/lib/queryClient";
 
 const BuildingViewer3D = lazy(() => import("@/components/building-viewer-3d").then(m => ({ default: m.BuildingViewer3D })));
 const LeadConfiguratorEmbed = lazy(() => import("@/configurator/LeadConfiguratorEmbed").then(m => ({ default: m.LeadConfiguratorEmbed })));
@@ -29,11 +35,45 @@ function ConfiguratorSkeleton() {
   );
 }
 
+const DISPOSITION_LABELS: Record<string, string> = {
+  LEFT_VOICEMAIL: "Left Voicemail",
+  NO_ANSWER: "No Answer",
+  NO_SHOW: "No Show",
+  SPOKE_WITH: "Spoke With",
+  BOOKED_CALL: "Booked Call",
+  SENT_QUOTE: "Sent Quote",
+  FOLLOW_UP: "Follow Up",
+  NOT_INTERESTED: "Not Interested",
+  COMPETITOR: "Competitor",
+  SOLD: "Sold",
+  CANCELED: "Canceled",
+};
+
+const STAGE_LABELS: Record<string, string> = {
+  new: "New",
+  working: "Working",
+  callback: "Callback",
+  welcome: "Welcome",
+  quote_sent: "Quote Sent",
+  negotiating: "Negotiating",
+  storage: "Storage",
+  building_prep: "Building Prep",
+  pending_delivery: "Pending Delivery",
+  sold: "Sold",
+  canceled: "Canceled",
+};
+
 export default function LeadEditPage() {
   const [, params] = useRoute("/sales/leads/:id");
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const leadId = params?.id;
+
+  const [disposition, setDisposition] = useState<string>("");
+  const [newStage, setNewStage] = useState<string>("");
+  const [note, setNote] = useState("");
+  const [nextCallbackAt, setNextCallbackAt] = useState("");
 
   const { data: queryLead, isLoading: isLoadingLead } = useQuery<Lead>({
     queryKey: ["/api/leads", leadId],
@@ -43,10 +83,8 @@ export default function LeadEditPage() {
     refetchOnWindowFocus: true,
   });
 
-  // Local state to ensure immediate UI updates after save
   const [localLead, setLocalLead] = useState<Lead | null>(null);
   
-  // Sync local state when query data changes
   useEffect(() => {
     if (queryLead) {
       console.log('[lead-edit] Query lead updated:', queryLead.totalPrice);
@@ -54,7 +92,6 @@ export default function LeadEditPage() {
     }
   }, [queryLead]);
   
-  // Use local state if available, otherwise fall back to query data
   const lead = localLead || queryLead;
 
   const { data: activities = [] } = useQuery<Activity[]>({
@@ -70,6 +107,51 @@ export default function LeadEditPage() {
     queryKey: ["/api/leads", leadId, "quotes"],
     enabled: !!leadId,
   });
+
+  const { data: history = [], isLoading: historyLoading } = useQuery<LeadHistory[]>({
+    queryKey: ["/api/leads", leadId, "history"],
+    enabled: !!leadId,
+  });
+
+  const { data: users = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const dispositionMutation = useMutation({
+    mutationFn: async (data: { disposition: string; newStage?: string; note?: string; nextCallbackAt?: string }) => {
+      const res = await apiRequest("POST", `/api/leads/${leadId}/dispositions`, data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Disposition saved", description: "Lead updated successfully" });
+      if (data.lead) {
+        setLocalLead(data.lead);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId, "history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      setDisposition("");
+      setNewStage("");
+      setNote("");
+      setNextCallbackAt("");
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to save disposition", variant: "destructive" });
+    },
+  });
+
+  const handleSaveDisposition = () => {
+    if (!disposition) {
+      toast({ title: "Required", description: "Please select a disposition", variant: "destructive" });
+      return;
+    }
+    dispositionMutation.mutate({
+      disposition,
+      newStage: newStage || undefined,
+      note: note || undefined,
+      nextCallbackAt: nextCallbackAt || undefined,
+    });
+  };
 
   const deal = lead ? deals.find((d) => d.leadId === lead.id) : undefined;
 
@@ -137,8 +219,9 @@ export default function LeadEditPage() {
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 h-8">
+              <TabsList className="grid w-full grid-cols-5 h-8">
                 <TabsTrigger value="overview" data-testid="tab-overview" className="text-xs">Overview</TabsTrigger>
+                <TabsTrigger value="history" data-testid="tab-history" className="text-xs">History</TabsTrigger>
                 <TabsTrigger value="quotes" data-testid="tab-quotes" className="text-xs">Quotes</TabsTrigger>
                 <TabsTrigger value="3d-viewer" data-testid="tab-3d" className="text-xs">3D View</TabsTrigger>
                 <TabsTrigger value="activity" data-testid="tab-activity" className="text-xs">Activity</TabsTrigger>
@@ -209,6 +292,135 @@ export default function LeadEditPage() {
                     </div>
                   </div>
                 )}
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Disposition & Notes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Disposition</Label>
+                        <Select value={disposition} onValueChange={setDisposition}>
+                          <SelectTrigger className="h-8 text-xs" data-testid="select-disposition">
+                            <SelectValue placeholder="Select disposition" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DISPOSITIONS.map((d) => (
+                              <SelectItem key={d} value={d} className="text-xs">
+                                {DISPOSITION_LABELS[d] || d}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Stage (optional)</Label>
+                        <Select value={newStage} onValueChange={setNewStage}>
+                          <SelectTrigger className="h-8 text-xs" data-testid="select-stage">
+                            <SelectValue placeholder={STAGE_LABELS[lead.stage] || lead.stage} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STAGES.map((s) => (
+                              <SelectItem key={s} value={s} className="text-xs">
+                                {STAGE_LABELS[s] || s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Next Callback (optional)</Label>
+                      <Input
+                        type="datetime-local"
+                        value={nextCallbackAt}
+                        onChange={(e) => setNextCallbackAt(e.target.value)}
+                        className="h-8 text-xs"
+                        data-testid="input-next-callback"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Note (optional)</Label>
+                      <Textarea
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder="Add a note about this interaction..."
+                        className="text-xs resize-none"
+                        rows={2}
+                        data-testid="input-disposition-note"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSaveDisposition}
+                      disabled={dispositionMutation.isPending || !disposition}
+                      className="w-full h-8 text-xs gap-2"
+                      data-testid="button-save-disposition"
+                    >
+                      <Send className="h-3 w-3" />
+                      {dispositionMutation.isPending ? "Saving..." : "Save Disposition"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-3 space-y-3">
+                <div className="space-y-2">
+                  {historyLoading && (
+                    <div className="text-xs text-muted-foreground">Loading history...</div>
+                  )}
+                  {!historyLoading && history.length === 0 && (
+                    <div className="text-xs text-muted-foreground">No disposition history yet.</div>
+                  )}
+                  <div className="space-y-2">
+                    {history.map((entry) => {
+                      const user = users.find((u) => u.id === entry.createdByUserId);
+                      return (
+                        <div
+                          key={entry.id}
+                          className="rounded-md border border-border p-3 text-xs"
+                          data-testid={`card-history-${entry.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[9px]">
+                                {DISPOSITION_LABELS[entry.disposition || ""] || entry.disposition}
+                              </Badge>
+                              {entry.newStage && entry.prevStage && (
+                                <Badge variant="secondary" className="text-[9px]">
+                                  {STAGE_LABELS[entry.prevStage]} → {STAGE_LABELS[entry.newStage]}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          {entry.note && (
+                            <p className="text-muted-foreground mb-2">{entry.note}</p>
+                          )}
+                          {entry.nextCallbackAt && (
+                            <div className="flex items-center gap-1 text-muted-foreground mb-2">
+                              <Clock className="h-3 w-3" />
+                              <span>Callback: {format(new Date(entry.nextCallbackAt), "MMM d, yyyy h:mm a")}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              <span>{user?.name || "Unknown"}</span>
+                            </div>
+                            <span>
+                              {entry.createdAt
+                                ? formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })
+                                : "Unknown"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="quotes" className="mt-3 space-y-3">
