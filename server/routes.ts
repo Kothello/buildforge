@@ -17,6 +17,9 @@ import {
   insertTaskSchema,
   insertDealActivitySchema,
   insertLeadQuoteSchema,
+  insertLeadHistorySchema,
+  DISPOSITIONS,
+  STAGES,
 } from "@shared/schema";
 import { parseLeadFromText, generateFirstMessage, generateCallSummary, generateUnstickSuggestion, generateMorningBrief } from "./ai";
 import { triggerWebhook } from "./webhooks";
@@ -936,6 +939,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating lead quote", error);
       res.status(500).json({ error: "Failed to save quote snapshot" });
+    }
+  });
+
+  app.get("/api/leads/:id/history", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const leadId = req.params.id;
+      const history = await storage.getLeadHistory(leadId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching lead history", error);
+      res.status(500).json({ error: "Failed to load lead history" });
+    }
+  });
+
+  app.post("/api/leads/:id/dispositions", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const leadId = req.params.id;
+      const userId = req.user!.id;
+      const { disposition, newStage, note, nextCallbackAt } = req.body;
+
+      if (!disposition) {
+        return res.status(400).json({ error: "Disposition is required" });
+      }
+
+      if (!DISPOSITIONS.includes(disposition)) {
+        return res.status(400).json({ error: "Invalid disposition value" });
+      }
+
+      if (newStage && !STAGES.includes(newStage)) {
+        return res.status(400).json({ error: "Invalid stage value" });
+      }
+
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      const prevStage = lead.stage;
+      const stageChanged = newStage && newStage !== prevStage;
+
+      const historyEntry = await storage.createLeadHistory({
+        leadId,
+        type: stageChanged ? "disposition_stage_change" : "disposition",
+        disposition,
+        prevStage: stageChanged ? prevStage : null,
+        newStage: stageChanged ? newStage : null,
+        note: note || null,
+        nextCallbackAt: nextCallbackAt ? new Date(nextCallbackAt) : null,
+        createdByUserId: userId,
+      });
+
+      const leadUpdates: any = {
+        lastDisposition: disposition,
+        lastDispositionAt: new Date(),
+      };
+
+      if (stageChanged) {
+        leadUpdates.stage = newStage;
+        leadUpdates.stageEnteredAt = new Date();
+      }
+
+      if (nextCallbackAt) {
+        leadUpdates.nextCallbackAt = new Date(nextCallbackAt);
+      }
+
+      const updatedLead = await storage.updateLead(leadId, leadUpdates);
+
+      if (stageChanged) {
+        await triggerWebhook("stage_change", { leadId, newStage, prevStage });
+        
+        if (newStage === "sold") {
+          await triggerWebhook("deal_won", updatedLead);
+        }
+      }
+
+      res.status(201).json({ history: historyEntry, lead: updatedLead });
+    } catch (error) {
+      console.error("Error creating disposition", error);
+      res.status(500).json({ error: "Failed to save disposition" });
     }
   });
 
