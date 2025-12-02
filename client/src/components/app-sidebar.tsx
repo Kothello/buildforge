@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 
 const prefetchMap: Record<string, () => void> = {
-  "/": () => import("@/pages/dashboard"),
+  "/dashboard": () => import("@/pages/dashboard"),
   "/sales/all-leads": () => import("@/pages/leads"),
   "/sales": () => import("@/pages/sales-dashboard"),
   "/my-leads": () => import("@/pages/sales-dashboard"),
@@ -60,7 +60,7 @@ const crmItems = [
 const menuItems = [
   {
     title: "Dashboard",
-    url: "/",
+    url: "/dashboard",
     icon: Home,
   },
   {
