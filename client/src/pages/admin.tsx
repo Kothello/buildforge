@@ -66,8 +66,13 @@ export default function AdminDashboard() {
           >
             Manage Pricing Configuration
           </Button>
-          <Button variant="outline" className="w-full justify-start" data-testid="button-manage-users">
-            Manage Sales Reps
+          <Button 
+            variant="outline" 
+            className="w-full justify-start" 
+            data-testid="button-manage-users"
+            onClick={() => setLocation('/admin/users')}
+          >
+            Manage User Roles
           </Button>
           <Button variant="outline" className="w-full justify-start" data-testid="button-view-projects">
             View All Projects
