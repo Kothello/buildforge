@@ -48,8 +48,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <PageLoader />;
   }
 
-  if (!isAuthenticated && location !== "/login") {
-    return <Redirect to="/login" />;
+  if (!isAuthenticated && location !== "/" && location !== "/login") {
+    return <Redirect to="/" />;
   }
 
   return <>{children}</>;
@@ -91,9 +91,9 @@ function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>
-        <Route path="/login">{() => <LazyLoginPage />}</Route>
         <Route path="/builder">{() => <LazyBuilderPage />}</Route>
-        <Route path="/">{() => <LazyDashboard />}</Route>
+        <Route path="/">{() => <LazyLoginPage />}</Route>
+        <Route path="/dashboard">{() => <LazyDashboard />}</Route>
         <Route path="/admin">{() => <AdminRoute><LazyAdminDashboard /></AdminRoute>}</Route>
         <Route path="/admin/users">{() => <AdminRoute><LazyAdminUsersPage /></AdminRoute>}</Route>
         <Route path="/admin/pricing">{() => <AdminRoute><LazyPricingAdminPage /></AdminRoute>}</Route>
@@ -126,7 +126,7 @@ function AppLayout() {
     "--sidebar-width-icon": "3rem",
   };
 
-  if (location === "/login") {
+  if (location === "/" || location === "/login") {
     return (
       <Suspense fallback={<PageLoader />}>
         <LazyLoginPage />
