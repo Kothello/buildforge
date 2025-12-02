@@ -20,12 +20,20 @@ const STALE_DISPO_DAYS = 7;
 const STALE_STAGE_DAYS = 14;
 
 type AgingFilter = "ALL" | "STALE_DISPO" | "LONG_STAGE" | "NEEDS_ATTENTION";
+type StageFilter = "ALL" | string;
+
+const STAGE_LABELS: Record<string, string> = {
+  "new": "New",
+  "in_progress": "In Progress",
+  "sold": "Sold",
+};
 
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortMode, setSortMode] = useState<"daysSinceDispo" | "daysOnStage">("daysSinceDispo");
   const [agingFilter, setAgingFilter] = useState<AgingFilter>("ALL");
+  const [stageFilter, setStageFilter] = useState<StageFilter>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [, navigate] = useLocation();
@@ -122,8 +130,15 @@ export default function SalesDashboard() {
       }
     });
     
+    // Apply stage filter
+    const filteredByStage = filteredByAging.filter((lead: any) => {
+      if (stageFilter === "ALL") return true;
+      const stageKey = lead.status ?? "";
+      return stageKey === stageFilter;
+    });
+    
     // Sort by aging metrics
-    const sorted = [...filteredByAging].sort((a: any, b: any) => {
+    const sorted = [...filteredByStage].sort((a: any, b: any) => {
       if (sortMode === "daysSinceDispo") {
         const aVal = a.daysSinceLastDispo ?? -1;
         const bVal = b.daysSinceLastDispo ?? -1;
@@ -139,7 +154,46 @@ export default function SalesDashboard() {
       }
     });
     return sorted;
-  }, [leads, searchTerm, statusFilter, sortMode, agingFilter]);
+  }, [leads, searchTerm, statusFilter, sortMode, agingFilter, stageFilter]);
+
+  const stageBuckets = useMemo(() => {
+    const buckets: Record<string, { count: number }> = {};
+    // Use leads after search, status, and aging filters but before stage filter
+    let filtered = leads.filter((lead: any) =>
+      lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((lead: any) => lead.status === statusFilter);
+    }
+    const filteredByAging = filtered.filter((lead: any) => {
+      const daysOnStage = lead.daysOnStage ?? 0;
+      const daysSinceDispo = lead.daysSinceLastDispo ?? 0;
+      const needsAttention =
+        daysSinceDispo >= STALE_DISPO_DAYS ||
+        daysOnStage >= STALE_STAGE_DAYS;
+
+      switch (agingFilter) {
+        case "STALE_DISPO":
+          return lead.daysSinceLastDispo !== null && daysSinceDispo >= STALE_DISPO_DAYS;
+        case "LONG_STAGE":
+          return daysOnStage >= STALE_STAGE_DAYS;
+        case "NEEDS_ATTENTION":
+          return needsAttention;
+        case "ALL":
+        default:
+          return true;
+      }
+    });
+
+    filteredByAging.forEach((lead: any) => {
+      const stageKey = lead.status ?? "unknown";
+      if (!buckets[stageKey]) {
+        buckets[stageKey] = { count: 0 };
+      }
+      buckets[stageKey].count += 1;
+    });
+    return buckets;
+  }, [leads, searchTerm, statusFilter, agingFilter]);
 
   const stats = useMemo(() => ({
     total: leads.length,
@@ -264,6 +318,28 @@ export default function SalesDashboard() {
             Needs attention
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-3">
+        <Button
+          size="sm"
+          variant={stageFilter === "ALL" ? "default" : "outline"}
+          onClick={() => setStageFilter("ALL")}
+          data-testid="button-stage-all"
+        >
+          All ({myLeads.length})
+        </Button>
+        {Object.entries(stageBuckets).map(([stageKey, stats]) => (
+          <Button
+            key={stageKey}
+            size="sm"
+            variant={stageFilter === stageKey ? "default" : "outline"}
+            onClick={() => setStageFilter(stageKey)}
+            data-testid={`button-stage-${stageKey}`}
+          >
+            {STAGE_LABELS[stageKey] ?? stageKey} ({stats.count})
+          </Button>
+        ))}
       </div>
 
       {isLoading ? (

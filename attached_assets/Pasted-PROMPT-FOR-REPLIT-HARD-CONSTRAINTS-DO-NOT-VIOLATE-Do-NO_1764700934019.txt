@@ -1,0 +1,202 @@
+PROMPT FOR REPLIT
+
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any files under:
+
+client/src/configurator/**
+
+configurator/iron-builder-studio-*/**
+
+Do NOT modify:
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+Allowed for this task:
+
+client/src/pages/sales-dashboard.tsx // “My Leads” view (REP pipeline)
+
+client/src/pages/leads.tsx // Admin/manager “All Leads” (global pipeline)
+
+client/src/components/** // Small UI components if needed (chips/cards)
+
+Do NOT touch backend files (shared/schema.ts, server/routes.ts, server/storage.ts, etc.).
+
+GOAL
+
+Add a “Pipeline Buckets” bar similar to the old CRM funnel, on both:
+
+/sales (My Leads – reps & up)
+
+/leads (All Leads – admin/manager)
+
+Each bucket represents a lead stage / status and shows a count of leads in that bucket. Clicking a bucket filters the table to that bucket. “All” resets the filter.
+
+Use only existing lead data (whatever field we already use for stage / status on those pages).
+
+1) Common behavior
+
+Identify the field we are already using as the “stage” or “pipeline status” in both pages
+(for example: lead.stage or lead.status or lead.pipelineStage – reuse that, do NOT invent a new field).
+
+On each page, derive a Map or object of:
+
+type StageBucketStats = {
+  count: number;
+};
+
+const stageBuckets: Record<string, StageBucketStats> = {};
+
+
+Based on the already-filtered leads list for that page:
+
+For /sales, use the list that is already filtered by:
+
+assigned to current user
+
+search
+
+status
+
+agingFilter (from the last task)
+
+For /leads, use the full leads list returned from the query (plus any existing search/filter on that page).
+
+Normalize stage names to human-readable labels (e.g. "WORKING_LEAD" → "Working Lead").
+You can define a local mapping like:
+
+const STAGE_LABELS: Record<string, string> = {
+  WORKING: "Working Lead",
+  CALLBACK: "Callbacks",
+  STORAGE: "Storage",
+  // fallback:
+};
+
+
+and fall back to the raw value if not found.
+
+Define new state in both files:
+
+type StageFilter = "ALL" | string; // "ALL" or a specific stage key
+
+const [stageFilter, setStageFilter] = useState<StageFilter>("ALL");
+
+
+After existing search / status / aging filters are applied, apply the stageFilter:
+
+const leadsAfterOtherFilters = ...existing filtered list...;
+
+const leadsAfterStageFilter = leadsAfterOtherFilters.filter((lead) => {
+  if (stageFilter === "ALL") return true;
+  const stageKey = lead.stage ?? lead.status ?? "";
+  return stageKey === stageFilter;
+});
+
+// Then apply existing sort logic to leadsAfterStageFilter and use that for rendering.
+
+
+Make sure you reuse the same “stage field” in both the buckets and the filter logic so counts and filtering match.
+
+2) UI – Pipeline Buckets bar
+
+For both /sales and /leads:
+
+Above the table (but below page title / pipeline health summary), render a horizontal, scrollable flex row of bucket chips/cards:
+
+<div className="mb-3 flex flex-wrap gap-2">
+  <Button
+    size="xs"
+    variant={stageFilter === "ALL" ? "default" : "outline"}
+    onClick={() => setStageFilter("ALL")}
+  >
+    All ({totalLeadsCount})
+  </Button>
+
+  {Object.entries(stageBuckets).map(([stageKey, stats]) => (
+    <Button
+      key={stageKey}
+      size="xs"
+      variant={stageFilter === stageKey ? "default" : "outline"}
+      onClick={() => setStageFilter(stageKey)}
+    >
+      {STAGE_LABELS[stageKey] ?? stageKey} ({stats.count})
+    </Button>
+  ))}
+</div>
+
+
+Use whatever Button / Badge components the page already uses (shadcn Button is fine).
+
+This bar must be responsive and not break existing layout.
+
+Make sure clicking a bucket:
+
+Updates stageFilter
+
+Does not reset existing search / status / aging filters – these should stack.
+
+Ensure that:
+
+“All” shows the same leads the page would previously show (respecting existing filters).
+
+Buckets show subsets of that same set.
+
+3) Page-specific notes
+
+/sales – My Leads (client/src/pages/sales-dashboard.tsx)
+
+Reuse the same STALE_DISPO_DAYS / STALE_STAGE_DAYS and agingFilter you previously added.
+
+Stage buckets should be computed after applying:
+
+current user filter
+
+search
+
+status
+
+agingFilter
+
+Do NOT change:
+
+row click navigation
+
+configurator buttons
+
+any pricing or 3D behavior
+
+/leads – All Leads (client/src/pages/leads.tsx)
+
+Stage buckets should be computed from the leads list already used to render the table (after any existing search / status filters on that page).
+
+Keep the “Pipeline Health” summary you added earlier.
+
+Buckets just sit under the summary cards and above the table.
+
+4) Final report back
+
+In your final summary, please specify:
+
+Files modified (should only be):
+
+client/src/pages/sales-dashboard.tsx
+
+client/src/pages/leads.tsx
+
+optionally a new small component under client/src/components/ if you factored out a reusable StageBucketsBar.
+
+Which field you used as the “stage” key (e.g. lead.stage, lead.status, etc.).
+
+Confirm:
+
+No files under client/src/configurator/** or configurator/iron-builder-studio-*/** were touched.
+
+No changes to server/pricingEngine.ts or server/pricingRoutes.ts.
+
+No configurator / 3D / pricing behavior was modified.
+
+END PROMPT
