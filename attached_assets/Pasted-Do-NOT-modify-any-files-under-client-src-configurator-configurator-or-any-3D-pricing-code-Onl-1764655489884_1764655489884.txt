@@ -1,0 +1,149 @@
+Do NOT modify any files under client/src/configurator, configurator/, or any 3D / pricing code.
+
+Only touch:
+
+client/src/pages/crm-admin.tsx
+
+server/routes.ts
+
+any shared storage / db user helper if strictly necessary.
+
+Do not rename routes or change auth logic in unrelated places.
+
+GOAL
+
+The “Delete User” confirmation dialog in CRM Settings → Users still doesn’t actually remove users. I need you to prove and fix the full flow:
+
+The users list query in crm-admin.tsx uses a specific React Query key.
+
+The delete mutation calls the right DELETE endpoint.
+
+The server route really deletes the user and returns 200 { success: true }.
+
+On success, the list is refreshed and the row disappears without reloading the page.
+
+STEP 1 – Inspect the users list query
+
+In client/src/pages/crm-admin.tsx, find the useQuery that loads the users list.
+
+Show me its exact definition:
+
+The queryKey you pass (e.g. ["/api/users"] or ["/api/users", "admin"]).
+
+The queryFn URL (e.g. apiRequest("GET", "/api/users")).
+
+Make sure the queryKey is a simple, stable array – e.g.:
+
+const usersQuery = useQuery({
+  queryKey: ["/api/users"],
+  queryFn: async () => {
+    const res = await apiRequest("GET", "/api/users");
+    return res.json();
+  },
+});
+
+
+If the key is anything else (e.g. includes filters), you must use that same key when invalidating after delete.
+
+STEP 2 – Make delete mutation and invalidation match the list
+
+In the same file, locate deleteUserMutation.
+
+Force it to use the same query key as above in invalidateQueries. For example, if the list uses:
+
+queryKey: ["/api/users"]
+
+
+then delete must do:
+
+queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+
+
+Replace the mutation function with this minimal, robust implementation:
+
+const deleteUserMutation = useMutation({
+  mutationFn: async (id: string) => {
+    // apiRequest throws on non-2xx; DELETE route returns 200 or 400/404/500
+    await apiRequest("DELETE", `/api/users/${id}`);
+    return { success: true };
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    setShowDeleteConfirm(false);
+    setDeleteText("");
+    setEditingUser(null);
+    setIsUserDialogOpen(false);
+    toast({ title: "User deleted successfully" });
+  },
+  onError: (error: any) => {
+    console.error("[deleteUserMutation] error", error);
+    toast({
+      variant: "destructive",
+      title: "Failed to delete user",
+      description: error?.message ?? "Unknown error deleting user",
+    });
+  },
+});
+
+
+Confirm handleConfirmDelete only calls deleteUserMutation.mutate(editingUser.id) when deleteText.trim() === "Delete".
+
+STEP 3 – Verify server route deletes a real user
+
+In server/routes.ts, open the DELETE /api/users/:id handler.
+
+Using storage / db helper, ensure the route:
+
+Reads const userId = req.params.id;
+
+Blocks self-delete:
+
+if (userId === req.user!.id) {
+  return res.status(400).json({ error: "Cannot delete your own user account" });
+}
+
+
+Deletes a user row:
+
+const deleted = await storage.deleteUser(userId);
+if (!deleted) {
+  return res.status(404).json({ error: "User not found" });
+}
+return res.status(200).json({ success: true });
+
+
+Logs and returns 500 on unexpected errors.
+
+Confirm that storage.deleteUser actually returns true when a row is deleted and false when the id doesn’t exist. If it does something else, adjust the check accordingly.
+
+STEP 4 – Self-test from inside Replit
+
+From the Replit shell, call the endpoint directly with a known test user id (not the admin) using node or curl, and confirm:
+
+The route returns 200 { success: true }.
+
+After that call, the same user no longer appears in GET /api/users.
+
+Only after you verify this, test via the UI:
+
+Log in as an ADMIN user.
+
+Create a throwaway user.
+
+Delete them via the dialog.
+
+Confirm: the dialog closes and the row disappears without page reload.
+
+SUMMARY
+
+In your final summary, show:
+
+The exact queryKey used for the users list.
+
+The final deleteUserMutation code.
+
+The final DELETE /api/users/:id handler.
+
+The result of your direct API test (status + body).
+
+Confirmation that deleting a throwaway user from the UI removes them from the table.
