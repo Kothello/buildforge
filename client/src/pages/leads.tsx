@@ -192,6 +192,8 @@ export default function LeadsPage() {
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Company</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Contact</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Status</th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days on Stage</th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days Since Dispo</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Assigned To</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Price</th>
                 <th className="text-right py-3 px-3 sm:px-4 font-semibold">Actions</th>

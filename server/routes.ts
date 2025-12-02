@@ -815,7 +815,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      res.json(leads);
+      const enrichedLeads = leads.map(enrichLeadWithComputedFields);
+      res.json(enrichedLeads);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch leads" });
     }
