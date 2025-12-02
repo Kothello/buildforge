@@ -95,6 +95,7 @@ export default function LeadsPage() {
   };
 
   const filteredLeads = useMemo(() => {
+    if (!Array.isArray(leads)) return [];
     let filtered = leads.filter((lead: any) =>
       lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -104,12 +105,15 @@ export default function LeadsPage() {
     return filtered;
   }, [leads, searchTerm, statusFilter]);
 
-  const stats = useMemo(() => ({
-    total: leads.length,
-    new: leads.filter((l: any) => l.status === "new").length,
-    inProgress: leads.filter((l: any) => l.status === "in_progress").length,
-    sold: leads.filter((l: any) => l.status === "sold").length,
-  }), [leads]);
+  const stats = useMemo(() => {
+    if (!Array.isArray(leads)) return { total: 0, new: 0, inProgress: 0, sold: 0 };
+    return {
+      total: leads.length,
+      new: leads.filter((l: any) => l.status === "new").length,
+      inProgress: leads.filter((l: any) => l.status === "in_progress").length,
+      sold: leads.filter((l: any) => l.status === "sold").length,
+    };
+  }, [leads]);
 
   const handleLeadClick = (lead: Lead) => {
     navigate(`/sales/leads/${lead.id}`);

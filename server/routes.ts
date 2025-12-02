@@ -903,7 +903,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!lead) {
         return res.status(404).json({ error: "Lead not found" });
       }
-      res.json(lead);
+      const enrichedLead = enrichLeadWithComputedFields(lead);
+      res.json(enrichedLead);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch lead" });
     }
