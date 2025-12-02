@@ -749,9 +749,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/leads", async (req, res) => {
+  app.get("/api/leads", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
     try {
-      const leads = await storage.getLeads();
+      const mine = req.query.mine === "true";
+      const userId = mine ? req.user?.id : undefined;
+      const leads = await storage.getLeads(userId);
       res.json(leads);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch leads" });
@@ -846,9 +848,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/leads/:id", async (req, res) => {
+  app.patch("/api/leads/:id", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
     try {
       const updates = req.body;
+      
+      if (updates.assignedTo && req.user) {
+        const isAdminOrManager = req.user.role === "ADMIN" || req.user.role === "MANAGER";
+        if (!isAdminOrManager) {
+          delete updates.assignedTo;
+        }
+      }
+      
       const lead = await storage.updateLead(req.params.id, updates);
       
       if (!lead) {

@@ -99,7 +99,7 @@ export interface IStorage {
   getSetting(key: string): Promise<Setting | undefined>;
   upsertSetting(key: string, value: any): Promise<Setting>;
   
-  getLeads(): Promise<Lead[]>;
+  getLeads(userId?: string): Promise<Lead[]>;
   getLead(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, updates: Partial<Lead>): Promise<Lead | undefined>;
@@ -385,8 +385,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getLeads(): Promise<Lead[]> {
-    return await db.select().from(leads);
+  async getLeads(userId?: string): Promise<Lead[]> {
+    if (userId) {
+      return await db.select().from(leads).where(eq(leads.assignedTo, userId)).orderBy(desc(leads.createdAt));
+    }
+    return await db.select().from(leads).orderBy(desc(leads.createdAt));
   }
 
   async getLead(id: string): Promise<Lead | undefined> {

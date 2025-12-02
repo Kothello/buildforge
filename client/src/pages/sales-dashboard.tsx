@@ -18,14 +18,22 @@ export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: leads = [], isLoading } = useQuery({
-    queryKey: ["/api/leads"],
-    queryFn: () => fetch("/api/leads").then(r => r.json()),
+    queryKey: ["/api/leads", "mine"],
+    queryFn: () => fetch("/api/leads?mine=true").then(r => r.json()),
     staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
+  });
+
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ["/api/users"],
+    queryFn: () => fetch("/api/users").then(r => r.json()),
+    enabled: user?.role === "ADMIN" || user?.role === "MANAGER",
   });
 
   const deleteLeadMutation = useMutation({
