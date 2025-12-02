@@ -97,12 +97,18 @@ export default function CrmAdminPage() {
     },
     onSuccess: (data) => {
       console.log("[deleteUserMutation] onSuccess called with data:", data);
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      setShowDeleteConfirm(false);
-      setDeleteText("");
-      setEditingUser(null);
-      setIsUserDialogOpen(false);
-      toast({ title: "User deleted successfully" });
+      try {
+        queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+        console.log("[deleteUserMutation] Invalidated query");
+        setShowDeleteConfirm(false);
+        setDeleteText("");
+        setEditingUser(null);
+        setIsUserDialogOpen(false);
+        console.log("[deleteUserMutation] State cleared, showing toast");
+        toast({ title: "User deleted successfully" });
+      } catch (e) {
+        console.error("[deleteUserMutation] Error in onSuccess:", e);
+      }
     },
     onError: (error: any) => {
       console.error("[deleteUserMutation] onError called:", error);
@@ -180,7 +186,11 @@ export default function CrmAdminPage() {
   };
 
   const handleConfirmDelete = () => {
-    if (!editingUser || deleteText.trim() !== "Delete") return;
+    if (!editingUser || deleteText.trim() !== "Delete") {
+      console.log("[handleConfirmDelete] Guard check failed - editingUser:", !!editingUser, "deleteText:", deleteText);
+      return;
+    }
+    console.log("[handleConfirmDelete] Calling mutation for user:", editingUser.id);
     deleteUserMutation.mutate(editingUser.id);
   };
 

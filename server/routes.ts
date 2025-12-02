@@ -274,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/users/:id", authMiddleware, requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.params.id;
-      console.log("[DELETE /api/users/:id] Starting delete for user:", userId);
+      console.log("[DELETE /api/users/:id] Starting delete for user:", userId, "Current user:", req.user?.id);
       
       if (userId === req.user!.id) {
         console.log("[DELETE /api/users/:id] Attempting to delete self, rejecting");
@@ -291,10 +291,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("[DELETE /api/users/:id] Delete successful, sending response");
-      res.status(200).json({ success: true });
+      return res.json({ success: true });
     } catch (error) {
       console.error("[DELETE /api/users/:id] Error:", error);
-      res.status(500).json({ error: "Failed to delete user" });
+      return res.status(500).json({ error: "Failed to delete user" });
     }
   });
 
