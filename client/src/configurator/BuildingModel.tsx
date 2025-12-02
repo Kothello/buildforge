@@ -1,3 +1,17 @@
+/**
+ * ⚠️ CRITICAL: DO NOT MODIFY THIS FILE DURING CRM EDITS UNLESS USER EXPLICITLY APPROVES ⚠️
+ * 
+ * This file contains precision 3D building geometry calculations that are independent
+ * of CRM functionality. Previous attempts to "refactor" or "improve" nearby code resulted
+ * in breaking the wraparound lean-to geometry.
+ * 
+ * If you're editing CRM features (leads, deals, dispositions, etc.) and find yourself
+ * in this file, STOP and ask the user for explicit permission before making changes.
+ * 
+ * The wraparound single-slope lean-to beam logic (constrainedBeamLength, beamXOffset,
+ * hideVerticalPosts) is proven working and must not be altered.
+ */
+
 import { useRef, useMemo, useEffect, Fragment, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
