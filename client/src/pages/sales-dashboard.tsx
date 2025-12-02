@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, Trash2, Loader2, ChevronDown } from "lucide-react";
+import { Search, TrendingUp, ChevronDown } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Lead } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
@@ -222,20 +222,6 @@ export default function SalesDashboard() {
                         onClick={() => handleLeadClick(lead)}
                       >
                         View
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        data-testid={`button-delete-lead-${lead.id}`}
-                        onClick={() => handleDelete(lead.id)}
-                        disabled={deletingId === lead.id}
-                      >
-                        {deletingId === lead.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
                       </Button>
                     </div>
                   </td>
