@@ -426,26 +426,33 @@ export const LeanToConfig = ({
               
               <button
                 onClick={() => {
-                  if (leanTo.wraparound) return; // Can't change to gable when wraparound
-                  
                   const wallDimension = (leanTo.wall === 'left' || leanTo.wall === 'right') 
                     ? buildingLength 
                     : buildingWidth;
                   // Gable: 10ft shorter than max width, centered
                   const defaultWidth = Math.max(15, wallDimension - 10);
-                  handleUpdateLeanTo(leanTo.id, { 
-                    type: 'gable',
-                    width: leanTo.type === 'gable' ? leanTo.width : defaultWidth,
-                    length: leanTo.type === 'gable' ? leanTo.length : 20,
-                    position: 0.5
-                  });
+                  
+                  if (leanTo.wraparound) {
+                    handleUpdateWraparoundGroup(leanTo, { 
+                      type: 'gable',
+                      width: leanTo.type === 'gable' ? leanTo.width : defaultWidth,
+                      length: leanTo.type === 'gable' ? leanTo.length : 20,
+                      position: 0.5
+                    });
+                  } else {
+                    handleUpdateLeanTo(leanTo.id, { 
+                      type: 'gable',
+                      width: leanTo.type === 'gable' ? leanTo.width : defaultWidth,
+                      length: leanTo.type === 'gable' ? leanTo.length : 20,
+                      position: 0.5
+                    });
+                  }
                 }}
                 className={`h-5 text-xs py-0 rounded-sm transition-all ${
                   leanTo.type === 'gable'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
-                disabled={leanTo.wraparound}
               >
                 Gable
               </button>
