@@ -80,8 +80,25 @@ export const leads = pgTable("leads", {
   aiNotes: text("ai_notes"),
   aiFirstMessage: text("ai_first_message"),
   notes: text("notes"),
+  lastDisposition: text("last_disposition"),
+  lastDispositionAt: timestamp("last_disposition_at"),
+  stageEnteredAt: timestamp("stage_entered_at").defaultNow(),
+  nextCallbackAt: timestamp("next_callback_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const leadHistory = pgTable("lead_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  type: text("type").notNull(),
+  disposition: text("disposition"),
+  prevStage: text("prev_stage"),
+  newStage: text("new_stage"),
+  note: text("note"),
+  nextCallbackAt: timestamp("next_callback_at"),
+  createdByUserId: varchar("created_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const projects = pgTable("projects", {
@@ -325,6 +342,18 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
   projects: many(projects),
   callbacks: many(callbacks),
   quotes: many(leadQuotes),
+  history: many(leadHistory),
+}));
+
+export const leadHistoryRelations = relations(leadHistory, ({ one }) => ({
+  lead: one(leads, {
+    fields: [leadHistory.leadId],
+    references: [leads.id],
+  }),
+  createdByUser: one(users, {
+    fields: [leadHistory.createdByUserId],
+    references: [users.id],
+  }),
 }));
 
 export const projectsRelations = relations(projects, ({ one }) => ({
@@ -500,6 +529,11 @@ export const insertLeadQuoteSchema = createInsertSchema(leadQuotes).omit({
   createdAt: true,
 });
 
+export const insertLeadHistorySchema = createInsertSchema(leadHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
@@ -540,3 +574,38 @@ export type DesignPricing = typeof designPricing.$inferSelect;
 export type InsertDesignPricing = z.infer<typeof insertDesignPricingSchema>;
 export type LeadQuote = typeof leadQuotes.$inferSelect;
 export type InsertLeadQuote = z.infer<typeof insertLeadQuoteSchema>;
+export type LeadHistory = typeof leadHistory.$inferSelect;
+export type InsertLeadHistory = z.infer<typeof insertLeadHistorySchema>;
+
+// Disposition and Stage type enums
+export const DISPOSITIONS = [
+  'LEFT_VOICEMAIL',
+  'NO_ANSWER',
+  'NO_SHOW',
+  'SPOKE_WITH',
+  'BOOKED_CALL',
+  'SENT_QUOTE',
+  'FOLLOW_UP',
+  'NOT_INTERESTED',
+  'COMPETITOR',
+  'SOLD',
+  'CANCELED',
+] as const;
+
+export type Disposition = typeof DISPOSITIONS[number];
+
+export const STAGES = [
+  'new',
+  'working',
+  'callback',
+  'welcome',
+  'quote_sent',
+  'negotiating',
+  'storage',
+  'building_prep',
+  'pending_delivery',
+  'sold',
+  'canceled',
+] as const;
+
+export type Stage = typeof STAGES[number];

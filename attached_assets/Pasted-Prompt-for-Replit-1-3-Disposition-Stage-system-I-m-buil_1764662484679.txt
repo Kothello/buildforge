@@ -1,0 +1,104 @@
+Prompt for Replit (1/3 – Disposition + Stage system)
+
+I’m building a steel-building CRM in this Replit. Please implement a standardized lead disposition and pipeline stage system without changing any of the 3D configurator / builder code (client/src/configurator/**).
+
+Goals
+
+Every time a sales rep “touches” a lead on the lead detail page, they should:
+
+choose a Disposition from a dropdown (e.g. LEFT_VOICEMAIL, NO_SHOW, BOOKED_CALL, NOT_INTERESTED, FOLLOW_UP, SOLD, etc.)
+
+optionally choose a new Stage (bucket in the pipeline)
+
+optionally set a Next Callback date/time
+
+type a note
+
+click Save Disposition
+
+Saving should:
+
+create a history entry (disposition + note + stage change) tied to the lead and the current user
+
+update fields on the lead so we can compute “Days on Stage” and “Days Since Last Disposition”.
+
+Data model
+Update the server-side schema and types to add at least:
+
+Lead.stage: string – pipeline bucket (e.g. "working", "callback", "welcome", "storage", "building_prep", "pending_delivery", "sold", "canceled", etc.). Use a TypeScript string union for safety on the client.
+
+Lead.lastDisposition: string | null
+
+Lead.lastDispositionAt: Date | null
+
+Lead.stageEnteredAt: Date | null
+
+Lead.nextCallbackAt: Date | null
+
+Add a LeadHistory (or LeadEvent) table/model that includes:
+
+id
+
+leadId
+
+type ("disposition" | "stage_change" | "note")
+
+prevStage, newStage (optional)
+
+disposition (string)
+
+note
+
+createdByUserId
+
+createdAt
+
+Expose REST endpoints:
+
+POST /api/leads/:id/dispositions – body contains { disposition, newStage?, note?, nextCallbackAt? }.
+
+This should:
+
+create a history row
+
+update the parent lead’s stage, stageEnteredAt, lastDisposition, lastDispositionAt, and nextCallbackAt.
+
+Only authenticated users may call this; use existing auth middleware.
+
+GET /api/leads/:id/history – returns the history entries, newest first.
+
+Frontend
+
+On the lead detail page (the one used at /sales/leads/:id), add a “Disposition & Notes” card with:
+
+Disposition <Select> (use a small enum of sensible options)
+
+Stage <Select> (optional)
+
+Next Callback <Input type="datetime-local"> or date + time fields
+
+Note <Textarea>
+
+“Save Disposition” <Button>
+
+Wire the button to call POST /api/leads/:id/dispositions using React Query’s useMutation, show success/error toasts, and refetch the lead and history on success (no page reloads).
+
+Add a “History” tab or section on the lead detail view that calls GET /api/leads/:id/history and renders a list (date, user, disposition, stage, note).
+
+Important constraints
+
+Do not modify any files under client/src/configurator/** (the 3D builder).
+
+Reuse the existing auth/user system and React Query client that the app already uses.
+
+Make TypeScript types line up on both client and server.
+
+Keep the UI styling consistent with the rest of the CRM (dark theme cards, same typography and button styles).
+
+When you’re done, summarize:
+
+which files you changed,
+
+what new DB fields / tables you added,
+
+and how to exercise the feature via the UI.
