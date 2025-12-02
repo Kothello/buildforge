@@ -20,6 +20,7 @@ import { LogOut } from "lucide-react";
 const prefetchMap: Record<string, () => void> = {
   "/": () => import("@/pages/dashboard"),
   "/sales": () => import("@/pages/sales-dashboard"),
+  "/my-leads": () => import("@/pages/sales-dashboard"),
   "/admin": () => import("@/pages/admin"),
   "/pipeline": () => import("@/pages/pipeline"),
   "/automation": () => import("@/pages/automation"),
@@ -33,6 +34,11 @@ const prefetchMap: Record<string, () => void> = {
 };
 
 const crmItems = [
+  {
+    title: "My Leads",
+    url: "/my-leads",
+    icon: Users,
+  },
   {
     title: "Deals",
     url: "/crm/deals",

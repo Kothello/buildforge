@@ -98,6 +98,7 @@ function Router() {
         <Route path="/admin/pricing">{() => <AdminRoute><LazyPricingAdminPage /></AdminRoute>}</Route>
         <Route path="/sales/leads/:id">{() => <LazyLeadEditPage />}</Route>
         <Route path="/sales">{() => <LazySalesDashboard />}</Route>
+        <Route path="/my-leads">{() => <LazySalesDashboard />}</Route>
         <Route path="/projects">{() => <LazyProjectsPage />}</Route>
         <Route path="/callbacks">{() => <LazyCallbackCalendar />}</Route>
         <Route path="/pipeline">{() => <LazyPipeline />}</Route>
