@@ -103,11 +103,19 @@ export default function CrmAdminPage() {
     },
     onError: (error: any) => {
       console.error("[deleteUserMutation] error", error);
-      toast({
-        variant: "destructive",
-        title: "Failed to delete user",
-        description: error.message ?? "Unknown error deleting user",
-      });
+      if (error.message?.includes("Cannot delete your own user account")) {
+        toast({
+          variant: "destructive",
+          title: "You can't delete your own account",
+          description: "Log in as a different admin to delete this user.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Failed to delete user",
+          description: error.message ?? "Unknown error deleting user",
+        });
+      }
     },
   });
 
