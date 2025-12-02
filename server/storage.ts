@@ -59,6 +59,7 @@ export interface IStorage {
   getUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
   
   createRefreshToken(token: InsertRefreshToken): Promise<RefreshToken>;
   getRefreshToken(token: string): Promise<RefreshToken | undefined>;
@@ -158,6 +159,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user || undefined;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    await db.delete(refreshTokens).where(eq(refreshTokens.userId, id));
+    await db.delete(leads).where(eq(leads.assignedTo, id));
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
   }
 
   async createRefreshToken(insertToken: InsertRefreshToken): Promise<RefreshToken> {
