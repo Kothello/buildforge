@@ -92,13 +92,11 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
       // Create a quote snapshot after successful lead update
       try {
         await apiRequest('POST', `/api/leads/${leadId}/quotes`, {
-          body: JSON.stringify({
-            buildingSpecs: updatedLead.buildingSpecs,
-            configuration: updatedLead.configuration,
-            totalPrice: updatedLead.totalPrice,
-            marginPercent: null,
-            source: 'crm',
-          }),
+          buildingSpecs: updatedLead.buildingSpecs,
+          configuration: updatedLead.configuration,
+          totalPrice: updatedLead.totalPrice,
+          marginPercent: null,
+          source: 'crm',
         });
         
         // Invalidate quote history cache to refetch latest
