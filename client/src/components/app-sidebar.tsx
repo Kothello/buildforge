@@ -67,7 +67,7 @@ const menuItems = [
     icon: Shield,
   },
   {
-    title: "My Leads",
+    title: "Leads",
     url: "/sales",
     icon: Users,
   },
