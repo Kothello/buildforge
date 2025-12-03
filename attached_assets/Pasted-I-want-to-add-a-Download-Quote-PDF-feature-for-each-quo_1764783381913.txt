@@ -1,0 +1,199 @@
+I want to add a “Download Quote PDF” feature for each quote in the existing Quote History, without touching any configurator / 3D builder logic.
+
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify:
+
+client/src/configurator/**
+
+configurator/iron-builder-studio-*/**
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing math.
+
+You may modify:
+
+shared/schema.ts (only if you need a minor type export for quotes)
+
+server/routes.ts
+
+server/storage.ts (only if you need a helper to fetch a single quote with lead/user)
+
+client/src/pages/lead-edit.tsx
+
+client/src/components/** (for a small PDF button / menu)
+
+package.json (only to install a PDF library if needed)
+
+GOAL
+
+On the Quotes tab of /sales/leads/:id:
+
+Each quote entry should have a “Download PDF” action.
+
+Clicking it should download a simple, professional-looking PDF with:
+
+Lead name + contact info
+
+Quote date
+
+Quote total price (big & clear)
+
+Main building specs (width, length, height, roof style)
+
+Optional: a bullet list of key config points (e.g. # doors, # windows, # lean-tos if easy to derive from the existing configuration JSON).
+
+Do not implement emailing yet; just a direct browser download.
+
+Backend – PDF endpoint
+
+Check package.json to see if there is already a PDF library (e.g. pdfkit, pdf-lib, etc.).
+
+If there is one, reuse it.
+
+If not, install a light one like pdfkit.
+
+In server/routes.ts, add a new authenticated route:
+
+// GET /api/leads/:leadId/quotes/:quoteId/pdf
+app.get("/api/leads/:leadId/quotes/:quoteId/pdf", authMiddleware(storage), async (req, res) => {
+  try {
+    const leadId = Number(req.params.leadId);
+    const quoteId = Number(req.params.quoteId);
+    const user = (req as AuthenticatedRequest).user;
+
+    // 1) Enforce same permissions as viewing the lead:
+    //    - Admin/Manager: can view any
+    //    - Rep: only if lead is assigned to them
+    //    Use the same helper/logic you already use in GET /api/leads/:id.
+
+    // 2) Fetch the lead, quote, and (optional) createdByUser
+    //    Use existing storage methods or add a small helper
+
+    // 3) Generate a PDF in memory:
+    //    - Set appropriate headers:
+    //      res.setHeader("Content-Type", "application/pdf");
+    //      res.setHeader("Content-Disposition", `attachment; filename="Quote-${leadId}-${quoteId}.pdf"`);
+    //
+    //    - Use pdfkit (or existing lib) to write:
+    //      - Company / app name
+    //      - Lead name & contact info
+    //      - Quote total (large)
+    //      - Main specs (W x L x H, roof style)
+    //      - Date, created by
+
+    // 4) Pipe the PDF stream to res.
+  } catch (err) {
+    console.error("Error generating quote PDF", err);
+    return res.status(500).json({ error: "Failed to generate quote PDF" });
+  }
+});
+
+
+If needed, add a small helper in server/storage.ts:
+
+async function getLeadQuoteWithLeadAndUser(quoteId: number) {
+  // join leadQuotes + leads + users to get:
+  // - lead (name, contact)
+  // - quote (totalPrice, configuration, createdAt)
+  // - createdByUser (name)
+}
+
+
+Use existing patterns from other storage functions.
+
+Frontend – Quotes tab UI
+
+In client/src/pages/lead-edit.tsx:
+
+In the Quotes tab rendering (where we already map over quotes from /api/leads/:id/quotes), add a Download PDF control for each quote:
+
+Either a small button:
+
+<Button
+  size="xs"
+  variant="outline"
+  onClick={() => handleDownloadQuotePdf(quote.id)}
+>
+  Download PDF
+</Button>
+
+
+Or a 3-dot dropdown menu with “Download PDF” inside; use whichever matches existing UI patterns.
+
+Implement handleDownloadQuotePdf:
+
+const handleDownloadQuotePdf = async (quoteId: number) => {
+  try {
+    const res = await fetch(`/api/leads/${leadId}/quotes/${quoteId}/pdf`, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error("Failed to download PDF");
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Quote-${leadId}-${quoteId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    // use existing toast/error UI to show a message
+  }
+};
+
+
+Keep styling consistent with the rest of the Quotes list (cards, typography, spacing).
+
+Testing checklist
+
+Open a lead with at least one quote in the Quotes tab.
+
+Click Download PDF on one of the entries.
+
+Confirm:
+
+The browser downloads a .pdf file.
+
+Opening it shows:
+
+Lead name / contact
+
+Quote date
+
+Quote total
+
+Basic building specs
+
+Test as:
+
+Admin/Manager → can download for any lead.
+
+Rep → only for leads they’re allowed to see.
+
+Final summary I expect from you
+
+Please summarize:
+
+New route: GET /api/leads/:leadId/quotes/:quoteId/pdf
+
+Any new storage helper you added.
+
+Where the Download PDF button lives in lead-edit.tsx.
+
+Confirm:
+
+No client/src/configurator/** or configurator/iron-builder-studio-*/** files were touched.
+
+No changes to server/pricingEngine.ts or server/pricingRoutes.ts.
+
+3D behavior and pricing are unchanged.
+
+END PROMPT

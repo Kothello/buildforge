@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileCheck, Sparkles, DollarSign, ArrowLeft, Send, User, Clock, MessageSquare } from "lucide-react";
+import { FileCheck, Sparkles, DollarSign, ArrowLeft, Send, User, Clock, MessageSquare, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -264,6 +264,31 @@ export default function LeadEditPage() {
   const handleLeadUpdated = (updatedLead: Lead) => {
     console.log('[lead-edit] handleLeadUpdated called with:', updatedLead.totalPrice);
     setLocalLead(updatedLead);
+  };
+
+  const handleDownloadQuotePdf = async (quoteId: string) => {
+    try {
+      const res = await fetch(`/api/leads/${leadId}/quotes/${quoteId}/pdf`, {
+        method: "GET",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to download PDF");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Quote-${leadId}-${quoteId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      
+      toast({ title: "PDF downloaded successfully" });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to download PDF", variant: "destructive" });
+    }
   };
 
   if (isLoadingLead) {
@@ -554,15 +579,27 @@ export default function LeadEditPage() {
                                 : "Unknown"}
                             </div>
                           </div>
-                          {quote.source && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[9px] shrink-0"
-                              data-testid={`badge-quote-source-${quote.id}`}
+                          <div className="flex items-center gap-2">
+                            {quote.source && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[9px] shrink-0"
+                                data-testid={`badge-quote-source-${quote.id}`}
+                              >
+                                {quote.source}
+                              </Badge>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownloadQuotePdf(quote.id)}
+                              data-testid={`button-download-pdf-${quote.id}`}
+                              className="h-6 text-[10px] gap-1"
                             >
-                              {quote.source}
-                            </Badge>
-                          )}
+                              <Download className="h-3 w-3" />
+                              PDF
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}

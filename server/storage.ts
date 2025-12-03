@@ -568,6 +568,22 @@ export class DatabaseStorage implements IStorage {
     const [history] = await db.insert(leadHistory).values(insertHistory).returning();
     return history;
   }
+
+  async getLeadQuoteWithDetails(quoteId: string, leadId: string) {
+    const quote = await db
+      .select({
+        quote: leadQuotes,
+        lead: leads,
+        user: users,
+      })
+      .from(leadQuotes)
+      .leftJoin(leads, eq(leadQuotes.leadId, leads.id))
+      .leftJoin(users, eq(leadQuotes.createdByUserId, users.id))
+      .where(and(eq(leadQuotes.id, quoteId), eq(leadQuotes.leadId, leadId)))
+      .limit(1);
+    
+    return quote.length > 0 ? quote[0] : null;
+  }
 }
 
 export const storage = new DatabaseStorage();

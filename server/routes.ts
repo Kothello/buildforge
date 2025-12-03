@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import cookieParser from "cookie-parser";
+import PDFDocument from "pdfkit";
 import { storage } from "./storage";
 import { 
   insertLeadSchema, 
@@ -1044,6 +1045,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating lead quote", error);
       res.status(500).json({ error: "Failed to save quote snapshot" });
+    }
+  });
+
+  app.get("/api/leads/:leadId/quotes/:quoteId/pdf", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { leadId, quoteId } = req.params;
+      const user = req.user;
+
+      // Fetch lead to verify permissions
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      // Check permissions (same as viewing lead)
+      const isAdminOrManager = user?.role === "ADMIN" || user?.role === "MANAGER";
+      const isOwnLead = lead.assignedTo === user?.id;
+      if (!isAdminOrManager && !isOwnLead) {
+        return res.status(403).json({ error: "Not authorized to view this lead" });
+      }
+
+      // Fetch quote with details
+      const quoteData = await storage.getLeadQuoteWithDetails(quoteId, leadId);
+      if (!quoteData) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      const { quote, lead: quoteLead, user: createdByUser } = quoteData;
+
+      // Generate PDF
+      const doc = new PDFDocument({ margin: 40 });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="Quote-${leadId}-${quoteId}.pdf"`);
+
+      doc.pipe(res);
+
+      // Header
+      doc.fontSize(24).font("Helvetica-Bold").text("QUOTE", { align: "center" });
+      doc.moveDown(0.5);
+
+      // Company & Lead Info
+      doc.fontSize(11).font("Helvetica-Bold").text("CUSTOMER", { underline: true });
+      doc.fontSize(10).font("Helvetica").text(`Company: ${quoteLead?.companyName || "N/A"}`);
+      doc.text(`Contact: ${quoteLead?.contactName || "N/A"}`);
+      if (quoteLead?.email) doc.text(`Email: ${quoteLead.email}`);
+      if (quoteLead?.phone) doc.text(`Phone: ${quoteLead.phone}`);
+      doc.moveDown(0.5);
+
+      // Quote Details
+      doc.fontSize(11).font("Helvetica-Bold").text("QUOTE DETAILS", { underline: true });
+      doc.fontSize(10).font("Helvetica");
+      doc.text(`Date: ${new Date(quote.createdAt).toLocaleDateString()}`);
+      if (createdByUser) {
+        doc.text(`Created by: ${createdByUser.name}`);
+      }
+      doc.moveDown(0.5);
+
+      // Building Specs
+      if (quote.buildingSpecs) {
+        const specs = typeof quote.buildingSpecs === "string" ? JSON.parse(quote.buildingSpecs) : quote.buildingSpecs;
+        doc.fontSize(11).font("Helvetica-Bold").text("BUILDING SPECIFICATIONS", { underline: true });
+        doc.fontSize(10).font("Helvetica");
+        if (specs.width) doc.text(`Width: ${specs.width}'`);
+        if (specs.length) doc.text(`Length: ${specs.length}'`);
+        if (specs.height) doc.text(`Height: ${specs.height}'`);
+        if (specs.roofStyle) doc.text(`Roof Style: ${specs.roofStyle}`);
+        doc.moveDown(0.5);
+      }
+
+      // Configuration Summary
+      if (quote.configuration) {
+        const config = typeof quote.configuration === "string" ? JSON.parse(quote.configuration) : quote.configuration;
+        doc.fontSize(11).font("Helvetica-Bold").text("CONFIGURATION", { underline: true });
+        doc.fontSize(10).font("Helvetica");
+        if (config.rollupDoors || config.rollupDoors === 0) doc.text(`• Roll-up Doors: ${config.rollupDoors}`);
+        if (config.personnelDoors || config.personnelDoors === 0) doc.text(`• Personnel Doors: ${config.personnelDoors}`);
+        if (config.windows || config.windows === 0) doc.text(`• Windows: ${config.windows}`);
+        if (config.leanToConfigs && Array.isArray(config.leanToConfigs) && config.leanToConfigs.length > 0) {
+          doc.text(`• Lean-To Structures: ${config.leanToConfigs.length}`);
+        }
+        doc.moveDown(0.5);
+      }
+
+      // Total Price (Large & Clear)
+      doc.fontSize(11).font("Helvetica-Bold").text("TOTAL PRICE", { underline: true });
+      doc.fontSize(20).font("Helvetica-Bold").text(`$${Number(quote.totalPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, { align: "center" });
+
+      doc.end();
+    } catch (error) {
+      console.error("Error generating quote PDF", error);
+      res.status(500).json({ error: "Failed to generate quote PDF" });
     }
   });
 
