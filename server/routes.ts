@@ -1151,6 +1151,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Auto-capture quote history when configuration or totalPrice is updated
+      if (updates.configuration || updates.totalPrice) {
+        try {
+          await storage.createLeadQuote({
+            leadId: lead.id,
+            createdByUserId: req.user?.id || null,
+            source: "configurator",
+            buildingSpecs: lead.buildingSpecs as any,
+            configuration: lead.configuration as any,
+            totalPrice: lead.totalPrice || "0",
+            marginPercent: null,
+          });
+        } catch (quoteError) {
+          // Best-effort: log but don't fail the lead update
+          console.error("Failed to capture quote history:", quoteError);
+        }
+      }
+      
       res.json(lead);
     } catch (error) {
       res.status(500).json({ error: "Failed to update lead" });
