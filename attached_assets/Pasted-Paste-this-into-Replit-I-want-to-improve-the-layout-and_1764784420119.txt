@@ -1,0 +1,215 @@
+Paste this into Replit:
+
+I want to improve the layout and content of the Quote PDF you just implemented.
+Right now it’s a very plain list with things like Windows: [object Object] in the CONFIGURATION section. I want it to look more like a real proposal and summarize the configuration instead of dumping raw objects.
+
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify:
+
+client/src/configurator/**
+
+configurator/iron-builder-studio-*/**
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+You may modify:
+
+server/routes.ts – the /api/leads/:leadId/quotes/:quoteId/pdf endpoint you just added
+
+server/storage.ts – only if you need a slightly richer helper
+
+client/src/pages/lead-edit.tsx – only for minor label/icon tweaks if absolutely needed
+
+All changes for this task should be about PDF formatting and configuration summarization, not behavior of the app.
+
+GOAL
+
+Upgrade the Quote PDF to:
+
+Have a more professional layout:
+
+Branded header: “SteelFlow One – Quote”
+
+Clear section titles with consistent font sizes and spacing
+
+A prominent total price block
+
+Show a clean configuration summary instead of [object Object]:
+
+Count windows, doors, and lean-tos from the configuration JSON
+
+Show simple bullet points instead of raw objects
+
+Example of what I want structurally (not exact text):
+
+Header:
+STEELFLOW ONE
+Steel Building Quote
+
+Customer section: Company, Contact, Email, Phone
+
+Quote details: Date, Created by
+
+Building specifications: Width, Length, Height, Roof Style
+
+Configuration summary:
+
+“Windows: 3 total”
+
+“Doors: 2 total”
+
+“Lean-tos: 1 wraparound, 0 gable”
+
+Total price: $395,487.60 big, bold, centered or right-aligned
+
+You don’t need to perfectly match this, but the structure and hierarchy should be similar.
+
+IMPLEMENTATION DETAILS
+
+1) Enhance the /api/leads/:leadId/quotes/:quoteId/pdf endpoint
+
+In server/routes.ts, update the PDF generation code to:
+
+Use a consistent structure:
+
+Large title at top (“SteelFlow One – Quote”)
+
+Small subtitle (“Pre-Engineered Steel Building Proposal”)
+
+Horizontal rule (e.g. doc.moveTo(...).lineTo(...).stroke()).
+
+Use fontSize tiers:
+
+20–24 for main title
+
+12–14 for section headers
+
+10–12 for body text
+
+Add spacing between sections (doc.moveDown()).
+
+2) Parse configuration rather than dumping it
+
+You already have buildingSpecs and configuration on the quote record. Use them like this:
+
+Assume configuration is an object that may contain arrays like:
+
+configuration.windows
+
+configuration.doors
+
+configuration.leanTos or similar
+
+Derive simple aggregates:
+
+const config = configuration || {};
+const windows = Array.isArray(config.windows) ? config.windows : [];
+const doors = Array.isArray(config.doors) ? config.doors : [];
+const leanTos = Array.isArray(config.leanTos) ? config.leanTos : [];
+
+const windowsCount = windows.length;
+const doorsCount = doors.length;
+const leanTosCount = leanTos.length;
+
+
+In the CONFIGURATION section, instead of Windows: [object Object], render something like:
+
+doc.fontSize(12).text("Configuration", { underline: true });
+doc.moveDown(0.5);
+
+doc.fontSize(10);
+doc.text(`Windows: ${windowsCount} total`);
+doc.text(`Doors: ${doorsCount} total`);
+doc.text(`Lean-tos: ${leanTosCount} total`);
+
+
+If you can easily read properties like width/height for openings, you can add bullets:
+
+windows.slice(0, 5).forEach((w, index) => {
+  // use safe optional access to avoid crashing if shape is different
+  const label = `${w.width || "?"}' x ${w.height || "?"}' on ${w.wall || "wall"}`;
+  doc.text(`• Window ${index + 1}: ${label}`);
+});
+
+
+Keep this robust: use Array.isArray and optional chaining so the PDF doesn’t break if the config changes shape.
+
+3) Improve total price block
+
+Use a bigger font size (e.g. 18) and bold:
+
+doc.moveDown();
+doc.fontSize(14).text("TOTAL PRICE", { underline: true });
+doc.moveDown(0.5);
+doc.fontSize(20).font("Helvetica-Bold").text(formattedPrice, {
+  align: "right",
+});
+
+
+formattedPrice should match what the UI shows ($X,XXX.XX).
+
+4) Cleaner customer/quote sections
+
+Group customer fields together with one header:
+
+doc.fontSize(12).text("Customer", { underline: true });
+doc.moveDown(0.5);
+doc.fontSize(10);
+doc.text(`Company: ${lead.companyName || "-"}`);
+doc.text(`Contact: ${lead.contactName || "-"}`);
+doc.text(`Email: ${lead.email || "-"}`);
+doc.text(`Phone: ${lead.phone || "-"}`);
+
+
+Same for quote details:
+
+doc.moveDown();
+doc.fontSize(12).text("Quote Details", { underline: true });
+doc.moveDown(0.5);
+doc.fontSize(10);
+doc.text(`Date: ${formattedDate}`);
+doc.text(`Created by: ${createdByName || "-"}`);
+
+
+5) Keep the buffer-based PDF response you already fixed
+
+Don’t revert to the old piping approach.
+
+Just swap out the content/layout; keep the streaming/buffer mechanics as they are now (the ones that produce a non-corrupted PDF).
+
+FINAL CHECK
+
+After updating:
+
+Generate a new quote PDF.
+
+Confirm:
+
+No [object Object] anywhere.
+
+Sections are clearly separated and labeled.
+
+Total price is large and stands out.
+
+Customer info, quote date, building specs, and configuration summary are all present.
+
+Confirm:
+
+No configurator files were touched.
+
+No pricing/3D behavior changed.
+
+Then summarize:
+
+Rough layout structure (sections and font sizes).
+
+How you parsed configuration to avoid [object Object].
+
+Any safeguards you added to prevent crashes if config shape changes.
+
+END PROMPT

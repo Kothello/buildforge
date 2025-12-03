@@ -1075,7 +1075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { quote, lead: quoteLead, user: createdByUser } = quoteData;
 
       // Generate PDF to buffer
-      const doc = new PDFDocument({ margin: 40 });
+      const doc = new PDFDocument({ margin: 50 });
       const chunks: Buffer[] = [];
 
       doc.on("data", (chunk: Buffer) => {
@@ -1097,56 +1097,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Header
-      doc.fontSize(24).font("Helvetica-Bold").text("QUOTE", { align: "center" });
+      // Professional Header
+      doc.fontSize(22).font("Helvetica-Bold").text("STEELFLOW ONE", { align: "center" });
+      doc.fontSize(14).font("Helvetica").text("Steel Building Quote", { align: "center" });
       doc.moveDown(0.5);
+      
+      // Horizontal line
+      doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
+      doc.moveDown(1);
 
-      // Company & Lead Info
-      doc.fontSize(11).font("Helvetica-Bold").text("CUSTOMER", { underline: true });
-      doc.fontSize(10).font("Helvetica").text(`Company: ${quoteLead?.companyName || "N/A"}`);
-      doc.text(`Contact: ${quoteLead?.contactName || "N/A"}`);
+      // Customer Section
+      doc.fontSize(12).font("Helvetica-Bold").text("CUSTOMER");
+      doc.moveDown(0.3);
+      doc.fontSize(10).font("Helvetica");
+      doc.text(`${quoteLead?.companyName || "—"}`, { continued: true });
+      doc.text(" " + (quoteLead?.contactName ? `(${quoteLead.contactName})` : ""));
       if (quoteLead?.email) doc.text(`Email: ${quoteLead.email}`);
       if (quoteLead?.phone) doc.text(`Phone: ${quoteLead.phone}`);
-      doc.moveDown(0.5);
+      doc.moveDown(0.8);
 
-      // Quote Details
-      doc.fontSize(11).font("Helvetica-Bold").text("QUOTE DETAILS", { underline: true });
+      // Quote Details Section
+      doc.fontSize(12).font("Helvetica-Bold").text("QUOTE DETAILS");
+      doc.moveDown(0.3);
       doc.fontSize(10).font("Helvetica");
-      doc.text(`Date: ${new Date(quote.createdAt).toLocaleDateString()}`);
+      const quoteDate = new Date(quote.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+      doc.text(`Date: ${quoteDate}`);
       if (createdByUser) {
-        doc.text(`Created by: ${createdByUser.name}`);
+        doc.text(`Prepared by: ${createdByUser.name}`);
       }
-      doc.moveDown(0.5);
+      doc.moveDown(0.8);
 
-      // Building Specs
+      // Building Specifications Section
       if (quote.buildingSpecs) {
         const specs = typeof quote.buildingSpecs === "string" ? JSON.parse(quote.buildingSpecs) : quote.buildingSpecs;
-        doc.fontSize(11).font("Helvetica-Bold").text("BUILDING SPECIFICATIONS", { underline: true });
+        doc.fontSize(12).font("Helvetica-Bold").text("BUILDING SPECIFICATIONS");
+        doc.moveDown(0.3);
         doc.fontSize(10).font("Helvetica");
-        if (specs.width) doc.text(`Width: ${specs.width}'`);
-        if (specs.length) doc.text(`Length: ${specs.length}'`);
-        if (specs.height) doc.text(`Height: ${specs.height}'`);
-        if (specs.roofStyle) doc.text(`Roof Style: ${specs.roofStyle}`);
-        doc.moveDown(0.5);
+        
+        if (specs.width && specs.length && specs.height) {
+          doc.text(`Dimensions: ${specs.width}' W × ${specs.length}' L × ${specs.height}' H`);
+        }
+        if (specs.roofStyle) {
+          doc.text(`Roof Style: ${specs.roofStyle === "single-slope" ? "Single Slope" : specs.roofStyle === "gable" ? "Gable" : specs.roofStyle}`);
+        }
+        doc.moveDown(0.8);
       }
 
-      // Configuration Summary
+      // Configuration Summary Section
       if (quote.configuration) {
         const config = typeof quote.configuration === "string" ? JSON.parse(quote.configuration) : quote.configuration;
-        doc.fontSize(11).font("Helvetica-Bold").text("CONFIGURATION", { underline: true });
+        
+        // Parse doors, windows, lean-tos from config arrays
+        const doors = Array.isArray(config.doors) ? config.doors : [];
+        const windows = Array.isArray(config.windows) ? config.windows : [];
+        const leanTos = Array.isArray(config.leanTos) ? config.leanTos : [];
+        
+        // Count by type
+        const rollupDoors = doors.filter((d: any) => d?.type === "rollup").length;
+        const personnelDoors = doors.filter((d: any) => d?.type === "personnel").length;
+        
+        doc.fontSize(12).font("Helvetica-Bold").text("CONFIGURATION");
+        doc.moveDown(0.3);
         doc.fontSize(10).font("Helvetica");
-        if (config.rollupDoors || config.rollupDoors === 0) doc.text(`• Roll-up Doors: ${config.rollupDoors}`);
-        if (config.personnelDoors || config.personnelDoors === 0) doc.text(`• Personnel Doors: ${config.personnelDoors}`);
-        if (config.windows || config.windows === 0) doc.text(`• Windows: ${config.windows}`);
-        if (config.leanToConfigs && Array.isArray(config.leanToConfigs) && config.leanToConfigs.length > 0) {
-          doc.text(`• Lean-To Structures: ${config.leanToConfigs.length}`);
+        
+        // Summary bullets
+        if (rollupDoors > 0) {
+          doc.text(`• Roll-up Doors: ${rollupDoors} total`);
         }
-        doc.moveDown(0.5);
+        if (personnelDoors > 0) {
+          doc.text(`• Personnel Doors: ${personnelDoors} total`);
+        }
+        if (windows.length > 0) {
+          doc.text(`• Windows: ${windows.length} total`);
+        }
+        if (leanTos.length > 0) {
+          doc.text(`• Lean-to Structures: ${leanTos.length}`);
+        }
+        
+        doc.moveDown(0.8);
       }
 
-      // Total Price (Large & Clear)
-      doc.fontSize(11).font("Helvetica-Bold").text("TOTAL PRICE", { underline: true });
-      doc.fontSize(20).font("Helvetica-Bold").text(`$${Number(quote.totalPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, { align: "center" });
+      // Total Price Section - Large & Prominent
+      doc.moveDown(0.5);
+      doc.fontSize(11).font("Helvetica").text("ESTIMATED PROJECT COST", { align: "right" });
+      doc.moveDown(0.3);
+      const priceFormatted = `$${Number(quote.totalPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      doc.fontSize(28).font("Helvetica-Bold").text(priceFormatted, { align: "right" });
 
       doc.end();
     } catch (error) {
