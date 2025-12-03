@@ -1,0 +1,110 @@
+Good, that Replit log means most of the heavy lifting for Quote History is in place:
+
+leadQuotes table exists.
+
+GET /api/leads/:id/quotes + POST (or equivalent) routes exist.
+
+PATCH /api/leads/:id now auto-creates a quote snapshot.
+
+Duplicate “create quote” logic in LeadConfiguratorEmbed was removed.
+
+Now do two things:
+
+1) Verify Quote History actually works
+
+Walk through this end-to-end:
+
+Open a lead with a configuration
+
+Go to /sales → click View on any lead.
+
+In the lead detail page, make sure you see a Quotes tab along with Overview / History / etc.
+
+Force a new quote snapshot
+
+In the Config tab / embedded configurator:
+
+Change something that affects price (e.g., width, length, height).
+
+Click Save Changes.
+
+Wait for the success toast. No page reload should happen.
+
+Check the Quotes tab
+
+Click Quotes.
+
+You should see at least one quote entry with:
+
+A timestamp close to now.
+
+A total price that matches what you just saved.
+
+Make a second change → Save Changes → refresh the Quotes tab:
+
+You should see a second entry above the first, with the new price.
+
+Sanity-check permissions
+
+As Admin/Manager: open any lead; you should see its quotes.
+
+As Rep: log in as a rep and open one of their leads; Quotes tab should show entries.
+
+Try to open a lead that’s not assigned to that rep:
+
+Either blocked or not accessible, same as the normal lead detail behavior.
+
+If any of those steps fail, note exactly which step breaks (e.g. “Quotes tab empty after Save Changes” or “GET /api/leads/:id/quotes returns 403/500”) and we’ll target that specifically.
+
+2) Next feature I’d tackle now
+
+Given what’s in place:
+
+Dispositions + History ✔
+
+Days on Stage / Days Since Last Dispo ✔
+
+Aging filters & Pipeline Health ✔
+
+Pipeline buckets ✔
+
+Quote History ✔ (assuming your test passes)
+
+The next logical feature that actually moves the needle is:
+
+Lead aging automation / reactivation bins
+(auto-moving old, untouched leads into re-engage stages based on days since last dispo)
+
+Concretely:
+
+For non-sold leads:
+
+>= 30 days since last disposition → move to stage reactivation_30.
+
+>= 90 days → reactivation_90.
+
+>= 180 days → reactivation_180.
+
+>= 730 days → aged_out.
+
+Each move:
+
+Updates stage and stageUpdatedAt.
+
+Inserts a LeadHistory entry like “Auto-moved to Reactivation 30d (>= 30 days since last disposition).”
+
+Expose a protected endpoint:
+
+POST /api/admin/run-lead-aging
+
+Only ADMIN and MANAGER can trigger it.
+
+Add an “Run Lead Aging Automation” button in an Admin area:
+
+Calls that endpoint.
+
+Shows “X leads updated” in a toast.
+
+If you want to go this direction next, I’ll give you a tight Replit prompt for that automation specifically, with the same “don’t touch configurator” constraints.
+
+If instead you’d rather refine Quote History (e.g., mark a quote as “Primary” / “Accepted” or hook it into a PDF export), say that and we can pivot the next prompt there instead.
