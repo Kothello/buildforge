@@ -1,0 +1,257 @@
+Got it — pipeline buckets are in, aging filters + history are in. Nice.
+
+Given where the project is now, the most valuable next feature is what you already hinted at earlier:
+👉 Quote History for each lead.
+That’s the thing that’ll actually matter when deals change over time.
+
+Here’s a ready-to-paste Replit prompt that only touches backend + lead detail UI, and leaves the 3D builder alone.
+
+PROMPT FOR REPLIT – “QUOTE HISTORY” FEATURE
+
+I want you to add a Quote History system for each lead, without touching the 3D configurator code.
+
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify:
+
+client/src/configurator/**
+
+configurator/iron-builder-studio-*/**
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+You may modify:
+
+shared/schema.ts
+
+server/storage.ts
+
+server/routes.ts
+
+client/src/pages/lead-edit.tsx (to show quote history tab / card)
+
+client/src/lib/queryClient.ts (only if a tiny helper is needed)
+
+client/src/components/** (only small UI pieces, e.g. QuoteHistoryList)
+
+No other files.
+
+GOAL
+
+For each lead, I want to:
+
+Automatically capture a quote snapshot whenever the lead’s configuration / total price is updated (e.g. when the user hits “Save Changes” in the configurator and the lead is persisted).
+
+Show a “Quotes” tab on the lead detail page (/sales/leads/:id) that lists all past quotes for that lead.
+
+Each quote history entry should include at least:
+
+id
+
+leadId
+
+createdAt
+
+createdByUserId
+
+totalPrice at that moment
+
+A JSON snapshot of the configuration used for that quote (whatever structure the lead already stores — reuse it).
+
+I don’t need “restore” or “compare” yet — just view history.
+
+DATA MODEL
+
+In shared/schema.ts create a new table, something like:
+
+export const leadQuoteHistory = sqliteTable("lead_quote_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  leadId: integer("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  totalPrice: integer("total_price").notNull(),
+  configuration: text("configuration", { mode: "json" }).notNull(), // or json() depending on existing style
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(strftime('%s','now'))`),
+  createdByUserId: integer("created_by_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "set null" }),
+});
+
+
+Adjust to match the existing style in shared/schema.ts (types, timestamps, json vs text, etc.).
+
+Export types:
+
+LeadQuoteHistory
+
+InsertLeadQuoteHistory
+
+using the same pattern as other tables.
+
+Run the migration (e.g. npm run db:push) inside the project, not in this prompt.
+
+STORAGE LAYER
+
+In server/storage.ts:
+
+Import the new table + types.
+
+Add methods to the storage interface:
+
+getLeadQuoteHistory(leadId: number): Promise<LeadQuoteHistory[]>;
+addLeadQuoteHistoryEntry(params: {
+  leadId: number;
+  totalPrice: number;
+  configuration: any; // match the Configuration/Lead configuration type already used
+  createdByUserId: number;
+}): Promise<LeadQuoteHistory>;
+
+
+Implement them using the existing DB client:
+
+getLeadQuoteHistory should return entries for a lead ordered by createdAt descending.
+
+addLeadQuoteHistoryEntry should insert a row and return it.
+
+API ROUTES
+
+In server/routes.ts:
+
+Import the new storage methods and types.
+
+Automatic snapshot on lead update
+
+In the existing route that updates a lead (PATCH /api/leads/:id – the one used when saving configurator changes), after the lead is successfully updated:
+
+Detect the current authenticated user (same way other routes do).
+
+Call storage.addLeadQuoteHistoryEntry with:
+
+leadId
+
+the final totalPrice saved for the lead
+
+the final configuration object for the lead
+
+createdByUserId = current user id
+
+Important:
+
+Do not change the shape of the response for the existing PATCH route.
+
+The quote history insert should be best-effort: if it fails, log the error but still return the updated lead, so existing behavior doesn’t break.
+
+New route to fetch quote history
+
+Add a new authenticated route:
+
+app.get("/api/leads/:id/quotes", authMiddleware(storage), async (req, res) => {
+  // Check permissions similar to other lead routes
+  // Reps can only see quotes for their own leads
+  // Admin / Manager can see all
+  const leadId = Number(req.params.id);
+  const user = (req as AuthenticatedRequest).user;
+
+  // Reuse existing permission helper if there is one, or mirror the logic from GET /api/leads/:id
+  // If forbidden, return 403.
+
+  const quotes = await storage.getLeadQuoteHistory(leadId);
+  return res.json(quotes);
+});
+
+
+Reuse whatever auth/role logic is already used in GET /api/leads/:id.
+
+FRONTEND – LEAD DETAIL PAGE
+
+In client/src/pages/lead-edit.tsx:
+
+Query
+
+Use React Query to load quote history:
+
+const quotesQuery = useQuery<LeadQuoteHistory[]>({
+  queryKey: ["/api/leads", leadId, "quotes"],
+  queryFn: () => apiRequest("GET", `/api/leads/${leadId}/quotes`),
+});
+
+
+Types
+
+Create a LeadQuoteHistory type on the client that matches the backend shape, or reuse the generated/shared type if already available.
+
+UI – Tab + List
+
+The page already has tabs for Overview / History / 3D View Activity. Add a new tab:
+
+Label it “Quotes”
+
+When active, show a simple list like:
+
+For each quote (newest first):
+
+Date/time (formatted using existing date utilities)
+
+Created by (user name if available; otherwise “Unknown”)
+
+Total price (formatted with the existing currency formatter)
+
+Short configuration summary (e.g. main width/length/height if available from the JSON; otherwise “Configuration snapshot”)
+
+You can use a Card list similar to the History tab; no need for diff or restore yet.
+
+Handle loading & empty states:
+
+Loading → skeleton or “Loading quote history…”
+
+Empty → “No quote history yet. Quotes will appear here after you save configuration changes.”
+
+TESTING
+
+Please test and confirm:
+
+Save Changes in the configurator for a lead with a different price.
+
+PATCH /api/leads/:id works as before.
+
+A new row appears in lead_quote_history for that lead.
+
+Open that lead’s detail page:
+
+“Quotes” tab is visible.
+
+The new quote appears with correct date, user, and price.
+
+Save again with another change:
+
+Another history entry is added.
+
+“Quotes” tab shows multiple entries in reverse chronological order.
+
+Permissions:
+
+Rep can only see quote history for their own leads.
+
+Admin / Manager can see history for all leads (matching the existing lead detail permissions).
+
+No regressions in:
+
+Disposition History
+
+Aging filters & Pipeline Health
+
+Pipeline Buckets
+
+3D builder behavior
+
+Finally, explicitly confirm in your summary that:
+
+No files under client/src/configurator/** or configurator/iron-builder-studio-*/** were modified.
+
+server/pricingEngine.ts and server/pricingRoutes.ts were not changed.
+
+No 3D/camera/geometry/pricing logic was changed.
+
+END PROMPT
