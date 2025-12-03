@@ -1074,12 +1074,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { quote, lead: quoteLead, user: createdByUser } = quoteData;
 
-      // Generate PDF
+      // Generate PDF to buffer
       const doc = new PDFDocument({ margin: 40 });
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="Quote-${leadId}-${quoteId}.pdf"`);
+      const chunks: Buffer[] = [];
 
-      doc.pipe(res);
+      doc.on("data", (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+
+      doc.on("end", () => {
+        const pdfBuffer = Buffer.concat(chunks);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="Quote-${leadId}-${quoteId}.pdf"`);
+        res.setHeader("Content-Length", pdfBuffer.length);
+        res.send(pdfBuffer);
+      });
+
+      doc.on("error", (err) => {
+        console.error("PDF generation error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Failed to generate quote PDF" });
+        }
+      });
 
       // Header
       doc.fontSize(24).font("Helvetica-Bold").text("QUOTE", { align: "center" });
@@ -1135,7 +1151,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       doc.end();
     } catch (error) {
       console.error("Error generating quote PDF", error);
-      res.status(500).json({ error: "Failed to generate quote PDF" });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to generate quote PDF" });
+      }
     }
   });
 
