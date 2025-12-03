@@ -89,22 +89,9 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
       console.log('[LeadConfiguratorEmbed] onSuccess called with:', updatedLead);
       console.log('[LeadConfiguratorEmbed] Cache key for detail:', ["/api/leads", leadId]);
       
-      // Create a quote snapshot after successful lead update
-      try {
-        await apiRequest('POST', `/api/leads/${leadId}/quotes`, {
-          buildingSpecs: updatedLead.buildingSpecs,
-          configuration: updatedLead.configuration,
-          totalPrice: updatedLead.totalPrice,
-          marginPercent: null,
-          source: 'crm',
-        });
-        
-        // Invalidate quote history cache to refetch latest
-        queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId, "quotes"] });
-      } catch (quoteError) {
-        console.error('Failed to create quote snapshot:', quoteError);
-        // Don't fail the mutation if quote creation fails
-      }
+      // Quote snapshot is now auto-captured by the PATCH endpoint
+      // Just invalidate the cache to refetch latest quotes
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId, "quotes"] });
       
       setIsSaving(false);
       
