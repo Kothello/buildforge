@@ -1,0 +1,45 @@
+The hip roof change you just made made the wraparound corner much worse (see my latest screenshot). I want to undo that experiment completely.
+
+Please do the following:
+
+Reset the hip / wraparound lean-to geometry in client/src/configurator/BuildingModel.tsx to the canonical version from the standalone builder:
+
+Open
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+In that file, find the entire block that handles the wraparound hip panel for lean-tos (the section inside the branch that renders the hip between the main lean-to and the side wraparound lean-to).
+
+Copy that whole block verbatim from the iron-builder file.
+
+In client/src/configurator/BuildingModel.tsx replace the current hip / wraparound panel block you just edited with the copied version, so that this part of the file is identical to the iron-builder version.
+
+Keep only the CRM-specific additions that we know we need:
+
+In the types / props at the top of BuildingModel.tsx, keep the extra optional fields:
+
+gableAttachmentSide?: 'front' | 'back' | 'left' | 'right'
+
+enclosure?: 'fully-enclosed' | 'fully-open' | 'customize'
+
+Keep the existing change that hides vertical columns on wraparound lean-tos:
+
+All beams.push(...) calls that create vertical I-beam columns should stay wrapped in
+if (!leanTo.wraparound) { ... }.
+
+Besides those, do not add any new custom math or special cases in the hip section.
+
+Do NOT do anything else in this step:
+
+Don’t try to “fix” the gap or tweak the corner any further.
+
+Don’t touch any other parts of BuildingModel.tsx (main roof, gable logic, camera, etc.).
+
+Don’t touch configurator UI, pricing, or any other files.
+
+After reverting, rebuild and verify:
+
+Wraparound lean-to corners no longer have exploded / twisted triangles like in my screenshot.
+
+The behavior matches the original standalone iron-builder (even if there’s still a small visual gap on shorter wraparounds).
+
+Finally, summarize exactly what you changed and confirm that the hip section in client/src/configurator/BuildingModel.tsx now matches the iron-builder version byte-for-byte, apart from the CRM-specific fields and the if (!leanTo.wraparound) guard.
