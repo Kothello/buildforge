@@ -1,0 +1,107 @@
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify:
+
+- client/src/configurator/**
+- configurator/iron-builder-studio-*/**
+- server/pricingEngine.ts
+- server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, geometry, camera, or pricing logic.
+
+Allowed / expected files:
+
+- client/src/pages/leads.tsx            // Admin/Manager "All Leads" view
+- client/src/pages/sales-dashboard.tsx  // My Leads (READ-ONLY for this task)
+- client/src/components/**              // small reusable UI bits if needed
+- server/routes.ts                      // ONLY to reuse existing lead update endpoint, not to add complex new APIs
+- server/storage.ts                     // READ-ONLY is preferred
+- shared/schema.ts                      // READ-ONLY to discover the assignment field
+
+GOAL
+
+Give ADMIN and MANAGER users a clean way to assign leads to reps:
+
+1) Bulk assignment (select multiple leads → assign to rep)
+2) Per-row quick assign
+
+We MUST reuse the existing “assigned user” field that already controls what appears in /sales (“My Leads”). No schema changes.
+
+STEP 1 – Discover existing assignment field
+
+- Inspect shared/schema.ts and storage/routes to find the field used for ownership, e.g.:
+  - assignedUserId, ownerUserId, closerId, etc.
+- Do NOT rename or change that field; just reuse it.
+
+STEP 2 – Bulk selection UI on /leads (client/src/pages/leads.tsx)
+
+1. Add a checkbox column:
+   - Header checkbox = select/deselect all rows currently rendered.
+   - Row checkbox = toggles that lead’s ID in a `selectedLeadIds: string[]` state.
+
+2. When `selectedLeadIds.length > 0`, show a small control bar above the table:
+   - A dropdown of reps to assign to:
+     - Use existing `/api/users` or whatever users hook you already have.
+     - Filter to `role === "REP"` (and optionally MANAGER if that makes sense).
+   - Primary button: **“Assign to Rep”**.
+
+3. Behavior when clicking “Assign to Rep”:
+   - If no rep is selected, show a validation error/toast and do nothing.
+   - Otherwise:
+     - For each selected lead ID, call the existing PATCH `/api/leads/:id` endpoint.
+     - In the payload, set ONLY the assignment field you discovered (e.g. `assignedUserId`) plus anything else the endpoint already expects.
+     - It’s fine to use Promise.all to run them in parallel.
+   - While running:
+     - Disable the button and show a loading state (“Assigning…”).
+   - On success:
+     - Clear `selectedLeadIds`.
+     - Invalidate/refetch the leads query so the table updates.
+     - Show success toast like: “Assigned 7 leads to Jordan”.
+   - On error:
+     - Show an error toast with a generic message (e.g. “Failed to assign some leads”).
+
+STEP 3 – Per-row quick assign
+
+1. In the Actions column (or a new narrow column), add a subtle button/icon like a user-switch.
+
+2. Clicking it opens a small popover or dialog:
+
+   - Shows current assignee (name or “Unassigned”).
+   - Dropdown of reps (same list as bulk).
+   - “Save” button.
+
+3. On save:
+   - Call PATCH `/api/leads/:id` with the new assigned user ID.
+   - Show loading state on that dialog’s button while it’s running.
+   - On success:
+     - Close dialog.
+     - Invalidate/refetch leads query, or optimistically update that row.
+
+STEP 4 – Permissions / visibility
+
+- **Only ADMIN and MANAGER** should see:
+  - The checkbox column
+  - Bulk assign controls
+  - Per-row quick-assign button
+
+- Reps:
+  - Should NOT see any of this on `/leads` (if they can even access it).
+  - `/sales` (My Leads) must remain unchanged, except that after assignment they naturally see new leads that have been assigned to them.
+
+REQUIREMENTS
+
+- Do NOT change how My Leads are fetched or filtered.
+- No database schema changes.
+- No configurator, 3D, or pricing changes.
+
+REPORT BACK IN SUMMARY
+
+1) Files modified.
+2) The exact assignment field name used (e.g., `assignedUserId`).
+3) How bulk and per-row assignment are implemented (including loading states and query invalidation).
+4) How to test:
+   - As ADMIN: bulk assign several leads on /leads to a rep, confirm table updates.
+   - As that REP: check /sales and see those leads appear.
+   - As REP: verify no assignment UI is visible on /leads.
+
+Implement this now.

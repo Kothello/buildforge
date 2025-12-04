@@ -3,7 +3,9 @@ import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Trash2, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Users, Trash2, Loader2, UserPlus } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Lead } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
@@ -33,6 +35,9 @@ export default function LeadsPage() {
   const [stageFilter, setStageFilter] = useState<StageFilter>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [bulkAssignUserId, setBulkAssignUserId] = useState<string>("");
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -104,6 +109,51 @@ export default function LeadsPage() {
     if (!window.confirm("Delete this lead permanently? This cannot be undone.")) return;
     setDeletingId(id);
     deleteLeadMutation.mutate(id);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedLeadIds(filteredLeads.map((l: any) => l.id));
+    } else {
+      setSelectedLeadIds([]);
+    }
+  };
+
+  const handleSelectLead = (leadId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedLeadIds((prev) => [...prev, leadId]);
+    } else {
+      setSelectedLeadIds((prev) => prev.filter((id) => id !== leadId));
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkAssignUserId) {
+      toast({ title: "Select a rep", description: "Please choose a rep to assign leads to.", variant: "destructive" });
+      return;
+    }
+    if (selectedLeadIds.length === 0) {
+      toast({ title: "No leads selected", description: "Please select at least one lead.", variant: "destructive" });
+      return;
+    }
+
+    setIsBulkAssigning(true);
+    try {
+      await Promise.all(
+        selectedLeadIds.map((leadId) =>
+          apiRequest("PATCH", `/api/leads/${leadId}/assign`, { assignedTo: bulkAssignUserId })
+        )
+      );
+      const repName = allUsers.find((u: any) => u.id === bulkAssignUserId)?.name || "rep";
+      toast({ title: "Leads assigned", description: `Assigned ${selectedLeadIds.length} leads to ${repName}.` });
+      setSelectedLeadIds([]);
+      setBulkAssignUserId("");
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to assign some leads.", variant: "destructive" });
+    } finally {
+      setIsBulkAssigning(false);
+    }
   };
 
   const filteredLeads = useMemo(() => {
@@ -328,6 +378,58 @@ export default function LeadsPage() {
         ))}
       </div>
 
+      {selectedLeadIds.length > 0 && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium">
+                {selectedLeadIds.length} lead{selectedLeadIds.length > 1 ? "s" : ""} selected
+              </span>
+              <Select value={bulkAssignUserId} onValueChange={setBulkAssignUserId}>
+                <SelectTrigger className="w-[180px] h-8" data-testid="select-bulk-assign-user">
+                  <SelectValue placeholder="Select rep..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allUsers
+                    .filter((u: any) => u.role === "REP" || u.role === "MANAGER")
+                    .map((u: any) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={handleBulkAssign}
+                disabled={isBulkAssigning || !bulkAssignUserId}
+                data-testid="button-bulk-assign"
+              >
+                {isBulkAssigning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Assign to Rep
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedLeadIds([])}
+                data-testid="button-clear-selection"
+              >
+                Clear Selection
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
@@ -345,6 +447,14 @@ export default function LeadsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
+                <th className="py-3 px-2 sm:px-3 w-10">
+                  <Checkbox
+                    checked={filteredLeads.length > 0 && selectedLeadIds.length === filteredLeads.length}
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                    aria-label="Select all leads"
+                    data-testid="checkbox-select-all"
+                  />
+                </th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Company</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Contact</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Status</th>
@@ -358,6 +468,14 @@ export default function LeadsPage() {
             <tbody>
               {filteredLeads.map((lead: any) => (
                 <tr key={lead.id} className="border-b border-border/50 hover:bg-card/30 transition" onMouseEnter={prefetchLeadEdit}>
+                  <td className="py-3 px-2 sm:px-3">
+                    <Checkbox
+                      checked={selectedLeadIds.includes(lead.id)}
+                      onCheckedChange={(checked) => handleSelectLead(lead.id, !!checked)}
+                      aria-label={`Select ${lead.companyName}`}
+                      data-testid={`checkbox-lead-${lead.id}`}
+                    />
+                  </td>
                   <td className="py-3 px-3 sm:px-4">
                     <p className="font-medium truncate">{lead.companyName}</p>
                   </td>
