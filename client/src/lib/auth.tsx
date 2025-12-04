@@ -15,7 +15,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   register: (name: string, email: string, password: string, role?: string) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -51,19 +51,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, [refreshUser]);
 
-  const login = async (email: string, password: string) => {
+  // Check for remember me token on mount
+  useEffect(() => {
+    const rememberMeEmail = localStorage.getItem("rememberMeEmail");
+    if (rememberMeEmail && !user) {
+      // Remember me email is stored, but user isn't logged in yet
+      // This is just for form prefill - actual session is checked above
+    }
+  }, []);
+
+  const login = async (email: string, password: string, rememberMe?: boolean) => {
     const response = await apiRequest("POST", "/api/auth/login", { email, password });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || "Login failed");
     }
     setUser(data.user);
+    
+    // Handle remember me
+    if (rememberMe) {
+      localStorage.setItem("rememberMeEmail", email);
+    } else {
+      localStorage.removeItem("rememberMeEmail");
+    }
+    
     queryClient.invalidateQueries();
   };
 
   const logout = async () => {
     await apiRequest("POST", "/api/auth/logout");
     setUser(null);
+    localStorage.removeItem("rememberMeEmail");
     queryClient.clear();
   };
 

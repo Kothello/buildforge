@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { Building2 } from "lucide-react";
@@ -16,12 +17,22 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Restore email from remember me on mount
+  useEffect(() => {
+    const rememberMeEmail = localStorage.getItem("rememberMeEmail");
+    if (rememberMeEmail) {
+      setEmail(rememberMeEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       toast({ title: "Welcome back!" });
       setLocation("/crm/deals");
     } catch (error: any) {
@@ -72,6 +83,17 @@ export default function LoginPage() {
                 required
                 data-testid="input-login-password"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                id="rememberMe" 
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                data-testid="checkbox-remember-me"
+              />
+              <Label htmlFor="rememberMe" className="text-sm cursor-pointer font-normal">
+                Remember me
+              </Label>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login">
               {isLoading ? "Signing in..." : "Sign In"}
