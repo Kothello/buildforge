@@ -30,7 +30,7 @@ const tempConfig = {
 };
 
 export function TemperatureBadge({ temperature, className }: TemperatureBadgeProps) {
-  const config = tempConfig[temperature];
+  const config = tempConfig[temperature] || tempConfig.cold;
   const Icon = config.icon;
 
   return (
