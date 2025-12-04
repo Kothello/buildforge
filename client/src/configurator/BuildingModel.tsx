@@ -2487,75 +2487,96 @@ export const BuildingModel = ({
                               
                             if (!otherLeanTo) return;
 
-                            // This lean-to's roof edge heights (in local space)
-                            const thisOuterY = leanToHeight; // low
-                            const thisInnerY = leanToHeight + effectiveRoofRise; // high
-
-                            // Other lean-to's dimensions for calculating ridge endpoint
+                            // =====================================================
+                            // HIP PANEL GEOMETRY - World-space corner approach
+                            // =====================================================
+                            // The hip triangle fills the gap where two perpendicular 
+                            // single-slope roofs meet at a building corner. We compute
+                            // three world-space points that lie exactly on both roof planes:
+                            // 
+                            // P_high: Building corner where both inner (high) edges meet
+                            // P_thisOuter: This lean-to's outer corner at the connection
+                            // P_otherOuter: Other lean-to's outer corner at the connection
+                            
+                            // This lean-to's roof edge heights
+                            const thisOuterY = leanToHeight; // low (outer edge)
+                            const thisInnerY = leanToHeight + effectiveRoofRise; // high (inner edge at building)
+                            
+                            // Other lean-to's dimensions
                             const otherEffectiveWidth = isMainWraparound ? otherLeanTo.width : wraparoundLeanTo.width;
                             const otherHeight = otherLeanTo.height;
-                            const otherRawRise = (otherLeanTo.pitch / 12) * (isMainWraparound ? otherLeanTo.width : wraparoundLeanTo.width);
+                            const otherRawRise = (otherLeanTo.pitch / 12) * otherEffectiveWidth;
                             const otherRawHighest = otherHeight + otherRawRise;
                             let otherEffectiveRise = otherRawRise;
                             if (otherRawHighest > mainBuildingEaveHeight) {
                               otherEffectiveRise = mainBuildingEaveHeight - otherHeight - 0.2;
                             }
-                            const otherInnerY = otherHeight + otherEffectiveRise;
-
-                            // Calculate the shared corner point in world space for perfect alignment
-                            // The ridge runs from building corner (high) to outer corner where both lean-tos meet (low)
-                            const sharedCornerHighY = Math.max(thisInnerY, otherInnerY); // Building corner - use highest
-                            const sharedCornerLowY = Math.min(thisOuterY, otherHeight); // Outer corner - use lowest
-
-                            // Position the triangle at the correct end based on which wall and corner this wrap is on
-                            // Main (front/back) lean-to is already correct; sidewall lean-to needs to mirror so it hits the same physical corner
+                            const otherInnerY = otherHeight + otherEffectiveRise; // high
+                            const otherOuterY = otherHeight; // low
+                            
+                            // Position the triangle at the correct corner
                             let baseZSign: number;
                             if (frontBackWall === 'front') {
-                              // Front wall reference: right => local -Z, left => local +Z
                               baseZSign = activeCorner === 'right' ? -1 : 1;
                             } else if (frontBackWall === 'back') {
-                              // Back wall reference: right => local +Z, left => local -Z
                               baseZSign = activeCorner === 'right' ? 1 : -1;
                             } else if (frontBackWall === 'left') {
-                              // Left wall: right corner => local +Z (back), left corner => local -Z (front)
                               baseZSign = activeCorner === 'right' ? 1 : -1;
                             } else {
-                              // Right wall: right corner => local -Z (front), left corner => local +Z (back)
                               baseZSign = activeCorner === 'right' ? -1 : 1;
                             }
-
+                            
                             let zSign: number;
                             if (isMainWraparound) {
-                              // Parent (front/back) lean-to uses the base mapping
                               zSign = baseZSign;
                             } else {
-                              // Child side lean: mirror the base mapping so it hits the same physical corner
                               zSign = -baseZSign;
                             }
+                            
                             const zEdge = (attachWallLength / 2) * zSign;
-
-                            // Hip panel geometry - thicker to match wall thickness
+                            
+                            // Hip panel geometry constants
                             const geometry = new THREE.BufferGeometry();
-                            const heightAdjust = 0.12; // Raise to be flush with thicker roof
-                            const roofThickness = 0.25; // Match wall thickness
-
-                            // Create a single triangular hip panel for this lean-to
-                            const extensionAmount = 0.02; // Final tiny reduction to fully eliminate overlap
+                            const heightAdjust = 0.12;
+                            const roofThickness = 0.25;
+                            const extensionAmount = 0.02;
                             
-                            // Calculate the exact shared corner point where both hip panels meet
-                            const sharedCornerX = effectiveWidth / 2;
-                            const sharedCornerZ = zEdge + ((otherEffectiveWidth + extensionAmount) * zSign);
+                            // =====================================================
+                            // Compute the three hip triangle vertices in local space
+                            // that properly lie on both roof planes
+                            // =====================================================
                             
-                            // Create thicker triangular panel with top and bottom faces
+                            // P_high: Building corner - highest point where both inner edges meet
+                            // This is at the building attachment (X = -effectiveWidth/2 in local space)
+                            // at the corner Z position, with Y = max of both inner heights
+                            const P_high_X = -effectiveWidth / 2;
+                            const P_high_Z = zEdge;
+                            const P_high_Y = Math.max(thisInnerY, otherInnerY);
+                            
+                            // P_thisOuter: This lean-to's outer corner at the connection point
+                            // This is at the outer edge (X = +effectiveWidth/2) at the corner Z
+                            // Y follows THIS lean-to's roof plane (slopes down to thisOuterY)
+                            const P_thisOuter_X = effectiveWidth / 2;
+                            const P_thisOuter_Z = zEdge;
+                            const P_thisOuter_Y = thisOuterY;
+                            
+                            // P_otherOuter: The shared outer corner where both lean-tos extend
+                            // This is at the far corner diagonally, at the other lean-to's outer edge
+                            // Y = other lean-to's outer height (low point)
+                            const P_otherOuter_X = effectiveWidth / 2;
+                            const P_otherOuter_Z = zEdge + ((otherEffectiveWidth + extensionAmount) * zSign);
+                            const P_otherOuter_Y = otherOuterY;
+                            
+                            // Create triangular hip panel with thickness
                             const vertices = new Float32Array([
-                              // Top surface
-                              -effectiveWidth / 2, sharedCornerHighY + heightAdjust, zEdge,
-                              effectiveWidth / 2, sharedCornerLowY + heightAdjust, zEdge,
-                              sharedCornerX, sharedCornerLowY + heightAdjust, sharedCornerZ,
+                              // Top surface - three points defining the hip triangle
+                              P_high_X, P_high_Y + heightAdjust, P_high_Z,
+                              P_thisOuter_X, P_thisOuter_Y + heightAdjust, P_thisOuter_Z,
+                              P_otherOuter_X, P_otherOuter_Y + heightAdjust, P_otherOuter_Z,
                               // Bottom surface (offset by thickness)
-                              -effectiveWidth / 2, sharedCornerHighY + heightAdjust - roofThickness, zEdge,
-                              effectiveWidth / 2, sharedCornerLowY + heightAdjust - roofThickness, zEdge,
-                              sharedCornerX, sharedCornerLowY + heightAdjust - roofThickness, sharedCornerZ,
+                              P_high_X, P_high_Y + heightAdjust - roofThickness, P_high_Z,
+                              P_thisOuter_X, P_thisOuter_Y + heightAdjust - roofThickness, P_thisOuter_Z,
+                              P_otherOuter_X, P_otherOuter_Y + heightAdjust - roofThickness, P_otherOuter_Z,
                             ]);
                             
                             const indices = new Uint16Array([

@@ -1,0 +1,304 @@
+PROMPT FOR REPLIT – FIX WRAPAROUND LEAN-TO HIP ROOF GEOMETRY
+
+I want you to fix the visual glitch in the wraparound lean-to roof, specifically at the hip where a main wraparound lean-to meets its side child lean-to. The current code produces an ugly, twisted “spike” / mismatched triangle instead of a smooth hip, as in the attached screenshot.
+
+This is a 3D configurator-only fix.
+
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+You may modify only:
+
+client/src/configurator/BuildingModel.tsx
+
+client/src/configurator/types.ts (only if you absolutely need a tiny type tweak for lean-to metadata)
+
+You must NOT modify:
+
+Any files under server/**
+
+Any pricing files:
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Any React pages (client/src/pages/**)
+
+Any shared schema (shared/schema.ts)
+
+You must NOT change:
+
+Any behavior of the configurator outside:
+
+Wraparound lean-to hip roof geometry
+
+Wraparound lean-to corner roof panels at the join
+
+Any 3D camera behavior
+
+Any pricing logic
+
+Any door/window placement or interaction logic
+
+The only acceptable visual changes are:
+
+The roof hip and corner between a wraparound lean-to and its side children becomes smooth and properly aligned.
+
+Non-wraparound lean-tos look the same as before.
+
+CONTEXT
+
+In this repo:
+
+The CRM configurator’s BuildingModel.tsx is almost identical to the reference:
+
+client/src/configurator/BuildingModel.tsx
+
+configurator/iron-builder-studio-new/client/src/components/BuildingModel.tsx
+
+iron-builder-reference/client/src/components/BuildingModel.tsx
+
+They share the same wraparound hip logic, including:
+
+Helper comments and code around:
+
+// Helper: compute world-space corners of a lean-to roof for wraparound connections
+
+sharedCornerHighY, sharedCornerLowY
+
+baseZSign, zSign
+
+hipScale, uRepeat, vRepeat
+
+key={\hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`}` on the hip mesh.
+
+The bug is visible when:
+
+You have a single-slope wraparound lean-to along a long wall, with child lean-tos on the adjacent wall(s).
+
+At the corner, the hip panel forms a twisted / overly steep triangle instead of a clean roof intersection (exactly like the screenshot I showed you).
+
+We need to fix the hip panel geometry, not the beams/columns (which were already synchronized).
+
+GOAL
+
+Correct the hip roof panel geometry between:
+
+The main wraparound lean-to (front/back wall parent).
+
+Its side child lean-to(s) (left/right wall children).
+
+Ensure:
+
+The hip triangle lies exactly on the two roof planes that meet at the corner.
+
+No “spike” or twisted wedge appears.
+
+No roof segments stick through each other or leave gaps.
+
+Do not change:
+
+Non-wraparound lean-to roofs.
+
+Gable lean-tos.
+
+Main building roof.
+
+The result should visually look like a clean, continuous hip where the two single-slope roofs meet.
+
+IMPLEMENTATION GUIDANCE
+
+Work exclusively in client/src/configurator/BuildingModel.tsx.
+
+Locate the wraparound lean-to hip code
+
+In BuildingModel.tsx, find the section that:
+
+Computes sharedCornerHighY and sharedCornerLowY.
+
+Computes baseZSign and zSign.
+
+Builds a THREE.BufferGeometry with vertices and indices for the hip.
+
+Uses a mesh key like:
+
+<mesh key={`hip-${leanTo.id}-${wraparoundLeanTo.id}-${activeCorner}`} geometry={geometry}>
+
+
+This is the triangular hip panel between the main lean-to and the side child.
+
+Understand the intended geometry
+
+The intent:
+
+Each lean-to roof is a single plane (for single-slope).
+
+At a corner, two such planes intersect along a line (the hip).
+
+The hip triangle should:
+
+Start at the building corner (highest meeting point of the two inner roof edges).
+
+End at the outer corner where both lean-tos meet (lowest of the two outer roof edges).
+
+The existing code attempts this using:
+
+thisInnerY, thisOuterY for the current lean-to.
+
+otherInnerY, otherOuterY for the other lean-to.
+
+sharedCornerHighY = max(thisInnerY, otherInnerY).
+
+sharedCornerLowY = min(thisOuterY, otherHeight).
+
+The bug comes from:
+
+Using mixed local/world coordinate assumptions and sign flips (zSign, baseZSign) that produce a triangle that does not lie exactly in the two roof planes.
+
+Refactor to a robust, geometric approach
+
+Replace the current hip triangle construction with a simpler, explicit calculation:
+
+For each hip (corner), determine three world-space points:
+
+P_high: intersection of the two inner roof edges at the building corner.
+
+P_thisOuter: outer roof edge endpoint of the main wraparound lean-to.
+
+P_otherOuter: outer roof edge endpoint of the side child lean-to.
+
+These three points must lie on both roof planes by construction.
+
+Implementation path:
+
+For each lean-to (leanTo and otherLeanTo), compute the four roof corner points in world space:
+
+Reuse or properly use the existing helper:
+
+const computeLeanToRoofCorners = (
+  leanTo: typeof leanTos[0],
+  position: [number, number, number],
+  rotation: [number, number, number]
+) => { ... }
+
+
+If it’s currently unused, start using it:
+
+Pass the same position and rotation that you use when placing that lean-to’s roof group.
+
+Have it return:
+
+innerLeft, innerRight, outerLeft, outerRight as THREE.Vector3s in world space.
+
+For the active corner ('left' or 'right') and the front/back wall:
+
+Pick the appropriate inner/outer corners from each lean-to’s roof:
+
+For example, for a front wall, right corner:
+
+Main lean-to:
+
+P_thisInner = innerRight
+
+P_thisOuter = outerRight
+
+Side child:
+
+P_otherInner = the inner corner adjacent to that corner.
+
+P_otherOuter = corresponding outer corner.
+
+Determine:
+
+P_high = point with larger Y between P_thisInner and P_otherInner.
+
+P_low1 and P_low2 as the outer corners P_thisOuter and P_otherOuter.
+
+Optionally clamp heights if needed to avoid exceeding main roof, but keep them on their respective planes.
+
+Construct the hip triangle geometry directly from those three points:
+
+const vertices = new Float32Array([
+  P_high.x,   P_high.y,   P_high.z,
+  P_low1.x,   P_low1.y,   P_low1.z,
+  P_low2.x,   P_low2.y,   P_low2.z,
+  // Optional bottom face if you want thickness
+  P_high.x,   P_high.y - roofThickness,   P_high.z,
+  P_low1.x,   P_low1.y - roofThickness,   P_low1.z,
+  P_low2.x,   P_low2.y - roofThickness,   P_low2.z,
+]);
+
+const indices = new Uint16Array([
+  0, 1, 2,
+  3, 5, 4,
+  0, 3, 4, 0, 4, 1,
+  1, 4, 5, 1, 5, 2,
+  2, 5, 3, 2, 3, 0,
+]);
+
+
+Keep the existing thickness/UV logic, but tie it to these vertices.
+
+You can still offset slightly inward (extensionAmount) to avoid z-fighting, but avoid large fudge factors that twist the panel.
+
+Remove or simplify the old sharedCornerHighY / sharedCornerLowY / baseZSign logic only in the hip section. Do not touch unrelated lean-to code.
+
+Keep UVs & materials similar
+
+Preserve:
+
+hipScale, uRepeat, vRepeat idea for UVs.
+
+Use the same material as other roof panels:
+
+meshStandardMaterial with roofColor, metalness, roughness, and bumpMap.
+
+Only adjust UV coordinates as necessary to match the new vertex order.
+
+TESTING
+
+After the change:
+
+Configure a building with:
+
+Main building.
+
+A single-slope wraparound lean-to along a long wall.
+
+Child lean-to on the adjacent wall (front/right, front/left, back/right, back/left combinations).
+
+Use widths like 16 ft, 20 ft, 30 ft so the hip is clearly visible.
+
+Verify visually:
+
+At each corner:
+
+The small hip wedge between the two lean-to roofs is smooth and lies exactly between the surfaces.
+
+No tall spike, no twisted panel, no obvious gap.
+
+When rotating camera around that corner:
+
+Roof thickness looks consistent.
+
+The hip aligns with both roof planes.
+
+Regression checks:
+
+Non-wraparound single-slope lean-tos look exactly the same as before.
+
+Gable lean-tos look the same.
+
+Main building roof is unchanged.
+
+Doors/windows, posts, beams, walls all behave as before.
+
+Explicitly confirm in your summary:
+
+Only client/src/configurator/BuildingModel.tsx (and optionally types.ts) were modified.
+
+No changes to server, pricing, or React pages.
+
+The wraparound hip roof visual glitch is resolved in the tested configurations.
+
+END PROMPT
