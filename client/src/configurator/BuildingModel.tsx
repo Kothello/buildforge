@@ -2496,8 +2496,7 @@ export const BuildingModel = ({
                             //
                             // Key insight: Don't try to account for child length or position.
                             // Just pretend both lean-tos "reach the corner" in roof-space.
-                            // This guarantees all three points lie on the respective roof planes
-                            // with no gap, regardless of the configured length along the wall.
+                            // Place the hip at the BUILDING CORNER, not at the lean-to's edge.
                             
                             // This lean-to's roof edge heights (in local space)
                             const thisOuterY = leanToHeight; // low (outer edge)
@@ -2517,13 +2516,11 @@ export const BuildingModel = ({
                             // Calculate the shared high point where both inner edges meet
                             // This is the building corner at the highest inner edge height
                             const sharedCornerHighY = Math.max(thisInnerY, otherInnerY); // Building corner - use highest
+                            const sharedCornerLowY = Math.min(thisOuterY, otherHeight); // Outer corner - use lowest
                             
-                            // Each outer vertex uses its own roof's outer height for proper plane alignment
-                            const thisOuterHeight = thisOuterY;  // This lean-to's outer edge height
-                            const otherOuterHeight = otherHeight; // Other lean-to's outer edge height
-                            
-                            // Position the triangle at the correct end based on which wall and corner this wrap is on
-                            // Main (front/back) lean-to is already correct; sidewall lean-to needs to mirror so it hits the same physical corner
+                            // Position the triangle at the BUILDING CORNER, not the lean-to edge
+                            // The building corner is at ±wallDimension/2 in world space
+                            // This lean-to's local zEdge needs to be at the building corner
                             let baseZSign: number;
                             if (frontBackWall === 'front') {
                               // Front wall reference: right => local -Z, left => local +Z
@@ -2547,7 +2544,24 @@ export const BuildingModel = ({
                               // Child side lean: mirror the base mapping so it hits the same physical corner
                               zSign = -baseZSign;
                             }
-                            const zEdge = (attachWallLength / 2) * zSign;
+                            
+                            // Calculate where the building corner is in THIS lean-to's local coordinates
+                            // The lean-to group is offset by centerOffset from building center
+                            // So the building corner (at ±wallDimension/2 in world) is at:
+                            // localZ = worldZ - centerOffset (for front/back walls)
+                            // For this lean-to, the wall dimension is the attachment wall length
+                            const thisWallDimension = (leanTo.wall === 'front' || leanTo.wall === 'back') ? width : length;
+                            const thisActualLength = attachWallLength;
+                            const thisPosition = leanToDragPositions.get(leanTo.id) ?? leanTo.position;
+                            const thisCenterOffset = (thisPosition - 0.5) * (thisWallDimension - thisActualLength);
+                            
+                            // Building corner in world space is at ±thisWallDimension/2
+                            // In local space, that's (±thisWallDimension/2 - thisCenterOffset) for this lean-to
+                            const buildingCornerWorld = (thisWallDimension / 2) * zSign;
+                            const buildingCornerLocal = buildingCornerWorld - (thisCenterOffset * zSign);
+                            
+                            // Use building corner position for the hip triangle
+                            const zEdge = buildingCornerLocal;
                             
                             // Hip panel geometry - thicker to match wall thickness
                             const geometry = new THREE.BufferGeometry();
@@ -2562,19 +2576,19 @@ export const BuildingModel = ({
                             const sharedCornerZ = zEdge + ((otherEffectiveWidth + extensionAmount) * zSign);
                             
                             // Create thicker triangular panel with top and bottom faces
-                            // Three vertices, each at its correct height for proper roof plane alignment:
+                            // Three vertices at the building corner (not lean-to edge):
                             // 1. P_high: Building corner (inner edge) at highest point
-                            // 2. P_thisOuter: This lean-to's outer corner at THIS roof's outer height
-                            // 3. P_sideOuter: Side lean-to's outer corner at OTHER roof's outer height
+                            // 2. P_thisOuter: This lean-to's outer corner at building corner
+                            // 3. P_sideOuter: Side lean-to's outer corner
                             const vertices = new Float32Array([
                               // Top surface
                               -effectiveWidth / 2, sharedCornerHighY + heightAdjust, zEdge,           // P_high
-                              effectiveWidth / 2, thisOuterHeight + heightAdjust, zEdge,              // P_thisOuter
-                              sharedCornerX, otherOuterHeight + heightAdjust, sharedCornerZ,          // P_sideOuter
+                              effectiveWidth / 2, sharedCornerLowY + heightAdjust, zEdge,             // P_thisOuter
+                              sharedCornerX, sharedCornerLowY + heightAdjust, sharedCornerZ,          // P_sideOuter
                               // Bottom surface (offset by thickness)
                               -effectiveWidth / 2, sharedCornerHighY + heightAdjust - roofThickness, zEdge,
-                              effectiveWidth / 2, thisOuterHeight + heightAdjust - roofThickness, zEdge,
-                              sharedCornerX, otherOuterHeight + heightAdjust - roofThickness, sharedCornerZ,
+                              effectiveWidth / 2, sharedCornerLowY + heightAdjust - roofThickness, zEdge,
+                              sharedCornerX, sharedCornerLowY + heightAdjust - roofThickness, sharedCornerZ,
                             ]);
                             
                             const indices = new Uint16Array([
