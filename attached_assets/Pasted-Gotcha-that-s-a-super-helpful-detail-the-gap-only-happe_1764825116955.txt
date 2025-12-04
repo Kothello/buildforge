@@ -1,0 +1,195 @@
+Gotcha—that’s a super helpful detail: the gap only happens when the wraparound lean-to length is less than 120 ft. Let’s bake that into the Replit instructions so it specifically tests and fixes that case.
+
+Here’s an updated prompt you can paste straight into Replit:
+
+🔧 Replit Prompt – Fix gap on wraparound single-slope lean-to when length < 120 ft
+
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Only modify:
+
+client/src/configurator/BuildingModel.tsx
+
+Do NOT touch:
+
+Any other client/src/configurator/** files
+
+Any configurator/iron-builder-studio-*/** files
+
+Any server or pricing files
+
+Do NOT change:
+
+Pricing logic
+
+CRM pages
+
+Camera controls
+
+Doors/windows, columns, or main building geometry
+
+This task is only about the 3D roof geometry where a single-slope wraparound lean-to meets the main building / return lean-to.
+
+BUG DESCRIPTION
+
+How to reproduce:
+
+Open the configurator.
+
+Main building: single-slope.
+
+Add a single-slope lean-to on a long wall.
+
+Turn wraparound ON (so it wraps around the corner).
+
+Set the wraparound length (the return leg) to something less than 120 ft
+(e.g. 20 ft, 40 ft, 80 ft).
+
+Look at the corner where the long-side lean-to roof meets the wraparound return.
+
+Current behavior:
+
+When wraparound length < 120 ft, there is a visible gap at that corner:
+
+The small hip / corner patch between the two lean-to roofs doesn’t reach all the way.
+
+Sometimes there’s a sliver of open sky or misaligned panels.
+
+When wraparound length is at or near 120 ft, the geometry often looks correct.
+
+This tells us the hip / corner panel calculations are sensitive to the wraparound length and likely using a constant (like 120) or wallDimension in a way that breaks shorter lengths.
+
+DESIRED BEHAVIOR
+
+For any single-slope wraparound lean-to, regardless of length:
+
+The lean-to roofs must meet cleanly at the corner:
+
+No gaps
+
+No overlapping spikes
+
+Hip patch fully covers the opening between the two lean-to planes.
+
+Changing the wraparound length (10–120 ft) should:
+
+Move the outer roof edge correctly
+
+Keep the corner / hip patch fully closed
+
+Never rely on a hard-coded 120-ft assumption.
+
+We only care about:
+
+leanTo.type = single-slope (non-gable)
+
+leanTo.wraparound === true
+
+The corner where the main side lean-to and its wraparound “return” meet.
+
+Do not alter gable lean-tos or non-wraparound lean-tos.
+
+WHAT TO DO IN BuildingModel.tsx
+
+Locate the wraparound hip / corner code
+
+Find the section that builds the small roof panel between:
+
+the long-wall lean-to roof, and
+
+the return/wraparound lean-to roof,
+
+for single-slope roofs with wraparound enabled.
+
+There may already be a previous “hip triangle” refactor with points like
+P_high, P_thisOuter, P_otherOuter.
+
+Check for 120-ft assumptions
+
+Search for any constants or logic related to 120 or maxWidth / maxLength that might influence:
+
+lean-to outer edge positions
+
+the hip patch width
+
+We do not want the hip geometry to assume a fixed 120 ft; it must use the actual wraparound length.
+
+Re-compute hip / corner points based on actual lengths
+
+Implement a robust geometry approach:
+
+For the wraparound corner, compute three world-space points that lie on the correct roof planes:
+
+P_inner – building corner at the eave where the two lean-tos meet the main wall (shared high side).
+
+P_outerA – outer eave corner of the long-side lean-to.
+
+P_outerB – outer eave corner of the wraparound / return lean-to (this point moves when length < 120 ft).
+
+Use the actual lean-to width/length values (not clamped to 120) plus pitch and base height to calculate Y.
+
+Build either:
+
+a quad (two triangles) filling that corner, or
+
+a single well-shaped triangle, whose vertices are exactly P_inner, P_outerA, P_outerB.
+
+This patch must adapt naturally as the wraparound length changes, so no gap appears even when length < 120.
+
+Keep everything else intact
+
+Don’t modify:
+
+Positions of existing lean-to roofs
+
+Main building roof geometry
+
+Only change the corner / hip mesh vertices & indices for that wraparound connection.
+
+UV mapping
+
+Keep or adjust UVs so materials still look reasonable.
+
+Simple planar UVs are fine; just avoid obviously stretched or NaN UVs.
+
+TESTING (MUST DO)
+
+After your change, manually verify in the running app:
+
+Single-slope main building, single-slope lean-to on long wall, wraparound ON:
+
+Test wraparound lengths:
+
+20 ft
+
+40 ft
+
+80 ft
+
+At each length:
+
+No visible gap at the corner.
+
+No spike / twisted triangle.
+
+Hip patch fully covers the corner between roofs.
+
+Same setup with length at or near 120 ft:
+
+Behavior remains correct; you didn't break the previously working case.
+
+Non-wrap single-slope lean-tos and gable lean-tos:
+
+Appear unchanged.
+
+REPORT BACK
+
+In your summary, please clearly state:
+
+Exact line range(s) changed in client/src/configurator/BuildingModel.tsx.
+
+How the new corner / hip points are computed (in words).
+
+The exact configurations you tested, especially:
+
+Wraparound lengths < 120 ft where the gap used to appear.
