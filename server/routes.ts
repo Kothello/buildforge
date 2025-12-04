@@ -207,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email, password, rememberMe } = req.body;
 
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });
@@ -237,19 +237,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt: getRefreshTokenExpiry(),
       });
 
-      res.cookie("accessToken", accessToken, {
+      // Cookie options - if rememberMe is true, set maxAge for persistence
+      // If false, omit maxAge so cookies are session-only (expire when browser closes)
+      const cookieOptions: any = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 15 * 60 * 1000,
-      });
+        sameSite: "lax" as const,
+      };
 
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      if (rememberMe) {
+        // Persistent cookies - access token refreshes automatically via refresh token
+        res.cookie("accessToken", accessToken, {
+          ...cookieOptions,
+          maxAge: 15 * 60 * 1000, // 15 minutes
+        });
+        res.cookie("refreshToken", refreshToken, {
+          ...cookieOptions,
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days for remember me
+        });
+      } else {
+        // Session cookies - no maxAge means they expire when browser closes
+        res.cookie("accessToken", accessToken, cookieOptions);
+        res.cookie("refreshToken", refreshToken, cookieOptions);
+      }
 
       const { passwordHash: _, ...userWithoutPassword } = user;
       res.json({ user: userWithoutPassword, accessToken });

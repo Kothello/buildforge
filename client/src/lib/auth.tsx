@@ -61,14 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string, rememberMe?: boolean) => {
-    const response = await apiRequest("POST", "/api/auth/login", { email, password });
+    const response = await apiRequest("POST", "/api/auth/login", { email, password, rememberMe });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || "Login failed");
     }
     setUser(data.user);
     
-    // Handle remember me
+    // Handle remember me - store email for form prefill
     if (rememberMe) {
       localStorage.setItem("rememberMeEmail", email);
     } else {
