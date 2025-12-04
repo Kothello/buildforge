@@ -1,0 +1,77 @@
+You ARE allowed to edit 3D builder files for this task:
+
+client/src/configurator/BuildingModel.tsx
+
+Do NOT touch anything outside of this file (no pricing, no routes, no schema, no configurator UI).
+
+The canonical reference for correct behavior is in the uploaded zip:
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+Preserve CRM-specific types / fields that already exist in the CRM file, such as:
+
+gableAttachmentSide?: 'front' | 'back' | 'left' | 'right';
+enclosure?: 'fully-enclosed' | 'fully-open' | 'customize';
+
+
+and any imports used only by the CRM app.
+
+What I want fixed
+
+Right now, when I create a wraparound single-slope lean-to (both corners) with width > 16 ft, the corner roof/hip area is wrong: panels and/or hip wedges stick out past the main roof (see screenshot).
+
+In the standalone iron-builder project, the exact same configuration renders correctly:
+
+No orange posts/vertical beams on wraparound lean-tos
+
+The roof panels meet cleanly at the corner and do not hang past the walls
+
+Hip / corner panels behave smoothly for wraparound single-slope lean-tos
+
+What to do
+
+Open both files side-by-side:
+
+client/src/configurator/BuildingModel.tsx
+
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx
+
+Find the sections that handle lean-to roofs, specifically:
+
+Single-slope lean-to roof panels
+
+Wraparound lean-tos (left/right/both)
+
+Hip / corner connector meshes for lean-tos
+
+Vertical column / post meshes for lean-tos
+
+For the CRM version, replace the logic in those sections with the canonical logic from the iron-builder version, adjusting only:
+
+Type annotations to keep CRM’s LeanTo type (including gableAttachmentSide & enclosure)
+
+Any import paths (e.g. @/pages/Index → ./types) that differ between the two projects
+
+Make sure the following is true after your change (same as canonical builder):
+
+Wraparound single-slope lean-to roof panels are fully inside the main roof footprint, no triangles or wedges sticking out.
+
+Any hip/corner “filler” meshes on wraparound single-slope lean-tos match the standalone builder.
+
+Vertical orange posts do not appear on wraparound lean-tos (only on non-wraparound lean-tos), exactly like the standalone builder.
+
+Do not re-introduce any of the experimental formulas we tried earlier (like dynamic “baseInset / extraInset” tweaks). Just use the exact beam/panel length and positioning formulas from the canonical iron-builder BuildingModel.tsx.
+
+After editing, rebuild and test these cases in the CRM builder:
+
+Single-slope main building + single-slope wraparound lean-to (both corners) at widths 16 ft, 20 ft, 30 ft.
+
+Confirm the visuals match the iron-builder demo and that no posts or panels stick out.
+
+When you’re done, summarize:
+
+Exactly which blocks you copied/updated (line ranges / function names)
+
+Any tiny differences you had to keep for CRM types/imports
+
+A quick checklist of test scenarios you ran and their results
