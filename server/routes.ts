@@ -1097,136 +1097,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // ===== Header / Letterhead =====
+      // ===== HEADER / LETTERHEAD =====
+      const marginLeft = 50;
+      const marginRight = 50;
       const pageWidth = doc.page.width;
-      doc.fontSize(20).font("Helvetica-Bold").text("STEELFLOW ONE", { align: "left" });
-      doc.fontSize(12).font("Helvetica").text("Steel Building Quote", { align: "left" });
-      
-      // Company info on the right
-      const companyInfoX = pageWidth - 250;
-      doc.fontSize(9).font("Helvetica").text("Website: steelflow.one", { x: companyInfoX, y: 70, width: 200, align: "right" });
-      doc.text("Email: sales@steelflow.one", { x: companyInfoX, y: 85, width: 200, align: "right" });
-      doc.text("Phone: (800) 555-STEEL", { x: companyInfoX, y: 100, width: 200, align: "right" });
-      
-      // Horizontal line under header
-      doc.moveTo(50, 125).lineTo(pageWidth - 50, 125).stroke();
+      const maxWidth = pageWidth - marginLeft - marginRight;
+
+      doc.fontSize(24).font("Helvetica-Bold").text("STEELFLOW ONE", marginLeft);
+      doc.fontSize(12).font("Helvetica").text("Steel Building Quote", marginLeft);
+
+      // Company info on right side of header
+      const companyInfoX = pageWidth - marginRight - 180;
+      const companyInfoY = doc.y - 40;
+      doc.fontSize(9).font("Helvetica").text("steelflow.one", companyInfoX, companyInfoY, { align: "right", width: 170 });
+      doc.text("sales@steelflow.one", companyInfoX, companyInfoY + 14, { align: "right", width: 170 });
+      doc.text("(800) 555-STEEL", companyInfoX, companyInfoY + 28, { align: "right", width: 170 });
+
+      // Separator line
+      doc.moveTo(marginLeft, doc.y + 10).lineTo(pageWidth - marginRight, doc.y + 10).stroke();
       doc.moveDown(2);
 
-      // ===== Quote Metadata Bar =====
+      // ===== QUOTE METADATA BAR =====
       const quoteDate = new Date(quote.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
       const validUntilDate = new Date(quote.createdAt);
       validUntilDate.setDate(validUntilDate.getDate() + 30);
       const validUntil = validUntilDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-      const createdByName = createdByUser?.name || "—";
-      
+      const createdByName = createdByUser?.name ?? "—";
+      const quoteIdShort = quote.id.substring(0, 8).toUpperCase();
+
+      doc.fontSize(10).font("Helvetica-Bold").text("QUOTE INFORMATION", marginLeft);
+      doc.moveDown(0.3);
       doc.fontSize(10).font("Helvetica");
-      const metaStartY = doc.y;
-      doc.text(`Quote #: ${quote.id.substring(0, 8).toUpperCase()}...`, 50);
-      doc.text(`Date: ${quoteDate}`, 250);
-      doc.text(`Valid Until: ${validUntil}`, 400);
-      doc.text(`Sales Rep: ${createdByName}`, pageWidth - 200);
+      doc.text(`Quote ID: ${quoteIdShort}…`, marginLeft);
+      doc.text(`Date: ${quoteDate}`, marginLeft);
+      doc.text(`Valid Until: ${validUntil}`, marginLeft);
+      doc.text(`Sales Representative: ${createdByName}`, marginLeft);
       doc.moveDown(0.8);
 
-      // ===== Two-Column Summary (Customer + Building Specs) =====
-      const col1X = 50;
-      const col2X = 330;
-      const colWidth = 230;
+      // ===== TWO-COLUMN SUMMARY (CUSTOMER + BUILDING SPECS) =====
+      const col1X = marginLeft;
+      const col2X = marginLeft + 280;
+      const colWidth = 240;
+      const summaryStartY = doc.y;
 
       // Left column: Customer
-      doc.fontSize(12).font("Helvetica-Bold").text("CUSTOMER", col1X);
-      doc.moveDown(0.3);
+      doc.fontSize(12).font("Helvetica-Bold").text("CUSTOMER", col1X, summaryStartY);
       doc.fontSize(10).font("Helvetica");
-      doc.text(`${quoteLead?.companyName || "—"}`, col1X, doc.y, { width: colWidth });
-      if (quoteLead?.contactName) doc.text(`Contact: ${quoteLead.contactName}`, col1X, doc.y, { width: colWidth });
-      if (quoteLead?.email) doc.text(`Email: ${quoteLead.email}`, col1X, doc.y, { width: colWidth });
-      if (quoteLead?.phone) doc.text(`Phone: ${quoteLead.phone}`, col1X, doc.y, { width: colWidth });
-
-      // Right column: Building Specs
-      const specsStartY = metaStartY + 90;
-      doc.fontSize(12).font("Helvetica-Bold").text("BUILDING SPECIFICATIONS", col2X, specsStartY);
-      doc.moveDown(0.3);
-      doc.fontSize(10).font("Helvetica");
+      const customerLines: string[] = [];
+      if (quoteLead?.companyName) customerLines.push(quoteLead.companyName);
+      if (quoteLead?.contactName) customerLines.push(`Contact: ${quoteLead.contactName}`);
+      if (quoteLead?.email) customerLines.push(`Email: ${quoteLead.email}`);
+      if (quoteLead?.phone) customerLines.push(`Phone: ${quoteLead.phone}`);
       
+      let currentY = summaryStartY + 18;
+      customerLines.forEach((line) => {
+        doc.text(line, col1X, currentY, { width: colWidth });
+        currentY += 14;
+      });
+
+      // Right column: Building Specifications
+      doc.fontSize(12).font("Helvetica-Bold").text("BUILDING SPECIFICATIONS", col2X, summaryStartY);
+      doc.fontSize(10).font("Helvetica");
+
+      const specLines: string[] = [];
       if (quote.buildingSpecs) {
         const specs = typeof quote.buildingSpecs === "string" ? JSON.parse(quote.buildingSpecs) : quote.buildingSpecs;
-        if (specs.width && specs.length && specs.height) {
-          doc.text(`${specs.width}' W × ${specs.length}' L × ${specs.height}' H`, col2X, doc.y, { width: colWidth });
+        if (specs?.width && specs?.length && specs?.height) {
+          specLines.push(`Dimensions: ${specs.width}' W × ${specs.length}' L × ${specs.height}' H`);
         }
-        if (specs.roofStyle) {
+        if (specs?.roofStyle) {
           const roofLabel = specs.roofStyle === "single-slope" ? "Single Slope" : specs.roofStyle === "gable" ? "Gable" : specs.roofStyle;
-          doc.text(`Roof: ${roofLabel}`, col2X, doc.y, { width: colWidth });
+          specLines.push(`Roof Style: ${roofLabel}`);
         }
       }
 
-      doc.moveDown(1.5);
+      currentY = summaryStartY + 18;
+      specLines.forEach((line) => {
+        doc.text(line, col2X, currentY, { width: colWidth });
+        currentY += 14;
+      });
 
-      // ===== Configuration Table =====
+      // Move past both columns
+      doc.y = Math.max(summaryStartY + 80, currentY + 5);
+      doc.moveDown(0.5);
+
+      // ===== CONFIGURATION SECTION =====
       if (quote.configuration) {
         const config = typeof quote.configuration === "string" ? JSON.parse(quote.configuration) : quote.configuration;
-        
-        // Parse counts
-        const doors = Array.isArray(config.doors) ? config.doors : [];
-        const windows = Array.isArray(config.windows) ? config.windows : [];
-        const leanTos = Array.isArray(config.leanTos) ? config.leanTos : [];
-        
-        const rollupDoors = doors.filter((d: any) => d?.type === "rollup").length;
-        const personnelDoors = doors.filter((d: any) => d?.type === "personnel").length;
 
-        doc.fontSize(12).font("Helvetica-Bold").text("CONFIGURATION");
-        doc.moveDown(0.3);
+        // Safely parse arrays
+        const doors = Array.isArray(config?.doors) ? config.doors : [];
+        const windows = Array.isArray(config?.windows) ? config.windows : [];
+        const leanTos = Array.isArray(config?.leanTos) ? config.leanTos : [];
+
+        // Count doors by type
+        const rollupDoors = doors.filter((d: any) => d?.type === "rollup")?.length ?? 0;
+        const personnelDoors = doors.filter((d: any) => d?.type === "personnel")?.length ?? 0;
+        const windowsCount = windows?.length ?? 0;
+        const leanTosCount = leanTos?.length ?? 0;
+
+        doc.fontSize(12).font("Helvetica-Bold").text("CONFIGURATION SUMMARY", marginLeft);
+        doc.moveDown(0.4);
+
+        // Configuration table
+        const tableLeftX = marginLeft;
+        const tableRightX = marginLeft + 250;
 
         // Table header
-        const tableColX = 50;
-        const tableCountX = 280;
         doc.fontSize(10).font("Helvetica-Bold");
-        doc.text("Category", tableColX);
-        doc.text("Count", tableCountX);
-        doc.moveTo(tableColX, doc.y).lineTo(pageWidth - 50, doc.y).stroke();
+        doc.text("Item", tableLeftX);
+        doc.text("Quantity", tableRightX);
+        doc.moveTo(tableLeftX, doc.y + 2).lineTo(pageWidth - marginRight, doc.y + 2).stroke();
         doc.moveDown(0.3);
 
         // Table rows
         doc.fontSize(10).font("Helvetica");
-        if (rollupDoors > 0) {
-          doc.text("Roll-up Doors", tableColX);
-          doc.text(String(rollupDoors), tableCountX);
-          doc.moveDown(0.2);
-        }
-        if (personnelDoors > 0) {
-          doc.text("Personnel Doors", tableColX);
-          doc.text(String(personnelDoors), tableCountX);
-          doc.moveDown(0.2);
-        }
-        if (windows.length > 0) {
-          doc.text("Windows", tableColX);
-          doc.text(String(windows.length), tableCountX);
-          doc.moveDown(0.2);
-        }
-        if (leanTos.length > 0) {
-          doc.text("Lean-to Structures", tableColX);
-          doc.text(String(leanTos.length), tableCountX);
-          doc.moveDown(0.2);
-        }
+        const configRows = [
+          ["Roll-up Doors", String(rollupDoors)],
+          ["Personnel Doors", String(personnelDoors)],
+          ["Windows", String(windowsCount)],
+          ["Lean-to Structures", String(leanTosCount)],
+        ];
+
+        configRows.forEach(([label, count]) => {
+          doc.text(label, tableLeftX);
+          doc.text(count, tableRightX);
+          doc.moveDown(0.25);
+        });
 
         doc.moveDown(0.5);
       }
 
-      // ===== Total Price Panel =====
-      doc.moveDown(1);
-      const priceFormatted = `$${Number(quote.totalPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      doc.moveTo(300, doc.y).lineTo(pageWidth - 50, doc.y).stroke();
-      doc.moveDown(0.5);
-      doc.fontSize(12).font("Helvetica").text("ESTIMATED PROJECT COST", { align: "right" });
-      doc.moveDown(0.2);
-      doc.fontSize(24).font("Helvetica-Bold").text(priceFormatted, { align: "right" });
+      // ===== TOTAL PRICE PANEL =====
+      doc.moveDown(0.8);
+      const priceFormatted = `$${Number(quote.totalPrice ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-      // ===== Terms & Conditions =====
-      doc.moveDown(2);
+      // Separator line above price
+      doc.moveTo(marginLeft + 200, doc.y).lineTo(pageWidth - marginRight, doc.y).stroke();
+      doc.moveDown(0.6);
+
+      doc.fontSize(11).font("Helvetica").text("ESTIMATED PROJECT COST", { align: "right" });
+      doc.moveDown(0.2);
+      doc.fontSize(28).font("Helvetica-Bold").text(priceFormatted, { align: "right" });
+
+      // ===== TERMS & CONDITIONS =====
+      doc.moveDown(2.5);
       doc.fontSize(8).font("Helvetica");
       doc.text(
-        "Terms: Pricing is based on current steel market conditions and is subject to change. " +
-        "Foundation, erection, permits, and taxes are not included unless explicitly stated. " +
-        "Please review all specifications carefully before signing.",
-        { align: "justify", width: pageWidth - 100 }
+        "TERMS: Pricing is based on current steel market conditions and is subject to change without notice. Foundation, erection, permits, and taxes are not included unless explicitly stated in writing. Please review all specifications carefully before approval.",
+        marginLeft,
+        doc.y,
+        { width: maxWidth, align: "justify" }
       );
 
       doc.end();
