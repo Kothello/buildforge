@@ -1,0 +1,108 @@
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify any files under:
+
+- client/src/configurator/**
+- configurator/iron-builder-studio-*/**
+
+Do NOT modify:
+
+- server/pricingEngine.ts
+- server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+Allowed files for this task:
+
+- client/src/pages/lead-edit.tsx        // lead detail
+- client/src/components/**              // small UI pieces if really needed
+- client/src/lib/date-utils.ts          // tiny helpers ONLY if required
+- server/routes.ts                      // only if we already have a disposition endpoint you need to lightly extend (no breaking changes)
+- server/storage.ts                     // read-only is preferred; avoid schema-level changes
+
+Do NOT change shared/schema.ts for this task.
+Do NOT add new tables. We must use the existing LeadHistory + disposition fields.
+
+CONTEXT
+
+The app already has:
+
+- LeadHistory table and APIs for saving dispositions / notes.
+- A Disposition & Notes card on the lead detail page (Overview tab).
+- A History tab with a list of past dispositions.
+- Aging fields (daysOnStage, daysSinceLastDispo) and stages, already wired up.
+
+GOAL
+
+Add **Disposition Templates + Smart Callback Defaults** to speed up reps:
+
+1) On the lead detail page (client/src/pages/lead-edit.tsx), inside the existing Disposition & Notes area on the Overview tab:
+
+   - Add a row of **template buttons** (chips / small buttons) above the disposition controls.  
+   - The templates should be defined as a local constant array (no DB):
+
+     ```ts
+     type DispositionTemplateId =
+       | "NO_SHOW"
+       | "LEFT_VM"
+       | "CALLBACK_3_DAYS"
+       | "CALLBACK_7_DAYS"
+       | "NOT_INTERESTED";
+
+     interface DispositionTemplate {
+       id: DispositionTemplateId;
+       label: string;
+       dispositionText: string;     // value to put into the disposition field
+       defaultNote?: string;        // optional default note text
+       callbackOffsetDays?: number; // if set, default next callback date = now + this many days
+     }
+     ```
+
+     Example data (you can tweak wording to match current UI):
+
+     - NO_SHOW:       label "No Show", dispositionText "No Show",       callbackOffsetDays: 3
+     - LEFT_VM:       label "Left Voicemail", dispositionText "Left VM"
+     - CALLBACK_3_DAYS: label "Interested – Call in 3 Days", dispositionText "Callback", callbackOffsetDays: 3
+     - CALLBACK_7_DAYS: label "Warm – Call in 7 Days",       dispositionText "Callback", callbackOffsetDays: 7
+     - NOT_INTERESTED: label "Not Interested", dispositionText "Not Interested"
+
+2) When the rep clicks a template button:
+
+   - It should **not** immediately save anything to the server.  
+   - It should simply pre-fill the existing disposition form fields:
+
+     - Set the **disposition value** (whatever field is currently used – reuse it, don’t introduce a new one).
+     - If the template has `defaultNote` and the current note field is empty, pre-fill it.
+     - If the template has `callbackOffsetDays`, set the **next callback date/time field** based on `new Date()` plus that many days.
+       - If there is no explicit next-callback field yet, but there is a existing date/time field for callbacks, use that.
+       - Do NOT add new DB columns – rely on whatever callback field is already used by the existing disposition logic / history.
+
+   - The rep can still manually edit the disposition, note, and callback date before hitting the existing “Save” / “Save Disposition” action.
+
+3) UI details:
+
+   - Use existing Button/Badge components from the design system (probably from `client/src/components/ui`), in a compact horizontal list that wraps on small screens.
+   - Visually show which template is currently “active” for this unsaved edit (e.g., filled/primary vs outline). If the user manually edits the disposition text or callback date, it’s OK if the active state clears or becomes “no template selected”.
+   - Keep everything keyboard accessible.
+
+4) History tab:
+
+   - No schema or endpoint changes.  
+   - In the History list, if a history entry’s `disposition` string matches one of the template’s `dispositionText` values, optionally show a subtle tag like “(from template)” – but this is optional. Do NOT change the stored data.
+
+REQUIREMENTS
+
+- Reuse the existing disposition save flow and history creation; do not invent a new endpoint.
+- No new tables or DB columns.
+- Absolutely no changes to configurator or pricing code.
+
+WHAT TO REPORT BACK (in summary at the end):
+
+1) Exact files modified.
+2) The list of disposition templates you ended up using (id → label, dispositionText, callbackOffsetDays).
+3) How the template click integrates with the existing save flow.
+4) How to test:
+   - Open a lead, use templates to prefill, save, see entries in History.
+   - Confirm nothing breaks for existing manual disposition entry.
+
+Implement this now.

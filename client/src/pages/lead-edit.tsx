@@ -64,6 +64,29 @@ const STAGE_LABELS: Record<string, string> = {
   canceled: "Canceled",
 };
 
+type DispositionTemplateId =
+  | "NO_SHOW"
+  | "LEFT_VM"
+  | "CALLBACK_3_DAYS"
+  | "CALLBACK_7_DAYS"
+  | "NOT_INTERESTED";
+
+interface DispositionTemplate {
+  id: DispositionTemplateId;
+  label: string;
+  dispositionText: string;
+  defaultNote?: string;
+  callbackOffsetDays?: number;
+}
+
+const DISPOSITION_TEMPLATES: DispositionTemplate[] = [
+  { id: "NO_SHOW", label: "No Show", dispositionText: "NO_SHOW", callbackOffsetDays: 3 },
+  { id: "LEFT_VM", label: "Left VM", dispositionText: "LEFT_VOICEMAIL" },
+  { id: "CALLBACK_3_DAYS", label: "Call in 3 Days", dispositionText: "BOOKED_CALL", callbackOffsetDays: 3 },
+  { id: "CALLBACK_7_DAYS", label: "Call in 7 Days", dispositionText: "FOLLOW_UP", callbackOffsetDays: 7 },
+  { id: "NOT_INTERESTED", label: "Not Interested", dispositionText: "NOT_INTERESTED" },
+];
+
 function LeadHistoryItem({ entry, user }: { entry: LeadHistory; user?: { id: string; name: string } }) {
   const [isOpen, setIsOpen] = useState(false);
   
@@ -162,6 +185,32 @@ export default function LeadEditPage() {
   const [note, setNote] = useState("");
   const [nextCallbackAt, setNextCallbackAt] = useState("");
   const [statusValue, setStatusValue] = useState<string>("");
+  const [activeTemplateId, setActiveTemplateId] = useState<DispositionTemplateId | null>(null);
+
+  const handleTemplateClick = (template: DispositionTemplate) => {
+    setActiveTemplateId(template.id);
+    setDisposition(template.dispositionText);
+    
+    if (template.defaultNote && !note) {
+      setNote(template.defaultNote);
+    }
+    
+    if (template.callbackOffsetDays) {
+      const callbackDate = new Date();
+      callbackDate.setDate(callbackDate.getDate() + template.callbackOffsetDays);
+      callbackDate.setHours(9, 0, 0, 0);
+      const formatted = callbackDate.toISOString().slice(0, 16);
+      setNextCallbackAt(formatted);
+    }
+  };
+
+  const handleDispositionChange = (value: string) => {
+    setDisposition(value);
+    const matchingTemplate = DISPOSITION_TEMPLATES.find(t => t.dispositionText === value);
+    if (!matchingTemplate || matchingTemplate.id !== activeTemplateId) {
+      setActiveTemplateId(null);
+    }
+  };
 
   const { data: queryLead, isLoading: isLoadingLead } = useQuery<Lead>({
     queryKey: ["/api/leads", leadId],
@@ -236,6 +285,7 @@ export default function LeadEditPage() {
       setNewStage("");
       setNote("");
       setNextCallbackAt("");
+      setActiveTemplateId(null);
     },
     onError: (error) => {
       toast({ title: "Error", description: "Failed to save disposition", variant: "destructive" });
@@ -465,10 +515,28 @@ export default function LeadEditPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {DISPOSITION_TEMPLATES.map((template) => (
+                        <Button
+                          key={template.id}
+                          type="button"
+                          size="sm"
+                          variant={activeTemplateId === template.id ? "default" : "outline"}
+                          className="h-7 text-[10px] px-2"
+                          onClick={() => handleTemplateClick(template)}
+                          data-testid={`button-template-${template.id}`}
+                        >
+                          {template.label}
+                          {template.callbackOffsetDays && (
+                            <Clock className="h-3 w-3 ml-1 opacity-60" />
+                          )}
+                        </Button>
+                      ))}
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Disposition</Label>
-                        <Select value={disposition} onValueChange={setDisposition}>
+                        <Select value={disposition} onValueChange={handleDispositionChange}>
                           <SelectTrigger className="h-8 text-xs" data-testid="select-disposition">
                             <SelectValue placeholder="Select disposition" />
                           </SelectTrigger>
