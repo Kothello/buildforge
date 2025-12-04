@@ -1,0 +1,119 @@
+We’re still seeing a visible gap at the corner between single-slope wraparound lean-tos when the wraparound length is less than the wall length (e.g. 85′ wrap on a 120′ wall).
+
+This is in ProductEngineering-1. The current implementation in client/src/configurator/BuildingModel.tsx has recently added variables like gapToChild, hipExtension, etc. for the wraparound hip panel, but the geometry is still wrong.
+
+Goal:
+Fix the wraparound hip roof only so that:
+
+For any single-slope wraparound lean-to, regardless of length (20′, 40′, 85′, 120′, etc.), there is no gap at the corner between the two lean-to roofs.
+
+The hip is a single, clean triangle that lies on the two roof planes and fills the corner completely.
+
+No other builder behavior changes (no camera, beams, walls, or pricing changes).
+
+Hard scope for this task
+
+Only edit: client/src/configurator/BuildingModel.tsx.
+
+You may open the canonical file at
+configurator/iron-builder-studio-70695-74818-74577-9-62585/client/src/components/BuildingModel.tsx for reference, but don’t change it.
+
+Do not touch any other files.
+
+1. Reset the wraparound hip block
+
+In client/src/configurator/BuildingModel.tsx, find the block that creates the wraparound hip mesh – the code that:
+
+only runs when we have a wraparound lean-to,
+
+builds a THREE.BufferGeometry for a small triangular panel at the corner, and
+
+currently uses variables like gapToChild, hipExtension, etc.
+
+Delete that experimental math. We don’t want the gapToChild/hipExtension logic at all anymore.
+
+Replace that block with a much simpler, explicit construction of a single triangle using three world-space points.
+
+2. New hip geometry: three explicit points
+
+Implement the hip triangle using this approach:
+
+We have two single-slope lean-tos that meet at a corner:
+
+mainLeanTo – along the long wall (front/back).
+
+sideLeanTo – the wraparound child along the perpendicular wall (left/right).
+
+For a given corner (left/right), build a triangle with vertices:
+
+P_high – the top corner of the building at that corner, at the lean-to attach eave height on the tall side.
+
+Use the same X/Z position you already use for the lean-to’s inner roof edge at that corner, and the same Y as that inner roof edge (so the hip lies exactly on the main lean-to roof plane).
+
+P_mainOuter – the outer roof corner of the main lean-to at that same corner.
+
+This is the point you already use for the outer edge of the main lean-to roof at that corner (same X/Z as corner, Y = roof height at that eave + slope).
+
+P_sideOuter – the outer roof corner of the side (wrap) lean-to at that corner.
+
+Use the side lean-to’s outer corner at that corner, again using its real width and roof slope to compute the Y value.
+
+The key is:
+
+Don’t try to be clever about child length or center position.
+
+For the hip triangle, pretend both lean-tos “reach the corner” in roof-space:
+
+just use the corner-adjacent roof corners you already know how to compute (inner and outer corners for each lean-to).
+
+That guarantees all three points lie exactly on the respective roof planes and there is no gap, regardless of the configured length along the wall.
+
+Implementation details:
+
+Re-use the same coordinate system and helpers you’re already using to build the lean-to roof panels (e.g. whatever code currently computes their four roof corners).
+
+Don’t recalc position/length from scratch – instead, call your existing functions or reuse those corner vectors.
+
+Create a THREE.BufferGeometry with exactly 3 vertices (P_high, P_mainOuter, P_sideOuter) and a single face.
+
+Re-use the same material you currently use for roof panels so the hip matches.
+
+UVs can be very simple (e.g. 0/0, 1/0, 0/1) – we just need it textured, not perfect.
+
+Important: This triangle should be rendered for all wraparound single-slope lean-tos, regardless of the wraparound length. Don’t special-case 120′. Just always join the two roofs at the corner with this triangle.
+
+3. Testing checklist
+
+After you implement the new hip block:
+
+Test a single-slope main building with a wraparound lean-to where:
+
+Building length: 120′
+
+Wraparound lean-to length: 20′, 40′, 85′ (all < 120′)
+
+Wraparound corner: Left, Right, Both
+
+In each case, rotate the camera around the corner and verify:
+
+No vertical gap between the two lean-to roofs.
+
+No “spike” / twisted hip panel.
+
+The triangle is flush with both roof planes.
+
+Confirm that:
+
+Lean-to widths, beams, columns, doors/windows, and walls behave exactly as before.
+
+Gable lean-tos and non-wraparound lean-tos are unchanged.
+
+Finally, summarize:
+
+The exact code block you replaced (line range) in client/src/configurator/BuildingModel.tsx.
+
+The three points you’re using for the hip triangle (in words – e.g. “inner roof corner of main lean-to at corner,” etc.).
+
+Which test configurations you tried and screenshots if possible.
+
+Please keep the change minimal and localized to the hip triangle; no other builder logic should be touched.
