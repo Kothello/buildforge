@@ -1350,13 +1350,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/leads/:id", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
     try {
-      const updates = req.body;
+      const updates = { ...req.body };
       
       if (updates.assignedTo && req.user) {
         const isAdminOrManager = req.user.role === "ADMIN" || req.user.role === "MANAGER";
         if (!isAdminOrManager) {
           delete updates.assignedTo;
         }
+      }
+      
+      // Convert date strings to Date objects for timestamp fields
+      if (updates.projectTargetDeliveryDate !== undefined) {
+        updates.projectTargetDeliveryDate = updates.projectTargetDeliveryDate 
+          ? new Date(updates.projectTargetDeliveryDate) 
+          : null;
       }
       
       const lead = await storage.updateLead(req.params.id, updates);

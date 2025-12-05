@@ -1,0 +1,123 @@
+Replit prompt:
+
+There’s a bug with the new Project tab on the lead detail page.
+
+Symptom
+
+On /sales/leads/:id (lead detail), in the Project tab:
+
+I select a Project Status, set a Target Delivery Date, type something into Project Notes, and click Save Project.
+
+I get a red toast: “Failed to save project info”.
+
+The values are not persisted.
+
+Hard constraints (do NOT violate):
+
+Do NOT modify anything under:
+
+client/src/configurator/**
+
+configurator/iron-builder-studio-*/**
+
+Do NOT modify:
+
+server/pricingEngine.ts
+
+server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, camera, geometry, or pricing logic.
+
+You may modify:
+
+shared/schema.ts
+
+server/routes.ts
+
+server/storage.ts
+
+client/src/pages/lead-edit.tsx
+
+Anything in client/src/components/** that’s needed for this feature
+
+What I need you to do
+
+Reproduce the bug
+
+Open any lead detail page.
+
+Go to the Project tab.
+
+Try to save a project (status + date + notes) and confirm the red “Failed to save project info” toast.
+
+Check the API call + server error
+
+In the browser devtools Network tab, find the PATCH /api/leads/:id request triggered by Save Project.
+
+See what HTTP status and JSON error the server returns.
+
+In the server logs, find the corresponding error stack / validation error.
+
+Fix the backend so project fields are accepted & saved
+
+Confirm the DB columns exist on leads:
+
+project_status (text, nullable)
+
+project_target_delivery_date (date, nullable)
+
+project_notes (text, nullable)
+
+In shared/schema.ts, make sure:
+
+These fields exist on the lead type with matching camelCase names (projectStatus, projectTargetDeliveryDate, projectNotes).
+
+They are included in whatever schema is used for the PATCH /api/leads/:id endpoint (likely an updateLeadSchema or similar).
+
+Types allow null and undefined as appropriate so optional fields don’t cause Zod validation errors.
+
+In server/routes.ts:
+
+Make sure the PATCH handler accepts these fields from the request body and passes them through to storage.
+
+Map camelCase → snake_case if needed (e.g. projectStatus → project_status).
+
+In server/storage.ts:
+
+Ensure the update method for leads actually writes project_status, project_target_delivery_date, project_notes to the leads table when provided.
+
+Fix any frontend request formatting issues
+
+In client/src/pages/lead-edit.tsx, locate the Project save mutation.
+
+Ensure the body you send in the PATCH /api/leads/:id call:
+
+Uses the field names expected by the backend (projectStatus, projectTargetDeliveryDate, projectNotes).
+
+Serializes the date correctly (ISO string like YYYY-MM-DD if that’s what the schema expects).
+
+Testing checklist
+
+As a rep or admin, open a lead:
+
+Project tab:
+
+Set status → save → reload page → values should persist.
+
+Clear status/date/notes → save → reload → fields should be cleared (or null) without error.
+
+Confirm:
+
+No regressions on the Overview, History, Quotes, 3D View, or Activity tabs.
+
+/sales and /leads tables still load and the Project column renders correctly.
+
+Verify all constraints above were respected.
+
+Report back
+
+Describe:
+
+What was causing the error (e.g., Zod schema rejecting fields, bad field names, date format, etc.).
+
+The exact fixes you applied in shared/schema.ts, server/routes.ts, server/storage.ts, and lead-edit.tsx.
