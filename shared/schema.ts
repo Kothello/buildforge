@@ -84,6 +84,9 @@ export const leads = pgTable("leads", {
   lastDispositionAt: timestamp("last_disposition_at"),
   stageEnteredAt: timestamp("stage_entered_at").defaultNow(),
   nextCallbackAt: timestamp("next_callback_at"),
+  projectStatus: text("project_status"),
+  projectTargetDeliveryDate: timestamp("project_target_delivery_date"),
+  projectNotes: text("project_notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

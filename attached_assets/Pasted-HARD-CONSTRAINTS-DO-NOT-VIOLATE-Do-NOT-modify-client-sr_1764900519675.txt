@@ -1,0 +1,217 @@
+HARD CONSTRAINTS – DO NOT VIOLATE
+
+Do NOT modify:
+
+- client/src/configurator/**
+- configurator/iron-builder-studio-*/**
+- server/pricingEngine.ts
+- server/pricingRoutes.ts
+
+Do NOT change any 3D builder behavior, geometry, camera, or pricing logic.
+
+Allowed files for this task:
+
+- shared/schema.ts
+- server/storage.ts
+- server/routes.ts
+- client/src/pages/lead-edit.tsx
+- client/src/pages/sales-dashboard.tsx   // My Leads – small display-only tweak
+- client/src/pages/leads.tsx             // All Leads – optional display-only tweak
+- client/src/components/**               // small UI components if needed
+
+Any changes must be strictly related to **Project status / details per lead**.
+
+==================================================
+GOAL
+==================================================
+
+Add a lightweight **Project layer** tied directly to each lead:
+
+1) A **Project** tab on the lead detail page (`/sales/leads/:id`) with:
+   - Project Status (dropdown)
+   - Target Delivery Date
+   - Project Notes (internal)
+
+2) A small **Project status pill** on:
+   - The lead Overview tab
+   - Optionally the /sales and /leads tables
+
+Everything is stored directly on the `leads` table as new nullable columns.
+No separate projects table.
+
+==================================================
+STEP 1 – Schema changes (shared/schema.ts)
+==================================================
+
+1. In the `leads` table definition, add **three new nullable fields**:
+
+   - `project_status` (text / varchar, nullable)
+   - `project_target_delivery_date` (date or datetime, nullable)
+   - `project_notes` (text, nullable)
+
+   Use whatever Drizzle helper matches the existing style, e.g.:
+
+   - `text("project_status").nullable()`
+   - `date("project_target_delivery_date").nullable()`
+   - `text("project_notes").nullable()`
+
+   Do NOT remove or rename any existing columns.
+
+2. Update any related Zod schemas / TypeScript types that represent a lead:
+
+   - LeadSelect schema / type
+   - LeadInsert / LeadUpdate schema (if present)
+   - Make sure the new fields are **optional** in inserts/updates so old code keeps working.
+
+3. Run the DB migration:
+
+   - Use the same command you’ve been using (likely `npm run db:push`).
+   - Confirm it succeeds with no destructive changes.
+
+==================================================
+STEP 2 – Storage & routes
+==================================================
+
+1. `server/storage.ts`:
+
+   - Ensure all main lead read methods include the new fields in their SELECTs.
+   - Ensure any lead update method(s) accept and pass through:
+
+     - `projectStatus`
+     - `projectTargetDeliveryDate`
+     - `projectNotes`
+
+     mapped to the new DB columns (`project_status`, `project_target_delivery_date`, `project_notes`).
+
+   - Keep all existing logic intact (no behavior changes, just extra fields).
+
+2. `server/routes.ts`:
+
+   - Reuse the existing `PATCH /api/leads/:id` endpoint used by the lead editor.
+   - Extend the validation schema to allow optional fields:
+
+     - `projectStatus?: string | null`
+     - `projectTargetDeliveryDate?: string | null` (ISO date from client)
+     - `projectNotes?: string | null`
+
+   - Map these into the DB update payload:
+
+     - `project_status: projectStatus`
+     - `project_target_delivery_date: parsedDateOrNull`
+     - `project_notes: projectNotes`
+
+   - Keep permissions and existing update logic exactly as-is.
+
+==================================================
+STEP 3 – Lead detail UI: Project tab
+==================================================
+
+File: `client/src/pages/lead-edit.tsx`
+
+1. Tabs:
+
+   - The page already has Tabs for Overview / History / Quotes / (Config / 3D / etc).
+   - Add a new Tab:
+
+     - Trigger: `TabsTrigger value="project">Project</TabsTrigger>`
+     - Content: `TabsContent value="project">...</TabsContent>`
+
+2. Inside the Project tab, add a simple form bound to the lead:
+
+   **a) Project Status**
+
+   - Add a dropdown/select bound to `lead.projectStatus` with options:
+
+     Store values as these strings:
+     - `"not_started"`
+     - `"engineering"`
+     - `"fabrication"`
+     - `"delivery_scheduled"`
+     - `"delivered"`
+     - `"closed_out"`
+
+     Display labels:
+     - Not Started
+     - Engineering
+     - Fabrication
+     - Delivery Scheduled
+     - Delivered
+     - Closed Out
+
+   - Default: if null/undefined → “Not Started” (but don’t force-save until user actually saves).
+
+   **b) Target Delivery Date**
+
+   - Use an existing date-picker or a simple `<input type="date" />` bound to `projectTargetDeliveryDate`.
+   - Handle conversion between string date input and whatever the backend expects (`YYYY-MM-DD`).
+
+   **c) Project Notes**
+
+   - Textarea bound to `projectNotes` (string).
+   - This is for internal PM / ops notes.
+
+3. Saving:
+
+   - Reuse the **existing lead update mutation** that saves lead fields.
+   - When user edits and clicks the existing Save/Update button (or a dedicated “Save Project” inside the tab if that’s how the file is structured), include:
+
+     ```ts
+     {
+       projectStatus,
+       projectTargetDeliveryDate,
+       projectNotes,
+       // plus the existing lead fields you already send
+     }
+     ```
+
+   - Show proper loading state and success/error toasts using the existing pattern in `lead-edit.tsx`.
+
+==================================================
+STEP 4 – Overview & tables: status pill
+==================================================
+
+1. Overview (in `lead-edit.tsx`):
+
+   - On the Overview tab (top section where lead name, stage, etc. are displayed), add a small badge/pill for Project status.
+
+   - Rules:
+
+     - If `projectStatus` is null/empty → show something like:
+       - `Project: Not Started` (muted style)
+     - Else → show:
+       - `Project: Engineering` / `Project: Fabrication` / etc., using the same label map as the dropdown.
+
+   - Use the existing Badge / pill component from your design system.
+
+2. `/sales` (My Leads) and `/leads` (All Leads):
+
+   - OPTIONAL but preferred: add a narrow "Project" column to the table:
+
+     - Shows the human-readable status label (or “Not Started” if null).
+     - Keep it compact (text only, no big UI).
+     - Do not change existing sorting/filtering; just display.
+
+==================================================
+PERMISSIONS
+
+- Project fields should follow the same edit rules as lead editing already does:
+  - Reps can edit their own leads’ project info.
+  - Admin/Manager can edit any lead.
+
+No additional permission system required.
+
+==================================================
+WHAT TO REPORT BACK
+
+In your summary, tell me:
+
+1) Exact files modified.
+2) Final schema field names you added to the leads table.
+3) The list of allowed `projectStatus` values and their human labels.
+4) How the Project tab save flow works (which mutation, which endpoint).
+5) How to test:
+   - Edit a lead’s Project status/date/notes, save, refresh → data persists.
+   - Project status pill visible on Overview.
+   - (If implemented) Project column visible in /sales and /leads.
+
+Implement this now.
