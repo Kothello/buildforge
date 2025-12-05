@@ -29,6 +29,15 @@ const STAGE_LABELS: Record<string, string> = {
   "sold": "Sold",
 };
 
+const PROJECT_STATUS_LABELS: Record<string, string> = {
+  not_started: "Not Started",
+  engineering: "Engineering",
+  fabrication: "Fabrication",
+  delivery_scheduled: "Delivery Scheduled",
+  delivered: "Delivered",
+  closed_out: "Closed Out",
+};
+
 export default function LeadsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -461,6 +470,7 @@ export default function LeadsPage() {
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days on Stage</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days Since Dispo</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Assigned To</th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Project</th>
                 <th className="text-left py-3 px-3 sm:px-4 font-semibold">Price</th>
                 <th className="text-right py-3 px-3 sm:px-4 font-semibold">Actions</th>
               </tr>
@@ -514,6 +524,9 @@ export default function LeadsPage() {
                           </option>
                         ))}
                     </select>
+                  </td>
+                  <td className="py-3 px-3 sm:px-4">
+                    <span className="text-xs text-muted-foreground">{PROJECT_STATUS_LABELS[lead.projectStatus || ""] || "Not Started"}</span>
                   </td>
                   <td className="py-3 px-3 sm:px-4">
                     ${parseFloat(lead.totalPrice || "0").toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

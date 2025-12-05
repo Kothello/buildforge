@@ -64,6 +64,24 @@ const STAGE_LABELS: Record<string, string> = {
   canceled: "Canceled",
 };
 
+const PROJECT_STATUS_OPTIONS = [
+  { value: "not_started", label: "Not Started" },
+  { value: "engineering", label: "Engineering" },
+  { value: "fabrication", label: "Fabrication" },
+  { value: "delivery_scheduled", label: "Delivery Scheduled" },
+  { value: "delivered", label: "Delivered" },
+  { value: "closed_out", label: "Closed Out" },
+] as const;
+
+const PROJECT_STATUS_LABELS: Record<string, string> = {
+  not_started: "Not Started",
+  engineering: "Engineering",
+  fabrication: "Fabrication",
+  delivery_scheduled: "Delivery Scheduled",
+  delivered: "Delivered",
+  closed_out: "Closed Out",
+};
+
 type DispositionTemplateId =
   | "NO_SHOW"
   | "LEFT_VM"
@@ -187,6 +205,10 @@ export default function LeadEditPage() {
   const [statusValue, setStatusValue] = useState<string>("");
   const [activeTemplateId, setActiveTemplateId] = useState<DispositionTemplateId | null>(null);
 
+  const [projectStatus, setProjectStatus] = useState<string>("");
+  const [projectTargetDeliveryDate, setProjectTargetDeliveryDate] = useState<string>("");
+  const [projectNotes, setProjectNotes] = useState<string>("");
+
   const handleTemplateClick = (template: DispositionTemplate) => {
     setActiveTemplateId(template.id);
     setDisposition(template.dispositionText);
@@ -226,6 +248,14 @@ export default function LeadEditPage() {
     if (queryLead) {
       console.log('[lead-edit] Query lead updated:', queryLead.totalPrice);
       setLocalLead(queryLead);
+      setProjectStatus(queryLead.projectStatus || "");
+      setProjectNotes(queryLead.projectNotes || "");
+      if (queryLead.projectTargetDeliveryDate) {
+        const date = new Date(queryLead.projectTargetDeliveryDate);
+        setProjectTargetDeliveryDate(date.toISOString().split("T")[0]);
+      } else {
+        setProjectTargetDeliveryDate("");
+      }
     }
   }, [queryLead]);
   
@@ -291,6 +321,30 @@ export default function LeadEditPage() {
       toast({ title: "Error", description: "Failed to save disposition", variant: "destructive" });
     },
   });
+
+  const projectMutation = useMutation({
+    mutationFn: async (data: { projectStatus?: string | null; projectTargetDeliveryDate?: string | null; projectNotes?: string | null }) => {
+      return await apiRequest("PATCH", `/api/leads/${leadId}`, data);
+    },
+    onSuccess: async (res) => {
+      const updatedLead = await res.json();
+      toast({ title: "Project saved", description: "Project information updated successfully" });
+      setLocalLead(updatedLead);
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to save project info", variant: "destructive" });
+    },
+  });
+
+  const handleSaveProject = () => {
+    projectMutation.mutate({
+      projectStatus: projectStatus || null,
+      projectTargetDeliveryDate: projectTargetDeliveryDate || null,
+      projectNotes: projectNotes || null,
+    });
+  };
 
   const handleSaveDisposition = () => {
     if (!disposition) {
@@ -400,14 +454,25 @@ export default function LeadEditPage() {
               <p className="font-semibold">Days Since Dispo</p>
               <p className="text-sm">{getDayDiff(lead.lastDispositionAt) ?? "N/A"}</p>
             </div>
+            <div>
+              <p className="font-semibold">Project</p>
+              <Badge 
+                variant={lead.projectStatus ? "secondary" : "outline"} 
+                className="text-[10px] mt-0.5"
+                data-testid="badge-project-status"
+              >
+                {PROJECT_STATUS_LABELS[lead.projectStatus || ""] || "Not Started"}
+              </Badge>
+            </div>
           </div>
         </div>
 
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 h-8">
+              <TabsList className="grid w-full grid-cols-6 h-8">
                 <TabsTrigger value="overview" data-testid="tab-overview" className="text-xs">Overview</TabsTrigger>
+                <TabsTrigger value="project" data-testid="tab-project" className="text-xs">Project</TabsTrigger>
                 <TabsTrigger value="history" data-testid="tab-history" className="text-xs">History</TabsTrigger>
                 <TabsTrigger value="quotes" data-testid="tab-quotes" className="text-xs">Quotes</TabsTrigger>
                 <TabsTrigger value="3d-viewer" data-testid="tab-3d" className="text-xs">3D View</TabsTrigger>
@@ -594,6 +659,63 @@ export default function LeadEditPage() {
                     >
                       <Send className="h-3 w-3" />
                       {dispositionMutation.isPending ? "Saving..." : "Save Disposition"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="project" className="space-y-3 mt-3">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Project Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Status</Label>
+                      <Select value={projectStatus} onValueChange={setProjectStatus}>
+                        <SelectTrigger className="h-8 text-xs" data-testid="select-project-status">
+                          <SelectValue placeholder="Select project status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PROJECT_STATUS_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value} className="text-xs">
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target Delivery Date</Label>
+                      <Input
+                        type="date"
+                        value={projectTargetDeliveryDate}
+                        onChange={(e) => setProjectTargetDeliveryDate(e.target.value)}
+                        className="h-8 text-xs"
+                        data-testid="input-project-target-date"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Project Notes</Label>
+                      <Textarea
+                        value={projectNotes}
+                        onChange={(e) => setProjectNotes(e.target.value)}
+                        placeholder="Internal project notes (engineering, fabrication, delivery details...)"
+                        className="text-xs resize-none"
+                        rows={4}
+                        data-testid="input-project-notes"
+                      />
+                    </div>
+
+                    <Button
+                      onClick={handleSaveProject}
+                      disabled={projectMutation.isPending}
+                      className="w-full h-8 text-xs"
+                      data-testid="button-save-project"
+                    >
+                      {projectMutation.isPending ? "Saving..." : "Save Project"}
                     </Button>
                   </CardContent>
                 </Card>
