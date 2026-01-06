@@ -187,8 +187,8 @@ npm test
 
 ## M11 Milestones Checklist
 
-- [ ] **M11.0** - Branch + Baseline Snapshot ✅ (this document)
-- [ ] **M11.1** - Shared UI Primitives (PageHeader, Toolbar, EmptyState, LoadState, access utils)
+- [x] **M11.0** - Branch + Baseline Snapshot ✅ (this document)
+- [x] **M11.1** - Shared UI Primitives (PageHeader, Toolbar, EmptyState, LoadState, access utils) ✅
 - [ ] **M11.2** - List Pages Polish (Leads, Contacts, Deals + URL state)
 - [ ] **M11.3** - Detail Pages Polish (Lead, Contact, Deal + consistent edit flows)
 - [ ] **M11.4** - Admin Imports UX Upgrade (if imports feature exists)
@@ -217,7 +217,7 @@ npm test
 
 ## Progress Log
 
-### 2026-01-06 - Baseline Created
+### 2026-01-06 - Baseline Created (M11.0)
 - Created branch `improvements/m11-ui-perfection`
 - Ran `npm run check`: 13 pre-existing TS errors
 - Ran `npm test`: No test script
@@ -225,4 +225,29 @@ npm test
 - Identified 10 major UX inconsistency categories
 - Confirmed 3 features don't exist yet (building deals UI, imports, dedupe/merge)
 
-**Next Step:** M11.1 - Create shared UI primitives
+### 2026-01-06 - Shared UI Primitives Created (M11.1)
+**Components Created:**
+- ✅ `PageHeader.tsx` - Consistent page title, subtitle, icon, and actions layout
+- ✅ `Toolbar.tsx` - Left/right slots for filters and actions
+- ✅ `EmptyState.tsx` - Centered empty state with icon, title, description, action
+- ✅ `LoadState.tsx` - Skeleton loader with header + 8 rows
+
+**Access Utilities Created:**
+- ✅ `access.ts` - `hasManagerAccess()`, `hasAdminAccess()`, `hasSalesAccess()` helpers
+- ✅ `useCurrentUser.ts` - React Query hook for `/api/user` with 5min cache
+- ✅ `ManagerOnly.tsx` - Conditional rendering component for manager-level actions
+
+**Pages Updated (Proof of Pattern):**
+- ✅ **Leads page** (`leads.tsx`):
+  - Added `PageHeader` with icon and Export action
+  - Added `LoadState` for loading skeleton
+  - Added `EmptyState` for error state with retry button
+  - Added `EmptyState` for no results with clear filters action
+  - Improved: No more blank page while loading, better error handling
+
+**TypeScript Status:**
+- ✅ Before: 13 errors
+- ✅ After: 13 errors (no new errors introduced)
+- ✅ All new code passes type checking
+
+**Next Step:** M11.2 - Apply primitives to all list pages + add URL state management

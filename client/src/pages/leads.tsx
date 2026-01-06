@@ -13,6 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { buildExportUrl } from "@/lib/utils";
+import { PageHeader } from "@/components/app/PageHeader";
+import { Toolbar } from "@/components/app/Toolbar";
+import { EmptyState } from "@/components/app/EmptyState";
+import { LoadState } from "@/components/app/LoadState";
+import { ManagerOnly } from "@/components/app/ManagerOnly";
 
 const prefetchLeadEdit = () => {
   import("@/pages/lead-edit");
@@ -60,7 +65,7 @@ export default function LeadsPage() {
     return null;
   }
 
-  const { data: leads = [], isLoading } = useQuery({
+  const { data: leads = [], isLoading, error: leadsError } = useQuery({
     queryKey: ["/api/leads", "all"],
     queryFn: async () => {
       const r = await fetch("/api/leads");
@@ -275,25 +280,52 @@ export default function LeadsPage() {
     return rep?.name || "Unknown";
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="h-full overflow-auto p-3 sm:p-6">
+        <LoadState rows={8} />
+      </div>
+    );
+  }
+
+  // Error state
+  if (leadsError) {
+    return (
+      <div className="h-full overflow-auto p-3 sm:p-6">
+        <EmptyState
+          icon={<Users className="w-12 h-12" />}
+          title="Failed to load leads"
+          description="There was an error loading your leads. Please try again."
+          action={
+            <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["leads"] })}>
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-auto p-3 sm:p-6 space-y-6">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-primary" />
-          <h1 className="text-2xl font-bold">All Leads</h1>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            const url = buildExportUrl('lead');
-            window.open(url, '_blank');
-          }}
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </Button>
-      </div>
+      <PageHeader
+        title="All Leads"
+        left={<Users className="w-5 h-5 text-primary" />}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const url = buildExportUrl('lead');
+              window.open(url, '_blank');
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        }
+      />
 
       <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">
         {[
