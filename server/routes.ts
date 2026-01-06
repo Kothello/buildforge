@@ -26,6 +26,9 @@ import { parseLeadFromText, generateFirstMessage, generateCallSummary, generateU
 import { triggerWebhook } from "./webhooks";
 import pricingRoutes from "./pricingRoutes";
 import designRoutes from "./designRoutes";
+import { createWorkflowRoutes } from "./routes/workflowRoutes";
+import exportRoutes from "./routes/exportRoutes";
+import { enqueueWorkflowRun } from "./lib/workflowExecutor";
 import { 
   hashPassword, 
   comparePassword, 
@@ -150,6 +153,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.use("/api/pricing", pricingRoutes);
   app.use("/api/designs", designRoutes);
+  
+  // Workflow automation routes
+  const workflowRoutes = createWorkflowRoutes(storage);
+  app.use("/api/workflows", workflowRoutes);
+  
+  // CSV Export routes
+  app.use("/api/exports", exportRoutes);
 
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -598,6 +608,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "STAGE_CHANGED",
         data: { oldStageId: existingDeal.stageId, newStageId: stageId },
       });
+
+      // Workflow trigger: DEAL_STAGE_CHANGED
+      await enqueueWorkflowRun(storage, {
+        type: "DEAL_STAGE_CHANGED",
+        entityType: "deal",
+        entityId: deal!.id,
+        userId: req.user?.id,
+        data: {
+          dealId: deal!.id,
+          fromStageId: existingDeal.stageId || undefined,
+          toStageId: stageId,
+        },
+      });
       
       res.json(deal);
     } catch (error) {
@@ -723,6 +746,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: req.user?.id,
           type: "TASK_COMPLETED",
           data: { taskId: task!.id, title: task!.title },
+        });
+
+        // Workflow trigger: TASK_COMPLETED
+        await enqueueWorkflowRun(storage, {
+          type: "TASK_COMPLETED",
+          entityType: "task",
+          entityId: task!.id,
+          userId: req.user?.id,
+          data: {
+            taskId: task!.id,
+            dealId: task!.dealId || undefined,
+            title: task!.title,
+          },
         });
       }
       

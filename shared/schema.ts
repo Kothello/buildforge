@@ -580,6 +580,169 @@ export type InsertLeadQuote = z.infer<typeof insertLeadQuoteSchema>;
 export type LeadHistory = typeof leadHistory.$inferSelect;
 export type InsertLeadHistory = z.infer<typeof insertLeadHistorySchema>;
 
+// Workflow Automation Tables
+export const workflows = pgTable("workflows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  enabled: boolean("enabled").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const workflowTriggers = pgTable("workflow_triggers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workflowId: varchar("workflow_id").references(() => workflows.id, { onDelete: "cascade" }).notNull(),
+  type: text("type").notNull(),
+  configJson: jsonb("config_json").notNull().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const workflowActions = pgTable("workflow_actions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workflowId: varchar("workflow_id").references(() => workflows.id, { onDelete: "cascade" }).notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  type: text("type").notNull(),
+  configJson: jsonb("config_json").notNull().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const workflowRuns = pgTable("workflow_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workflowId: varchar("workflow_id").references(() => workflows.id, { onDelete: "cascade" }).notNull(),
+  status: text("status").notNull().default("PENDING"),
+  triggeredByUserId: varchar("triggered_by_user_id").references(() => users.id),
+  triggerType: text("trigger_type"),
+  triggerEntityType: text("trigger_entity_type"),
+  triggerEntityId: varchar("trigger_entity_id"),
+  error: text("error"),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const workflowRunSteps = pgTable("workflow_run_steps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  runId: varchar("run_id").references(() => workflowRuns.id, { onDelete: "cascade" }).notNull(),
+  stepOrder: integer("step_order").notNull(),
+  actionType: text("action_type").notNull(),
+  status: text("status").notNull().default("PENDING"),
+  error: text("error"),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  metadataJson: jsonb("metadata_json").default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Workflow Relations
+export const workflowsRelations = relations(workflows, ({ one, many }) => ({
+  createdByUser: one(users, {
+    fields: [workflows.createdBy],
+    references: [users.id],
+  }),
+  triggers: many(workflowTriggers),
+  actions: many(workflowActions),
+  runs: many(workflowRuns),
+}));
+
+export const workflowTriggersRelations = relations(workflowTriggers, ({ one }) => ({
+  workflow: one(workflows, {
+    fields: [workflowTriggers.workflowId],
+    references: [workflows.id],
+  }),
+}));
+
+export const workflowActionsRelations = relations(workflowActions, ({ one }) => ({
+  workflow: one(workflows, {
+    fields: [workflowActions.workflowId],
+    references: [workflows.id],
+  }),
+}));
+
+export const workflowRunsRelations = relations(workflowRuns, ({ one, many }) => ({
+  workflow: one(workflows, {
+    fields: [workflowRuns.workflowId],
+    references: [workflows.id],
+  }),
+  triggeredByUser: one(users, {
+    fields: [workflowRuns.triggeredByUserId],
+    references: [users.id],
+  }),
+  steps: many(workflowRunSteps),
+}));
+
+export const workflowRunStepsRelations = relations(workflowRunSteps, ({ one }) => ({
+  run: one(workflowRuns, {
+    fields: [workflowRunSteps.runId],
+    references: [workflowRuns.id],
+  }),
+}));
+
+// Workflow Insert Schemas
+export const insertWorkflowSchema = createInsertSchema(workflows).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWorkflowTriggerSchema = createInsertSchema(workflowTriggers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWorkflowActionSchema = createInsertSchema(workflowActions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWorkflowRunSchema = createInsertSchema(workflowRuns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWorkflowRunStepSchema = createInsertSchema(workflowRunSteps).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Workflow Types
+export type Workflow = typeof workflows.$inferSelect;
+export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
+export type WorkflowTrigger = typeof workflowTriggers.$inferSelect;
+export type InsertWorkflowTrigger = z.infer<typeof insertWorkflowTriggerSchema>;
+export type WorkflowAction = typeof workflowActions.$inferSelect;
+export type InsertWorkflowAction = z.infer<typeof insertWorkflowActionSchema>;
+export type WorkflowRun = typeof workflowRuns.$inferSelect;
+export type InsertWorkflowRun = z.infer<typeof insertWorkflowRunSchema>;
+export type WorkflowRunStep = typeof workflowRunSteps.$inferSelect;
+export type InsertWorkflowRunStep = z.infer<typeof insertWorkflowRunStepSchema>;
+
+// Workflow type enums
+export const TRIGGER_TYPES = [
+  'DEAL_STAGE_CHANGED',
+  'TASK_COMPLETED',
+  'LEAD_CREATED',
+  'CALLBACK_SCHEDULED',
+] as const;
+
+export type TriggerType = typeof TRIGGER_TYPES[number];
+
+export const ACTION_TYPES = [
+  'SEND_NOTIFICATION',
+  'ASSIGN_TASK',
+  'CREATE_ACTIVITY',
+  'UPDATE_LEAD_FIELD',
+] as const;
+
+export type ActionType = typeof ACTION_TYPES[number];
+
+export const RUN_STATUS = ['PENDING', 'RUNNING', 'SUCCESS', 'FAILED'] as const;
+export type RunStatus = typeof RUN_STATUS[number];
+
+export const STEP_STATUS = ['PENDING', 'RUNNING', 'SUCCESS', 'FAILED', 'SKIPPED'] as const;
+export type StepStatus = typeof STEP_STATUS[number];
+
 // Disposition and Stage type enums
 export const DISPOSITIONS = [
   'LEFT_VOICEMAIL',

@@ -286,7 +286,7 @@ export default function LeadsPage() {
           variant="outline"
           size="sm"
           onClick={() => {
-            const url = buildExportUrl('/api/leads');
+            const url = buildExportUrl('lead');
             window.open(url, '_blank');
           }}
         >

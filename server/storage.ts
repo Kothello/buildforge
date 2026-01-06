@@ -35,6 +35,16 @@ import {
   type InsertLeadQuote,
   type LeadHistory,
   type InsertLeadHistory,
+  type Workflow,
+  type InsertWorkflow,
+  type WorkflowTrigger,
+  type InsertWorkflowTrigger,
+  type WorkflowAction,
+  type InsertWorkflowAction,
+  type WorkflowRun,
+  type InsertWorkflowRun,
+  type WorkflowRunStep,
+  type InsertWorkflowRunStep,
 } from "@shared/schema";
 import { db } from "./db";
 import { 
@@ -55,7 +65,12 @@ import {
   callbacks, 
   pricingConfig,
   leadQuotes,
-  leadHistory
+  leadHistory,
+  workflows,
+  workflowTriggers,
+  workflowActions,
+  workflowRuns,
+  workflowRunSteps,
 } from "@shared/schema";
 import { eq, and, gte, lte, ilike, or, desc, asc, sql } from "drizzle-orm";
 
@@ -142,6 +157,32 @@ export interface IStorage {
 
   getLeadHistory(leadId: string): Promise<LeadHistory[]>;
   createLeadHistory(entry: InsertLeadHistory): Promise<LeadHistory>;
+
+  // Workflow methods
+  getWorkflows(): Promise<Workflow[]>;
+  getWorkflow(id: string): Promise<Workflow | undefined>;
+  getWorkflowsByTriggerType(triggerType: string): Promise<Workflow[]>;
+  createWorkflow(workflow: InsertWorkflow): Promise<Workflow>;
+  updateWorkflow(id: string, updates: Partial<Workflow>): Promise<Workflow | undefined>;
+  deleteWorkflow(id: string): Promise<boolean>;
+  
+  getWorkflowTriggers(workflowId: string): Promise<WorkflowTrigger[]>;
+  createWorkflowTrigger(trigger: InsertWorkflowTrigger): Promise<WorkflowTrigger>;
+  
+  getWorkflowActions(workflowId: string): Promise<WorkflowAction[]>;
+  createWorkflowAction(action: InsertWorkflowAction): Promise<WorkflowAction>;
+  
+  getWorkflowRuns(workflowId: string, limit?: number): Promise<WorkflowRun[]>;
+  getWorkflowRun(id: string): Promise<WorkflowRun | undefined>;
+  getPendingWorkflowRuns(limit: number): Promise<WorkflowRun[]>;
+  createWorkflowRun(run: InsertWorkflowRun): Promise<WorkflowRun>;
+  updateWorkflowRun(id: string, updates: Partial<WorkflowRun>): Promise<WorkflowRun | undefined>;
+  
+  getWorkflowRunSteps(runId: string): Promise<WorkflowRunStep[]>;
+  createWorkflowRunStep(step: InsertWorkflowRunStep): Promise<WorkflowRunStep>;
+  updateWorkflowRunStep(id: string, updates: Partial<WorkflowRunStep>): Promise<WorkflowRunStep | undefined>;
+  
+  getUsersByRole(role: string): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -583,6 +624,133 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return quote.length > 0 ? quote[0] : null;
+  }
+
+  // Workflow methods implementation
+  async getWorkflows(): Promise<Workflow[]> {
+    return await db.select().from(workflows).orderBy(desc(workflows.createdAt));
+  }
+
+  async getWorkflow(id: string): Promise<Workflow | undefined> {
+    const [workflow] = await db.select().from(workflows).where(eq(workflows.id, id));
+    return workflow || undefined;
+  }
+
+  async getWorkflowsByTriggerType(triggerType: string): Promise<Workflow[]> {
+    const result = await db
+      .select({ workflow: workflows })
+      .from(workflows)
+      .innerJoin(workflowTriggers, eq(workflowTriggers.workflowId, workflows.id))
+      .where(and(
+        eq(workflowTriggers.type, triggerType),
+        eq(workflows.enabled, true)
+      ));
+    
+    return result.map(r => r.workflow);
+  }
+
+  async createWorkflow(workflow: InsertWorkflow): Promise<Workflow> {
+    const [newWorkflow] = await db.insert(workflows).values(workflow).returning();
+    return newWorkflow;
+  }
+
+  async updateWorkflow(id: string, updates: Partial<Workflow>): Promise<Workflow | undefined> {
+    const [workflow] = await db
+      .update(workflows)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(workflows.id, id))
+      .returning();
+    return workflow || undefined;
+  }
+
+  async deleteWorkflow(id: string): Promise<boolean> {
+    const result = await db.delete(workflows).where(eq(workflows.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getWorkflowTriggers(workflowId: string): Promise<WorkflowTrigger[]> {
+    return await db.select().from(workflowTriggers).where(eq(workflowTriggers.workflowId, workflowId));
+  }
+
+  async createWorkflowTrigger(trigger: InsertWorkflowTrigger): Promise<WorkflowTrigger> {
+    const [newTrigger] = await db.insert(workflowTriggers).values(trigger).returning();
+    return newTrigger;
+  }
+
+  async getWorkflowActions(workflowId: string): Promise<WorkflowAction[]> {
+    return await db
+      .select()
+      .from(workflowActions)
+      .where(eq(workflowActions.workflowId, workflowId))
+      .orderBy(asc(workflowActions.orderIndex));
+  }
+
+  async createWorkflowAction(action: InsertWorkflowAction): Promise<WorkflowAction> {
+    const [newAction] = await db.insert(workflowActions).values(action).returning();
+    return newAction;
+  }
+
+  async getWorkflowRuns(workflowId: string, limit: number = 50): Promise<WorkflowRun[]> {
+    return await db
+      .select()
+      .from(workflowRuns)
+      .where(eq(workflowRuns.workflowId, workflowId))
+      .orderBy(desc(workflowRuns.createdAt))
+      .limit(limit);
+  }
+
+  async getWorkflowRun(id: string): Promise<WorkflowRun | undefined> {
+    const [run] = await db.select().from(workflowRuns).where(eq(workflowRuns.id, id));
+    return run || undefined;
+  }
+
+  async getPendingWorkflowRuns(limit: number): Promise<WorkflowRun[]> {
+    return await db
+      .select()
+      .from(workflowRuns)
+      .where(eq(workflowRuns.status, "PENDING"))
+      .orderBy(asc(workflowRuns.createdAt))
+      .limit(limit);
+  }
+
+  async createWorkflowRun(run: InsertWorkflowRun): Promise<WorkflowRun> {
+    const [newRun] = await db.insert(workflowRuns).values(run).returning();
+    return newRun;
+  }
+
+  async updateWorkflowRun(id: string, updates: Partial<WorkflowRun>): Promise<WorkflowRun | undefined> {
+    const [run] = await db
+      .update(workflowRuns)
+      .set(updates)
+      .where(eq(workflowRuns.id, id))
+      .returning();
+    return run || undefined;
+  }
+
+  async getWorkflowRunSteps(runId: string): Promise<WorkflowRunStep[]> {
+    return await db
+      .select()
+      .from(workflowRunSteps)
+      .where(eq(workflowRunSteps.runId, runId))
+      .orderBy(asc(workflowRunSteps.stepOrder));
+  }
+
+  async createWorkflowRunStep(step: InsertWorkflowRunStep): Promise<WorkflowRunStep> {
+    const [newStep] = await db.insert(workflowRunSteps).values(step).returning();
+    return newStep;
+  }
+
+  async updateWorkflowRunStep(id: string, updates: Partial<WorkflowRunStep>): Promise<WorkflowRunStep | undefined> {
+    const [step] = await db
+      .update(workflowRunSteps)
+      .set(updates)
+      .where(eq(workflowRunSteps.id, id))
+      .returning();
+    return step || undefined;
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.role, role));
   }
 }
 

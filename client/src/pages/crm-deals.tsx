@@ -143,7 +143,7 @@ export default function CrmDealsPage() {
             variant="outline"
             size="sm"
             onClick={() => {
-              const url = buildExportUrl('/api/crm/deals');
+              const url = buildExportUrl('crm_deal');
               window.open(url, '_blank');
             }}
           >

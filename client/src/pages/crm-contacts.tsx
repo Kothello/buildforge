@@ -136,8 +136,8 @@ export default function CrmContactsPage() {
             variant="outline"
             size="sm"
             onClick={() => {
-              const params = searchQuery ? { search: searchQuery } : undefined;
-              const url = buildExportUrl('/api/contacts', params);
+              const params = searchQuery ? { q: searchQuery } : undefined;
+              const url = buildExportUrl('contact', params);
               window.open(url, '_blank');
             }}
           >
