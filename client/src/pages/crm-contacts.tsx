@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Mail, Phone, Building, Trash2, Pencil } from "lucide-react";
+import { buildExportUrl } from "@/lib/utils";
+import { Plus, Search, Mail, Phone, Building, Trash2, Pencil, Download } from "lucide-react";
 import type { Contact, CrmDeal } from "@shared/schema";
 
 export default function CrmContactsPage() {
@@ -131,6 +132,18 @@ export default function CrmContactsPage() {
               data-testid="input-search-contacts"
             />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const params = searchQuery ? { search: searchQuery } : undefined;
+              const url = buildExportUrl('/api/contacts', params);
+              window.open(url, '_blank');
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
           <Dialog open={isCreateDialogOpen || !!editingContact} onOpenChange={(open) => {
             if (!open) {
               setIsCreateDialogOpen(false);

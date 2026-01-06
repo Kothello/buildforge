@@ -5,13 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Users, Trash2, Loader2, UserPlus } from "lucide-react";
+import { Search, Users, Trash2, Loader2, UserPlus, Download } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Lead } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
+import { buildExportUrl } from "@/lib/utils";
 
 const prefetchLeadEdit = () => {
   import("@/pages/lead-edit");
@@ -281,6 +282,17 @@ export default function LeadsPage() {
           <Users className="w-5 h-5 text-primary" />
           <h1 className="text-2xl font-bold">All Leads</h1>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const url = buildExportUrl('/api/leads');
+            window.open(url, '_blank');
+          }}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
       </div>
 
       <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">

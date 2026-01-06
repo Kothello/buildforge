@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, LayoutGrid, Table as TableIcon, DollarSign, User, Building } from "lucide-react";
+import { buildExportUrl } from "@/lib/utils";
+import { Plus, LayoutGrid, Table as TableIcon, DollarSign, User, Building, Download } from "lucide-react";
 import type { CrmDeal, PipelineStage, Contact, User as UserType } from "@shared/schema";
 
 export default function CrmDealsPage() {
@@ -138,6 +139,17 @@ export default function CrmDealsPage() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const url = buildExportUrl('/api/crm/deals');
+              window.open(url, '_blank');
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-create-deal">
