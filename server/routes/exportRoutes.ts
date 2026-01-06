@@ -87,6 +87,30 @@ router.get("/:entityType.csv", authMiddleware(storage), async (req: Authenticate
     stringifier.end();
 
     console.log(`[export-csv] Exported ${totalExported} ${entityType} records for user ${user.id}`);
+
+    // Best-effort audit logging (don't fail the export if audit fails)
+    try {
+      const metadata: Record<string, any> = { 
+        entityType,
+        count: totalExported,
+        limit 
+      };
+      if (q) metadata.q = q;
+      if (status) metadata.status = status;
+      if (pipeline) metadata.pipeline = pipeline;
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: "export.csv",
+        entityType,
+        metadata,
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get('user-agent'),
+      });
+    } catch (auditError: any) {
+      console.error("[export-csv] Audit logging failed:", auditError.message);
+      // Continue - export already succeeded
+    }
   } catch (error: any) {
     console.error("[export-csv] Error:", error);
     
@@ -203,7 +227,7 @@ async function fetchLeads(user: any, filters: { q: string; status?: string; limi
   const isAdminOrManager = user.role === "ADMIN" || user.role === "MANAGER";
   
   // Fetch leads with role-based access control
-  let allLeads;
+  let allLeads: any[];
   if (isAdminOrManager) {
     allLeads = await storage.getLeads();
   } else if (user.role === "REP") {

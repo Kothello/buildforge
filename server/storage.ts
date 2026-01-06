@@ -45,6 +45,8 @@ import {
   type InsertWorkflowRun,
   type WorkflowRunStep,
   type InsertWorkflowRunStep,
+  type AuditLog,
+  type InsertAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { 
@@ -71,6 +73,7 @@ import {
   workflowActions,
   workflowRuns,
   workflowRunSteps,
+  auditLogs,
 } from "@shared/schema";
 import { eq, and, gte, lte, ilike, or, desc, asc, sql } from "drizzle-orm";
 
@@ -181,6 +184,10 @@ export interface IStorage {
   getWorkflowRunSteps(runId: string): Promise<WorkflowRunStep[]>;
   createWorkflowRunStep(step: InsertWorkflowRunStep): Promise<WorkflowRunStep>;
   updateWorkflowRunStep(id: string, updates: Partial<WorkflowRunStep>): Promise<WorkflowRunStep | undefined>;
+  
+  // Audit log methods
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(filters?: { userId?: string; action?: string; fromDate?: Date; toDate?: Date; limit?: number }): Promise<AuditLog[]>;
   
   getUsersByRole(role: string): Promise<User[]>;
 }
@@ -751,6 +758,42 @@ export class DatabaseStorage implements IStorage {
 
   async getUsersByRole(role: string): Promise<User[]> {
     return await db.select().from(users).where(eq(users.role, role));
+  }
+
+  // Audit log methods
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [created] = await db.insert(auditLogs).values(log).returning();
+    return created;
+  }
+
+  async getAuditLogs(filters?: { userId?: string; action?: string; fromDate?: Date; toDate?: Date; limit?: number }): Promise<AuditLog[]> {
+    let query = db.select().from(auditLogs);
+    
+    const conditions = [];
+    if (filters?.userId) {
+      conditions.push(eq(auditLogs.userId, filters.userId));
+    }
+    if (filters?.action) {
+      conditions.push(eq(auditLogs.action, filters.action));
+    }
+    if (filters?.fromDate) {
+      conditions.push(gte(auditLogs.createdAt, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      conditions.push(lte(auditLogs.createdAt, filters.toDate));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    query = query.orderBy(desc(auditLogs.createdAt)) as any;
+    
+    if (filters?.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+    
+    return await query;
   }
 }
 

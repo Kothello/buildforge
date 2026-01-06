@@ -775,3 +775,23 @@ export const STAGES = [
 ] as const;
 
 export type Stage = typeof STAGES[number];
+
+// Audit Log table for tracking user actions
+export const auditLogs = pgTable("audit_logs", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(), // e.g., "export.csv", "lead.create", "deal.update"
+  entityType: text("entity_type"), // e.g., "lead", "contact", "crm_deal"
+  entityId: text("entity_id"), // ID of the affected record (if applicable)
+  metadata: jsonb("metadata"), // Additional context: filters, counts, etc.
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
