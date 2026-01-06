@@ -197,12 +197,20 @@ function flattenRecordForCSV(record: any, entityType: EntityType): Record<string
 
 /**
  * Fetch leads with access control
+ * Access: ADMIN/MANAGER see all, REP sees only owned
  */
 async function fetchLeads(user: any, filters: { q: string; status?: string; limit: number; offset: number }) {
-  const isAdmin = user.role === "ADMIN";
+  const isAdminOrManager = user.role === "ADMIN" || user.role === "MANAGER";
   
-  // Fetch leads with access control
-  let allLeads = await storage.getLeads(isAdmin ? undefined : user.id);
+  // Fetch leads with role-based access control
+  let allLeads;
+  if (isAdminOrManager) {
+    allLeads = await storage.getLeads();
+  } else if (user.role === "REP") {
+    allLeads = await storage.getLeads(user.id);
+  } else {
+    allLeads = [];
+  }
   
   // Apply status filter
   if (filters.status) {
@@ -227,18 +235,13 @@ async function fetchLeads(user: any, filters: { q: string; status?: string; limi
 
 /**
  * Fetch contacts with access control
+ * Note: Current app has no auth on /api/contacts - returns all contacts to everyone
+ * Applying same behavior for exports (all users can export all contacts)
  */
 async function fetchContacts(user: any, filters: { q: string; limit: number; offset: number }) {
-  const isAdmin = user.role === "ADMIN";
-  
-  // Fetch contacts with access control
+  // Fetch all contacts (matches current /api/contacts endpoint behavior)
   const search = filters.q || undefined;
   let allContacts = await storage.getContacts(search);
-  
-  // Filter by ownership if not admin
-  if (!isAdmin) {
-    allContacts = allContacts.filter((c: any) => c.ownerId === user.id);
-  }
   
   // Apply pagination
   const start = filters.offset;
@@ -248,14 +251,13 @@ async function fetchContacts(user: any, filters: { q: string; limit: number; off
 
 /**
  * Fetch CRM deals with access control
+ * Note: Current app has no auth on /api/crm/deals - returns all deals to everyone
+ * Applying same behavior for exports (all users can export all deals)
  */
 async function fetchCrmDeals(user: any, filters: { q: string; status?: string; pipeline?: string; limit: number; offset: number }) {
-  const isAdmin = user.role === "ADMIN";
-  
-  // Fetch CRM deals with access control
+  // Fetch CRM deals (matches current /api/crm/deals endpoint behavior)
   let allDeals = await storage.getCrmDeals({ 
-    stageId: filters.status,
-    ownerId: isAdmin ? undefined : user.id
+    stageId: filters.status
   });
   
   // Apply pipeline filter (if provided)
@@ -279,16 +281,20 @@ async function fetchCrmDeals(user: any, filters: { q: string; status?: string; p
 
 /**
  * Fetch building deals with access control
+ * Note: No frontend page exists yet, assuming same pattern as leads
+ * Access: ADMIN/MANAGER see all, REP sees only owned
  */
 async function fetchBuildingDeals(user: any, filters: { q: string; status?: string; limit: number; offset: number }) {
-  const isAdmin = user.role === "ADMIN";
+  const isAdminOrManager = user.role === "ADMIN" || user.role === "MANAGER";
   
-  // Fetch building deals with access control
+  // Fetch building deals with role-based access control
   let allDeals = await storage.getDeals();
   
-  // Filter by ownership if not admin
-  if (!isAdmin) {
+  // Filter by ownership if not admin/manager
+  if (!isAdminOrManager && user.role === "REP") {
     allDeals = allDeals.filter((d: any) => d.ownerId === user.id);
+  } else if (!isAdminOrManager) {
+    allDeals = [];
   }
   
   // Apply status filter
