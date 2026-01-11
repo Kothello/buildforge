@@ -3,13 +3,18 @@ import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, ChevronDown } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Search, TrendingUp, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
 import { Lead } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
+import { PIPELINE_STAGES, StageId } from "@shared/pipelineStages";
+import { StageFilterBar } from "@/components/leads/StageFilterBar";
+import { useLeadNavigation } from "@/hooks/useLeadNavigation";
+import { normalizeArray } from "@/lib/normalize";
+import { normalizeStageId } from "@/lib/stage";
 
 const prefetchLeadEdit = () => {
   import("@/pages/lead-edit");
@@ -20,7 +25,9 @@ const STALE_DISPO_DAYS = 7;
 const STALE_STAGE_DAYS = 14;
 
 type AgingFilter = "ALL" | "STALE_DISPO" | "LONG_STAGE" | "NEEDS_ATTENTION";
-type StageFilter = "ALL" | string;
+type StageFilter = "ALL" | StageId;
+type SortColumn = "customer" | "status" | "daysOnStage" | "daysSinceDispo" | "project" | "price";
+type SortDirection = "asc" | "desc";
 
 const STAGE_LABELS: Record<string, string> = {
   "new": "New",
@@ -37,6 +44,61 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
   closed_out: "Closed Out",
 };
 
+// Mapping function from DB value → UI StageId (same as manager's leads page)
+const mapLeadToStageId = (lead: any): StageId | null => {
+  const raw = String(lead.stage || lead.status || "").toLowerCase();
+  
+  switch (raw) {
+    case "working":
+    case "working_lead":
+      return "working_lead";
+    case "callbacks":
+    case "callback":
+      return "callbacks";
+    case "welcome_stage":
+    case "welcome":
+      return "welcome_stage";
+    case "storage":
+      return "storage";
+    case "carport":
+      return "carport";
+    case "sold_building":
+    case "sold":
+      return "sold_building";
+    case "new":
+      return "welcome_stage"; // Map "new" to welcome_stage since "new" isn't a valid StageId
+    case "building_preparation":
+      return "building_preparation";
+    case "building_finalization":
+      return "building_finalization";
+    case "pending_delivery_date":
+      return "pending_delivery_date";
+    case "permit_hold":
+      return "permit_hold";
+    case "red_iron_fabrication":
+      return "red_iron_fabrication";
+    case "cold_form_fabrication":
+      return "cold_form_fabrication";
+    case "concrete_hold":
+      return "concrete_hold";
+    case "carport_fabrication":
+      return "carport_fabrication";
+    case "delivered_red_iron":
+      return "delivered_red_iron";
+    case "delivered_c_channel":
+      return "delivered_c_channel";
+    case "delivered_carport":
+      return "delivered_carport";
+    case "new_parts_order":
+      return "new_parts_order";
+    case "canceled":
+    case "cancelled":
+      return "canceled";
+    default:
+      return null;
+  }
+};
+
 export default function SalesDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -45,16 +107,53 @@ export default function SalesDashboard() {
   const [stageFilter, setStageFilter] = useState<StageFilter>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
-  const [, navigate] = useLocation();
+  const [sortColumn, setSortColumn] = useState<SortColumn>("daysSinceDispo");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [location, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Valid stage IDs from shared configuration
+  const validStageIds: StageId[] = PIPELINE_STAGES.map(s => s.id as StageId);
+
+  // Sync URL → stageFilter whenever the route changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rawStageParam = params.get("stage");
+    const normalizedStage = normalizeStageId(rawStageParam);
+
+    if (normalizedStage && validStageIds.includes(normalizedStage)) {
+      setStageFilter(normalizedStage as StageFilter);
+    } else {
+      setStageFilter("ALL");
+    }
+  }, [location]);
+
+  // Update stage filter and URL
+  const handleStageChange = (nextStage: StageFilter) => {
+    setStageFilter(nextStage);
+
+    const pathname = location; // e.g. "/sales"
+    const params = new URLSearchParams(window.location.search);
+
+    if (nextStage === "ALL") {
+      params.delete("stage");
+    } else {
+      params.set("stage", nextStage);
+    }
+
+    const query = params.toString();
+    const newUrl = query ? `${pathname}?${query}` : pathname;
+    navigate(newUrl);
+  };
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads", "mine"],
     queryFn: async () => {
-      const r = await fetch("/api/leads?mine=true");
+      const r = await fetch("/api/leads?mine=true", { credentials: "include" });
+      if (!r.ok) return [];
       const data = await r.json();
-      return Array.isArray(data) ? data : [];
+      return normalizeArray<Lead>(data);
     },
     staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
@@ -84,23 +183,28 @@ export default function SalesDashboard() {
       toast({ title: "Lead deleted", description: "The lead has been permanently removed." });
       setDeletingId(null);
     },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    onError: () => {
+      // Global error handler will show the error toast
       setDeletingId(null);
     },
   });
 
   const assignMutation = useMutation({
     mutationFn: async ({ leadId, userId }: { leadId: string; userId: string }) => {
-      return await apiRequest("PATCH", `/api/leads/${leadId}`, { assignedTo: userId });
+      return await apiRequest("PATCH", `/api/leads/${leadId}/assignment`, { assignedTo: userId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      // Invalidate pipeline stats (funnel) - use predicate to catch all scope variants
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "/api/pipeline/stats",
+      });
       toast({ title: "Lead assigned successfully" });
       setAssigningId(null);
     },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    onError: () => {
+      // Global error handler will show the error toast
+      setAssigningId(null);
     },
   });
 
@@ -110,10 +214,27 @@ export default function SalesDashboard() {
     deleteLeadMutation.mutate(id);
   };
 
+  const handleHeaderClick = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
+
   const myLeads = useMemo(() => {
-    let filtered = leads.filter((lead: any) =>
-      lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const query = searchTerm.trim().toLowerCase();
+    let filtered = leads;
+    
+    if (query) {
+      filtered = leads.filter((lead: any) => {
+        const company = (lead.companyName || "").toLowerCase();
+        const contact = (lead.contactName || "").toLowerCase();
+        
+        return company.includes(query) || contact.includes(query);
+      });
+    }
     if (statusFilter !== "all") {
       filtered = filtered.filter((lead: any) => lead.status === statusFilter);
     }
@@ -139,38 +260,95 @@ export default function SalesDashboard() {
       }
     });
     
-    // Apply stage filter
+    // Apply stage filter using mapping function
     const filteredByStage = filteredByAging.filter((lead: any) => {
       if (stageFilter === "ALL") return true;
-      const stageKey = lead.status ?? "";
-      return stageKey === stageFilter;
+      return mapLeadToStageId(lead) === stageFilter;
     });
     
-    // Sort by aging metrics
+    // Sort by column header clicks
     const sorted = [...filteredByStage].sort((a: any, b: any) => {
-      if (sortMode === "daysSinceDispo") {
-        const aVal = a.daysSinceLastDispo ?? -1;
-        const bVal = b.daysSinceLastDispo ?? -1;
-        // Nulls (represented as -1) go to the end
-        if (aVal === -1 && bVal === -1) return 0;
-        if (aVal === -1) return 1;
-        if (bVal === -1) return -1;
-        return bVal - aVal; // descending
-      } else {
-        const aVal = a.daysOnStage ?? 0;
-        const bVal = b.daysOnStage ?? 0;
-        return bVal - aVal; // descending
+      let aVal: any;
+      let bVal: any;
+      let result = 0;
+
+      switch (sortColumn) {
+        case "customer":
+          aVal = (a.companyName || "").toLowerCase();
+          bVal = (b.companyName || "").toLowerCase();
+          result = aVal.localeCompare(bVal);
+          break;
+        case "status":
+          aVal = (a.status || "").toLowerCase();
+          bVal = (b.status || "").toLowerCase();
+          result = aVal.localeCompare(bVal);
+          break;
+        case "daysOnStage":
+          aVal = a.daysOnStage ?? -1;
+          bVal = b.daysOnStage ?? -1;
+          // Nulls go to bottom
+          if (aVal === -1 && bVal === -1) result = 0;
+          else if (aVal === -1) result = 1;
+          else if (bVal === -1) result = -1;
+          else result = aVal - bVal;
+          break;
+        case "daysSinceDispo":
+          aVal = a.daysSinceLastDispo ?? -1;
+          bVal = b.daysSinceLastDispo ?? -1;
+          // Nulls go to bottom
+          if (aVal === -1 && bVal === -1) result = 0;
+          else if (aVal === -1) result = 1;
+          else if (bVal === -1) result = -1;
+          else result = aVal - bVal;
+          break;
+        case "project":
+          aVal = (a.projectStatus || "not_started").toLowerCase();
+          bVal = (b.projectStatus || "not_started").toLowerCase();
+          result = aVal.localeCompare(bVal);
+          break;
+        case "price":
+          aVal = parseFloat(a.totalPrice || "0");
+          bVal = parseFloat(b.totalPrice || "0");
+          result = aVal - bVal;
+          break;
+        default:
+          result = 0;
       }
+
+      // Apply direction
+      if (sortDirection === "desc") {
+        result = -result;
+      }
+
+      // Stable tiebreaker: createdAt desc, then id
+      if (result === 0) {
+        const aDate = new Date(a.createdAt || 0).getTime();
+        const bDate = new Date(b.createdAt || 0).getTime();
+        if (aDate !== bDate) {
+          return bDate - aDate; // newer first
+        }
+        return String(a.id).localeCompare(String(b.id));
+      }
+
+      return result;
     });
     return sorted;
-  }, [leads, searchTerm, statusFilter, sortMode, agingFilter, stageFilter]);
+  }, [leads, searchTerm, statusFilter, sortMode, agingFilter, stageFilter, sortColumn, sortDirection]);
 
   const stageBuckets = useMemo(() => {
-    const buckets: Record<string, { count: number }> = {};
+    const buckets: Record<StageId, number> = {} as Record<StageId, number>;
     // Use leads after search, status, and aging filters but before stage filter
-    let filtered = leads.filter((lead: any) =>
-      lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const query = searchTerm.trim().toLowerCase();
+    let filtered = leads;
+    
+    if (query) {
+      filtered = leads.filter((lead: any) => {
+        const company = (lead.companyName || "").toLowerCase();
+        const contact = (lead.contactName || "").toLowerCase();
+        
+        return company.includes(query) || contact.includes(query);
+      });
+    }
     if (statusFilter !== "all") {
       filtered = filtered.filter((lead: any) => lead.status === statusFilter);
     }
@@ -195,11 +373,10 @@ export default function SalesDashboard() {
     });
 
     filteredByAging.forEach((lead: any) => {
-      const stageKey = lead.status ?? "unknown";
-      if (!buckets[stageKey]) {
-        buckets[stageKey] = { count: 0 };
+      const stageId = mapLeadToStageId(lead);
+      if (stageId) {
+        buckets[stageId] = (buckets[stageId] || 0) + 1;
       }
-      buckets[stageKey].count += 1;
     });
     return buckets;
   }, [leads, searchTerm, statusFilter, agingFilter]);
@@ -211,17 +388,52 @@ export default function SalesDashboard() {
     sold: leads.filter((l: any) => l.status === "sold").length,
   }), [leads]);
 
+  const { viewLead } = useLeadNavigation();
+  
   const handleLeadClick = (lead: Lead) => {
-    navigate(`/sales/leads/${lead.id}`);
+    viewLead(lead.id);
+  };
+
+  // Compute header label based on active stage
+  const activeStageLabel = stageFilter !== "ALL" 
+    ? PIPELINE_STAGES.find(s => s.id === stageFilter)?.label 
+    : null;
+
+  // Clear all filters function
+  const handleClearAllFilters = () => {
+    setStageFilter("ALL");
+    setStatusFilter("all");
+    setAgingFilter("ALL");
+    setSearchTerm("");
+    // Remove stage param from URL
+    const params = new URLSearchParams(window.location.search);
+    params.delete("stage");
+    const newUrl = params.toString() ? `${location}?${params.toString()}` : location;
+    navigate(newUrl);
   };
 
   return (
     <div className="h-full overflow-auto p-3 sm:p-6 space-y-6">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-baseline gap-2">
           <TrendingUp className="w-5 h-5 text-primary" />
           <h1 className="text-2xl font-bold">My Leads</h1>
+          {activeStageLabel && (
+            <span className="text-sm text-slate-400">
+              · Stage: {activeStageLabel}
+            </span>
+          )}
         </div>
+
+        {activeStageLabel && (
+          <button
+            type="button"
+            className="text-xs text-blue-400 hover:underline"
+            onClick={() => handleStageChange("ALL")}
+          >
+            Clear stage filter
+          </button>
+        )}
       </div>
 
       <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-4">
@@ -240,34 +452,46 @@ export default function SalesDashboard() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by customer name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              data-testid="input-search-leads"
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            data-testid="select-status-filter"
-          >
-            <option value="all">All Status</option>
-            <option value="new">New</option>
-            <option value="in_progress">In Progress</option>
-            <option value="sold">Sold</option>
-          </select>
+      {/* Row 1: Search + Status + Clear All */}
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div className="flex-1 min-w-[240px] relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by customer name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            data-testid="input-search-leads"
+          />
         </div>
         
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground">Sort by:</span>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          data-testid="select-status-filter"
+        >
+          <option value="all">All Status</option>
+          <option value="new">New</option>
+          <option value="in_progress">In Progress</option>
+          <option value="sold">Sold</option>
+        </select>
+
+        <button
+          type="button"
+          className="text-xs text-slate-400 hover:text-slate-200"
+          onClick={handleClearAllFilters}
+        >
+          Clear filters
+        </button>
+      </div>
+
+      {/* Row 2: Sort + Aging */}
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        {/* Sort pills */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400">Sort by:</span>
           <Button
             variant={sortMode === "daysSinceDispo" ? "default" : "outline"}
             size="sm"
@@ -288,8 +512,9 @@ export default function SalesDashboard() {
           </Button>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground">Aging:</span>
+        {/* Aging pills */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400">Aging:</span>
           <Button
             size="sm"
             variant={agingFilter === "ALL" ? "default" : "outline"}
@@ -306,7 +531,7 @@ export default function SalesDashboard() {
             data-testid="button-aging-stale-dispo"
             className="text-xs h-8"
           >
-            Stale ≥ {STALE_DISPO_DAYS}d since dispo
+            Stale ≥ {STALE_DISPO_DAYS}d
           </Button>
           <Button
             size="sm"
@@ -329,26 +554,14 @@ export default function SalesDashboard() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-3">
-        <Button
-          size="sm"
-          variant={stageFilter === "ALL" ? "default" : "outline"}
-          onClick={() => setStageFilter("ALL")}
-          data-testid="button-stage-all"
-        >
-          All ({myLeads.length})
-        </Button>
-        {Object.entries(stageBuckets).map(([stageKey, stats]) => (
-          <Button
-            key={stageKey}
-            size="sm"
-            variant={stageFilter === stageKey ? "default" : "outline"}
-            onClick={() => setStageFilter(stageKey)}
-            data-testid={`button-stage-${stageKey}`}
-          >
-            {STAGE_LABELS[stageKey] ?? stageKey} ({stats.count})
-          </Button>
-        ))}
+      {/* Row 3: Stage Filter Bar */}
+      <div className="mb-4">
+        <StageFilterBar
+          stageFilter={stageFilter}
+          stageBuckets={stageBuckets}
+          totalCount={Object.values(stageBuckets).reduce((sum, count) => sum + count, 0)}
+          onStageChange={handleStageChange}
+        />
       </div>
 
       {isLoading ? (
@@ -368,12 +581,90 @@ export default function SalesDashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Customer</th>
-                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Status</th>
-                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days on Stage</th>
-                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Days Since Dispo</th>
-                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Project</th>
-                <th className="text-left py-3 px-3 sm:px-4 font-semibold">Price</th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">
+                  <button
+                    onClick={() => handleHeaderClick("customer")}
+                    className="flex items-center gap-1 hover:text-primary cursor-pointer"
+                    aria-sort={sortColumn === "customer" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                  >
+                    Customer
+                    {sortColumn === "customer" ? (
+                      sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-30" />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">
+                  <button
+                    onClick={() => handleHeaderClick("status")}
+                    className="flex items-center gap-1 hover:text-primary cursor-pointer"
+                    aria-sort={sortColumn === "status" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                  >
+                    Status
+                    {sortColumn === "status" ? (
+                      sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-30" />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">
+                  <button
+                    onClick={() => handleHeaderClick("daysOnStage")}
+                    className="flex items-center gap-1 hover:text-primary cursor-pointer"
+                    aria-sort={sortColumn === "daysOnStage" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                  >
+                    Days on Stage
+                    {sortColumn === "daysOnStage" ? (
+                      sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-30" />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">
+                  <button
+                    onClick={() => handleHeaderClick("daysSinceDispo")}
+                    className="flex items-center gap-1 hover:text-primary cursor-pointer"
+                    aria-sort={sortColumn === "daysSinceDispo" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                  >
+                    Days Since Dispo
+                    {sortColumn === "daysSinceDispo" ? (
+                      sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-30" />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">
+                  <button
+                    onClick={() => handleHeaderClick("project")}
+                    className="flex items-center gap-1 hover:text-primary cursor-pointer"
+                    aria-sort={sortColumn === "project" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                  >
+                    Project
+                    {sortColumn === "project" ? (
+                      sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-30" />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left py-3 px-3 sm:px-4 font-semibold">
+                  <button
+                    onClick={() => handleHeaderClick("price")}
+                    className="flex items-center gap-1 hover:text-primary cursor-pointer"
+                    aria-sort={sortColumn === "price" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+                  >
+                    Price
+                    {sortColumn === "price" ? (
+                      sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-30" />
+                    )}
+                  </button>
+                </th>
                 <th className="text-right py-3 px-3 sm:px-4 font-semibold">Action</th>
               </tr>
             </thead>

@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import cookieParser from "cookie-parser";
 import PDFDocument from "pdfkit";
@@ -21,7 +21,9 @@ import {
   insertLeadHistorySchema,
   DISPOSITIONS,
   STAGES,
+  leads,
 } from "@shared/schema";
+import { PIPELINE_STAGES, isValidStageId, type StageId } from "@shared/pipelineStages";
 import { parseLeadFromText, generateFirstMessage, generateCallSummary, generateUnstickSuggestion, generateMorningBrief } from "./ai";
 import { triggerWebhook } from "./webhooks";
 import pricingRoutes from "./pricingRoutes";
@@ -35,6 +37,7 @@ import {
   generateAccessToken, 
   generateRefreshToken, 
   verifyRefreshToken, 
+  verifyAccessToken,
   getRefreshTokenExpiry,
   authMiddleware,
   optionalAuthMiddleware,
@@ -70,6 +73,67 @@ function enrichLeadWithComputedFields(lead: any) {
     ...lead,
     daysOnStage: computeDaysOnStage(lead.stageEnteredAt),
     daysSinceLastDispo: computeDaysSinceLastDispo(lead.lastDispositionAt),
+  };
+}
+
+// Simple per-user rate limiter for AI endpoints
+const aiRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const AI_RATE_LIMIT = 20; // requests per window
+const AI_RATE_WINDOW = 60 * 1000; // 1 minute
+
+function aiRateLimitMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  
+  const userId = req.user.id;
+  const now = Date.now();
+  const userLimit = aiRateLimitMap.get(userId);
+  
+  if (!userLimit || now > userLimit.resetAt) {
+    // Reset or create new limit
+    aiRateLimitMap.set(userId, { count: 1, resetAt: now + AI_RATE_WINDOW });
+    return next();
+  }
+  
+  if (userLimit.count >= AI_RATE_LIMIT) {
+    const retryAfter = Math.ceil((userLimit.resetAt - now) / 1000);
+    res.set('Retry-After', String(retryAfter));
+    return res.status(429).json({ 
+      error: "Rate limit exceeded",
+      message: `Too many AI requests. Try again in ${retryAfter} seconds.`,
+      retryAfter
+    });
+  }
+  
+  userLimit.count++;
+  next();
+}
+
+// Payload size validator for AI endpoints
+function validateAIPayload(maxSize: number) {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const contentLength = parseInt(req.headers['content-length'] || '0');
+    
+    if (contentLength > maxSize) {
+      return res.status(413).json({ 
+        error: "Payload too large",
+        message: `Request body exceeds ${maxSize} bytes` 
+      });
+    }
+    
+    // Also check body size if already parsed
+    if (req.body) {
+      const bodyStr = JSON.stringify(req.body);
+      if (bodyStr.length > maxSize) {
+        return res.status(413).json({ 
+          error: "Payload too large",
+          message: `Request body exceeds ${maxSize} bytes` 
+        });
+      }
+    }
+    
+    next();
   };
 }
 
@@ -150,6 +214,54 @@ async function runLeadAgingAutomation() {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use(cookieParser());
+  
+  // Auth-by-default middleware for all /api routes
+  // Only public routes are /api/auth/* and /api/public/*
+  app.use("/api", (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    // Allowlist: routes that don't require auth
+    // When mounted at /api, req.path is relative (e.g., /auth/login not /api/auth/login)
+    const publicPaths = [
+      '/auth/',
+      '/auth',
+      '/public/',
+      '/public',
+      '/health'
+    ];
+    
+    // Check if this is a public path or if path starts with public prefix
+    const isPublic = publicPaths.some(path => 
+      req.path === path || req.path.startsWith(path + '/')
+    );
+    
+    if (isPublic) {
+      return next();
+    }
+    
+    // All other /api routes require authentication
+    const token = req.cookies?.accessToken || req.headers.authorization?.split(" ")[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    const payload = verifyAccessToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+    
+    // Verify user exists and is active
+    storage.getUser(payload.userId).then(user => {
+      if (!user || !user.active) {
+        return res.status(401).json({ error: "User not found or inactive" });
+      }
+      
+      req.user = user;
+      next();
+    }).catch(err => {
+      console.error("Auth middleware error:", err);
+      return res.status(500).json({ error: "Authentication error" });
+    });
+  });
   
   app.use("/api/pricing", pricingRoutes);
   app.use("/api/designs", designRoutes);
@@ -350,6 +462,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get assignable users (active REPs only) - for assignment dropdowns
+  // All authenticated users can see this list (auth-by-default enforces auth)
+  app.get("/api/users/assignable", async (req: AuthenticatedRequest, res) => {
+    try {
+      const allUsers = await storage.getUsers();
+      // Return ONLY active REP users (not admins/managers) - strict for "Assign to rep" dropdowns
+      const assignableUsers = allUsers
+        .filter(u => u.active && (u.role === 'REP' || u.role === 'SALES_REP'))
+        .map(u => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role
+        }));
+      res.json(assignableUsers);
+    } catch (error) {
+      console.error("Error fetching assignable users:", error);
+      res.status(500).json({ error: "Failed to fetch assignable users" });
+    }
+  });
+
   app.post("/api/users", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const { name, email, password, role = "REP" } = req.body;
@@ -381,20 +514,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/users/:id", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
-      const updates = { ...req.body };
-      if (updates.password) {
-        updates.passwordHash = await hashPassword(updates.password);
-        delete updates.password;
+      const userId = req.params.id;
+      const isAdmin = req.user!.role === 'ADMIN';
+      
+      // Allowlisted fields that can be updated
+      const updates: any = {};
+      
+      // Name can be updated by ADMIN and MANAGER
+      if (req.body.name !== undefined) {
+        updates.name = req.body.name;
       }
       
-      const user = await storage.updateUser(req.params.id, updates);
+      // Email can only be changed by ADMIN
+      if (req.body.email !== undefined) {
+        if (!isAdmin) {
+          return res.status(403).json({ error: "Only administrators can change email addresses" });
+        }
+        updates.email = req.body.email;
+      }
+      
+      // Role can only be changed by ADMIN
+      if (req.body.role !== undefined) {
+        if (!isAdmin) {
+          return res.status(403).json({ error: "Only administrators can change user roles" });
+        }
+        // Prevent self-elevation or self-demotion
+        if (userId === req.user!.id) {
+          return res.status(403).json({ error: "Cannot change your own role" });
+        }
+        updates.role = req.body.role;
+      }
+      
+      // Active status can only be changed by ADMIN
+      if (req.body.active !== undefined) {
+        if (!isAdmin) {
+          return res.status(403).json({ error: "Only administrators can activate/deactivate users" });
+        }
+        // Prevent self-deactivation
+        if (userId === req.user!.id && req.body.active === false) {
+          return res.status(403).json({ error: "Cannot deactivate your own account" });
+        }
+        updates.active = req.body.active;
+      }
+      
+      // Password can be updated by ADMIN only
+      if (req.body.password !== undefined && req.body.password !== '') {
+        if (!isAdmin) {
+          return res.status(403).json({ error: "Only administrators can change passwords" });
+        }
+        updates.passwordHash = await hashPassword(req.body.password);
+      }
+      
+      // Check if any updates were provided
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "No valid fields to update" });
+      }
+      
+      const user = await storage.updateUser(userId, updates);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
       
+      // Never return password hash
       const { passwordHash: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
+      console.error("Error updating user:", error);
       res.status(500).json({ error: "Failed to update user" });
     }
   });
@@ -403,23 +588,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.params.id;
       
-      if (userId === req.user!.id) {
-        return res.status(400).json({ error: "Cannot delete your own user account" });
+      // Validate user ID format (basic check)
+      if (!userId || userId.trim() === '') {
+        return res.status(400).json({ error: "Invalid user ID" });
       }
       
-      const deleted = await storage.deleteUser(userId);
-      if (!deleted) {
+      // Check if user exists
+      const userToDelete = await storage.getUser(userId);
+      if (!userToDelete) {
         return res.status(404).json({ error: "User not found" });
       }
       
-      return res.status(200).json({ success: true });
-    } catch (error) {
+      // Business rule 1: Cannot delete your own account
+      if (userId === req.user!.id) {
+        return res.status(409).json({ 
+          error: "CANNOT_DELETE_SELF",
+          message: "Cannot delete your own user account" 
+        });
+      }
+      
+      // Business rule 2: Cannot delete the last active ADMIN
+      if (userToDelete.role === 'ADMIN' && userToDelete.active) {
+        const adminCount = await storage.countAdminUsers();
+        if (adminCount <= 1) {
+          return res.status(409).json({ 
+            error: "LAST_ADMIN",
+            message: "Cannot delete the last active administrator" 
+          });
+        }
+      }
+      
+      // Business rule 3: Check for references (leads, deals, callbacks, etc.)
+      const references = await storage.getUserReferenceCounts(userId);
+      if (references.total > 0) {
+        return res.status(409).json({ 
+          error: "USER_HAS_REFERENCES",
+          message: "Cannot delete user with assigned records. Deactivate instead or reassign records.",
+          references: {
+            leads: references.leads,
+            deals: references.deals,
+            callbacks: references.callbacks,
+            activities: references.activities,
+            tasks: references.tasks,
+            workflows: references.workflows
+          }
+        });
+      }
+      
+      // All checks passed - safe to delete
+      const deleted = await storage.deleteUser(userId);
+      if (!deleted) {
+        return res.status(500).json({ error: "Failed to delete user from database" });
+      }
+      
+      return res.status(200).json({ success: true, message: "User deleted successfully" });
+    } catch (error: any) {
       console.error("Error deleting user:", error);
-      return res.status(500).json({ error: "Failed to delete user" });
+      
+      // Handle database FK constraint errors that we might have missed
+      if (error.code === '23503' || error.message?.includes('foreign key')) {
+        return res.status(409).json({ 
+          error: "DATABASE_CONSTRAINT",
+          message: "Cannot delete user due to database constraints. Please deactivate instead."
+        });
+      }
+      
+      return res.status(500).json({ 
+        error: "Internal server error",
+        message: "An unexpected error occurred while deleting user" 
+      });
     }
   });
 
-  app.get("/api/contacts", async (req, res) => {
+  // Contacts routes - require auth (auth-by-default enforced)
+  app.get("/api/contacts", async (req: AuthenticatedRequest, res) => {
     try {
       const search = req.query.search as string | undefined;
       const allContacts = await storage.getContacts(search);
@@ -429,7 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/contacts/:id", async (req, res) => {
+  app.get("/api/contacts/:id", async (req: AuthenticatedRequest, res) => {
     try {
       const contact = await storage.getContact(req.params.id);
       if (!contact) {
@@ -441,7 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/contacts", async (req, res) => {
+  app.post("/api/contacts", async (req: AuthenticatedRequest, res) => {
     try {
       const validatedData = insertContactSchema.parse(req.body);
       const contact = await storage.createContact(validatedData);
@@ -451,7 +693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/contacts/:id", async (req, res) => {
+  app.patch("/api/contacts/:id", async (req: AuthenticatedRequest, res) => {
     try {
       const contact = await storage.updateContact(req.params.id, req.body);
       if (!contact) {
@@ -463,7 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/contacts/:id", async (req, res) => {
+  app.delete("/api/contacts/:id", async (req: AuthenticatedRequest, res) => {
     try {
       const deleted = await storage.deleteContact(req.params.id);
       if (!deleted) {
@@ -475,7 +717,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/pipeline-stages", async (req, res) => {
+  // Admin pipeline stages - ADMIN/MANAGER only
+  app.get("/api/admin/pipeline-stages", requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const stages = await storage.getPipelineStages();
       res.json(stages);
@@ -484,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/pipeline-stages", async (req, res) => {
+  app.post("/api/admin/pipeline-stages", requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const validatedData = insertPipelineStageSchema.parse(req.body);
       const stage = await storage.createPipelineStage(validatedData);
@@ -494,7 +737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/pipeline-stages/:id", async (req, res) => {
+  app.patch("/api/admin/pipeline-stages/:id", requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const stage = await storage.updatePipelineStage(req.params.id, req.body);
       if (!stage) {
@@ -506,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/pipeline-stages/:id", async (req, res) => {
+  app.delete("/api/admin/pipeline-stages/:id", requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
     try {
       const deleted = await storage.deletePipelineStage(req.params.id);
       if (!deleted) {
@@ -518,7 +761,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/crm/deals", async (req, res) => {
+  // CRM Deals routes - require auth (auth-by-default enforced)
+  app.get("/api/crm/deals", async (req: AuthenticatedRequest, res) => {
     try {
       const { stageId, ownerId, from, to } = req.query;
       const filters: any = {};
@@ -534,7 +778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/crm/deals/:id", async (req, res) => {
+  app.get("/api/crm/deals/:id", async (req: AuthenticatedRequest, res) => {
     try {
       const deal = await storage.getCrmDeal(req.params.id);
       if (!deal) {
@@ -546,7 +790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/crm/deals", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.post("/api/crm/deals", async (req: AuthenticatedRequest, res) => {
     try {
       const validatedData = insertCrmDealSchema.parse(req.body);
       const deal = await storage.createCrmDeal(validatedData);
@@ -564,7 +808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/crm/deals/:id", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/crm/deals/:id", async (req: AuthenticatedRequest, res) => {
     try {
       const existingDeal = await storage.getCrmDeal(req.params.id);
       if (!existingDeal) {
@@ -588,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/crm/deals/:id/stage", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/crm/deals/:id/stage", async (req: AuthenticatedRequest, res) => {
     try {
       const { stageId } = req.body;
       if (!stageId) {
@@ -628,7 +872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/crm/deals/:id", async (req, res) => {
+  app.delete("/api/crm/deals/:id", async (req: AuthenticatedRequest, res) => {
     try {
       const deleted = await storage.deleteCrmDeal(req.params.id);
       if (!deleted) {
@@ -640,7 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/crm/deals/:dealId/notes", async (req, res) => {
+  app.get("/api/crm/deals/:dealId/notes", async (req: AuthenticatedRequest, res) => {
     try {
       const notes = await storage.getDealNotes(req.params.dealId);
       res.json(notes);
@@ -649,7 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/crm/deals/:dealId/notes", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.post("/api/crm/deals/:dealId/notes", async (req: AuthenticatedRequest, res) => {
     try {
       const noteData = {
         ...req.body,
@@ -672,7 +916,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/tasks", async (req, res) => {
+  // Tasks routes - require auth
+  app.get("/api/tasks", async (req: AuthenticatedRequest, res) => {
     try {
       const { status, assignedToId, from, to } = req.query;
       const filters: any = {};
@@ -688,7 +933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/my/tasks", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.get("/api/my/tasks", async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.user) {
         return res.status(401).json({ error: "Authentication required" });
@@ -700,7 +945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/crm/deals/:dealId/tasks", async (req, res) => {
+  app.get("/api/crm/deals/:dealId/tasks", async (req: AuthenticatedRequest, res) => {
     try {
       const allTasks = await storage.getTasksByDeal(req.params.dealId);
       res.json(allTasks);
@@ -709,7 +954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/crm/deals/:dealId/tasks", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.post("/api/crm/deals/:dealId/tasks", async (req: AuthenticatedRequest, res) => {
     try {
       const taskData = {
         ...req.body,
@@ -731,7 +976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/tasks/:id", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/tasks/:id", async (req: AuthenticatedRequest, res) => {
     try {
       const existingTask = await storage.getTask(req.params.id);
       if (!existingTask) {
@@ -768,7 +1013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/crm/deals/:dealId/activity", async (req, res) => {
+  app.get("/api/crm/deals/:dealId/activity", async (req: AuthenticatedRequest, res) => {
     try {
       const activities = await storage.getDealActivities(req.params.dealId);
       res.json(activities);
@@ -777,7 +1022,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/settings", async (req, res) => {
+  // Admin settings - ADMIN only
+  app.get("/api/admin/settings", requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
     try {
       const allSettings = await storage.getSettings();
       const settingsObj: Record<string, any> = {};
@@ -788,7 +1034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/settings", async (req, res) => {
+  app.put("/api/admin/settings", requireRole("ADMIN"), async (req: AuthenticatedRequest, res) => {
     try {
       const settingsToUpdate = req.body;
       const results = [];
@@ -923,22 +1169,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * GET /api/pipeline/stats
+   * Returns lead counts grouped by stage for funnel visualization
+   * 
+   * Query params:
+   *   scope: 'global' | 'my' (default: 'global' for MANAGER/ADMIN, forced 'my' for REP)
+   * 
+   * Response: { [stageId: string]: number }
+   */
+  app.get("/api/pipeline/stats", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = req.user!;
+      const isAdminOrManager = user.role === "ADMIN" || user.role === "MANAGER";
+      
+      // REP always gets their own leads, regardless of requested scope
+      const requestedScope = req.query.scope as string || "global";
+      const effectiveScope = isAdminOrManager ? requestedScope : "my";
+      
+      // Build WHERE clause based on scope
+      const whereClause = effectiveScope === "my" 
+        ? eq(leads.assignedTo, user.id)
+        : undefined;
+      
+      // Query: group by stage and count
+      const results = await db
+        .select({
+          stage: leads.stage,
+          count: sql<number>`cast(count(*) as int)`,
+        })
+        .from(leads)
+        .where(whereClause)
+        .groupBy(leads.stage);
+      
+      // Initialize stats with all pipeline stages set to 0
+      const stats: Record<string, number> = {};
+      for (const stage of PIPELINE_STAGES) {
+        stats[stage.id] = 0;
+      }
+      
+      // Accumulate counts, normalizing stage values
+      for (const row of results) {
+        const stageKey = row.stage?.toLowerCase().replace(/\s+/g, '_') || 'working_lead';
+        // Check if it's a valid stage ID, otherwise try to match
+        if (isValidStageId(stageKey)) {
+          stats[stageKey] += row.count;
+        } else {
+          // Try to find a matching stage (handle legacy data)
+          const matchedStage = PIPELINE_STAGES.find(s => 
+            s.id === stageKey || 
+            s.label.toLowerCase().replace(/\s+/g, '_') === stageKey ||
+            s.label.toLowerCase() === row.stage?.toLowerCase()
+          );
+          if (matchedStage) {
+            stats[matchedStage.id] += row.count;
+          } else {
+            // Default unmatched stages to working_lead
+            stats['working_lead'] += row.count;
+          }
+        }
+      }
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Failed to fetch pipeline stats:", error);
+      res.status(500).json({ error: "Failed to fetch pipeline stats" });
+    }
+  });
+
   app.get("/api/leads", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
     try {
       const user = req.user!;
       const isAdminOrManager = user.role === "ADMIN" || user.role === "MANAGER";
       
-      let leads;
-      if (isAdminOrManager) {
-        leads = await storage.getLeads();
-      } else if (user.role === "REP") {
-        leads = await storage.getLeads(user.id);
+      // Pagination support
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      // Stage filter support - normalize the incoming stage param
+      const rawStageFilter = req.query.stage as string | undefined;
+      let stageFilter: StageId | undefined;
+      if (rawStageFilter) {
+        const normalized = rawStageFilter.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+        if (isValidStageId(normalized)) {
+          stageFilter = normalized as StageId;
+        }
+      }
+      
+      // Check for "mine" filter for REP's own leads
+      const mineFilter = req.query.mine === "true";
+      
+      let allLeads;
+      let total;
+      if (isAdminOrManager && !mineFilter) {
+        allLeads = await storage.getLeads(undefined, limit, offset);
+        total = await storage.getLeadsCount();
+      } else if (user.role === "REP" || mineFilter) {
+        allLeads = await storage.getLeads(user.id, limit, offset);
+        total = await storage.getLeadsCount(user.id);
       } else {
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      const enrichedLeads = leads.map(enrichLeadWithComputedFields);
-      res.json(enrichedLeads);
+      // Apply stage filter if provided (server-side filtering)
+      let filteredLeads = allLeads;
+      if (stageFilter) {
+        filteredLeads = allLeads.filter(lead => {
+          const leadStage = lead.stage?.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') || '';
+          return leadStage === stageFilter;
+        });
+        // Adjust total for stage-filtered results
+        total = filteredLeads.length;
+      }
+      
+      const enrichedLeads = filteredLeads.map(enrichLeadWithComputedFields);
+      res.json({
+        leads: enrichedLeads,
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch leads" });
     }
@@ -957,9 +1308,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/leads", async (req, res) => {
+  app.post("/api/leads", async (req: AuthenticatedRequest, res) => {
     try {
       const validatedData = insertLeadSchema.parse(req.body);
+      
+      // CRM Builder mode: require auth and auto-assign to the creating user
+      if (validatedData.source === "crm_builder") {
+        if (!req.user?.id) {
+          return res.status(401).json({ error: "Authentication required for CRM lead builder" });
+        }
+        // Force assignment to the authenticated user
+        validatedData.assignedTo = req.user.id;
+        validatedData.salesRepId = req.user.id;
+      }
+      
       let lead = await storage.createLead(validatedData);
       
       if (validatedData.companyName && validatedData.contactName) {
@@ -985,7 +1347,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/leads/parse", async (req, res) => {
+  // AI endpoints - require auth + rate limiting
+  app.post("/api/leads/parse", aiRateLimitMiddleware, validateAIPayload(1024 * 1024), async (req: AuthenticatedRequest, res) => {
     try {
       const { content, filename } = req.body;
       
@@ -1384,7 +1747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/leads/:id", optionalAuthMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+  app.patch("/api/leads/:id", async (req: AuthenticatedRequest, res) => {
     try {
       const updates = { ...req.body };
       
@@ -1454,12 +1817,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/deals", async (req, res) => {
+  app.get("/api/deals", async (req: AuthenticatedRequest, res) => {
     try {
       const deals = await storage.getDeals();
-      res.json(deals);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch deals" });
+      res.json(deals || []);
+    } catch (error: any) {
+      console.error("Error fetching deals:", error);
+      res.status(500).json({ error: "Failed to fetch deals", details: error.message });
     }
   });
 
@@ -1492,7 +1856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ai/call-summary", async (req, res) => {
+  app.post("/api/ai/call-summary", aiRateLimitMiddleware, validateAIPayload(500 * 1024), async (req: AuthenticatedRequest, res) => {
     try {
       const { transcript } = req.body;
       const summary = await generateCallSummary(transcript);
@@ -1502,7 +1866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ai/unstick", async (req, res) => {
+  app.post("/api/ai/unstick", aiRateLimitMiddleware, validateAIPayload(200 * 1024), async (req: AuthenticatedRequest, res) => {
     try {
       const { leadId } = req.body;
       const lead = await storage.getLead(leadId);
@@ -1525,7 +1889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/ai/morning-brief", async (req, res) => {
+  app.get("/api/ai/morning-brief", aiRateLimitMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const leads = await storage.getLeads();
       const brief = await generateMorningBrief(leads);

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Users, Trash2, Loader2, UserPlus, Download } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Lead } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,7 @@ import { Toolbar } from "@/components/app/Toolbar";
 import { EmptyState } from "@/components/app/EmptyState";
 import { LoadState } from "@/components/app/LoadState";
 import { ManagerOnly } from "@/components/app/ManagerOnly";
+import { normalizeStageId } from "@/lib/stage";
 
 const prefetchLeadEdit = () => {
   import("@/pages/lead-edit");
@@ -57,6 +58,34 @@ export default function LeadsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Read ?stage= from URL on mount and sync with location changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rawStageParam = params.get("stage");
+    const normalizedStage = normalizeStageId(rawStageParam);
+    if (normalizedStage) {
+      setStageFilter(normalizedStage);
+    } else {
+      setStageFilter("ALL");
+    }
+  }, []);
+
+  // Update URL when stage filter changes (URL ↔ UI sync)
+  const handleStageFilterChange = (newStage: StageFilter) => {
+    setStageFilter(newStage);
+    
+    const params = new URLSearchParams(window.location.search);
+    if (newStage === "ALL") {
+      params.delete("stage");
+    } else {
+      params.set("stage", newStage);
+    }
+    
+    const query = params.toString();
+    const newUrl = query ? `/sales/all-leads?${query}` : "/sales/all-leads";
+    navigate(newUrl, { replace: true });
+  };
+
   const isAdminOrManager = user?.role === "ADMIN" || user?.role === "MANAGER";
 
   if (!isAdminOrManager) {
@@ -76,10 +105,15 @@ export default function LeadsPage() {
     refetchOnWindowFocus: true,
   });
 
+  // Use /api/users/assignable - returns active REPs only, available to all authenticated users
   const { data: allUsers = [] } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users/assignable"],
     queryFn: async () => {
-      const r = await fetch("/api/users");
+      const r = await fetch("/api/users/assignable", { credentials: "include" });
+      if (!r.ok) {
+        console.error("Failed to fetch assignable users:", r.status);
+        return [];
+      }
       const data = await r.json();
       return Array.isArray(data) ? data : [];
     },
@@ -112,6 +146,10 @@ export default function LeadsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      // Invalidate pipeline stats (funnel) - use predicate to catch all scope variants
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "/api/pipeline/stats",
+      });
       toast({ title: "Lead assigned successfully" });
       setAssigningId(null);
     },
@@ -164,6 +202,10 @@ export default function LeadsPage() {
       setSelectedLeadIds([]);
       setBulkAssignUserId("");
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      // Invalidate pipeline stats (funnel) - use predicate to catch all scope variants
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "/api/pipeline/stats",
+      });
     } catch (error) {
       toast({ title: "Error", description: "Failed to assign some leads.", variant: "destructive" });
     } finally {
@@ -179,11 +221,11 @@ export default function LeadsPage() {
     if (statusFilter !== "all") {
       filtered = filtered.filter((lead: any) => lead.status === statusFilter);
     }
-    // Apply stage filter
+    // Apply stage filter - normalize lead.stage and compare to filter
     const filteredByStage = filtered.filter((lead: any) => {
       if (stageFilter === "ALL") return true;
-      const stageKey = lead.status ?? "";
-      return stageKey === stageFilter;
+      const normalizedLeadStage = normalizeStageId(lead.stage);
+      return normalizedLeadStage === stageFilter;
     });
     return filteredByStage;
   }, [leads, searchTerm, statusFilter, stageFilter]);
@@ -200,7 +242,8 @@ export default function LeadsPage() {
     }
 
     filtered.forEach((lead: any) => {
-      const stageKey = lead.status ?? "unknown";
+      // Use normalized stage for bucketing
+      const stageKey = normalizeStageId(lead.stage) ?? "unknown";
       if (!buckets[stageKey]) {
         buckets[stageKey] = { count: 0 };
       }
