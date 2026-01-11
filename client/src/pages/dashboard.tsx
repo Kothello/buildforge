@@ -5,6 +5,7 @@ import { MorningBriefCard } from "@/components/morning-brief-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeArray } from "@/lib/normalize";
 import { Sparkles } from "lucide-react";
 
 const LazyLeadDetailSheet = lazy(() => import("@/components/lead-detail-sheet").then(m => ({ default: m.LeadDetailSheet })));
@@ -20,6 +21,12 @@ export default function Dashboard() {
 
   const { data: leads = [], isLoading } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
+    queryFn: async () => {
+      const res = await fetch("/api/leads", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return normalizeArray<Lead>(data);
+    },
   });
 
   const { data: activities = [] } = useQuery<Activity[]>({
@@ -29,6 +36,12 @@ export default function Dashboard() {
 
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["/api/deals"],
+    queryFn: async () => {
+      const res = await fetch("/api/deals", { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return normalizeArray<Deal>(data);
+    },
   });
 
   const currentHour = new Date().getHours();

@@ -10,20 +10,27 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Home, LayoutGrid, Settings, User, Zap, Shield, Users, Building2, Calendar, FileText, BarChart3, Contact } from "lucide-react";
+import { Home, LayoutGrid, Settings, User, Zap, Shield, Users, Building2, Calendar, FileText, BarChart3, Contact, Hammer, TrendingDown, LogOut } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { routes, isManagerOrAdmin } from "@/lib/routes";
 
 const prefetchMap: Record<string, () => void> = {
-  "/dashboard": () => import("@/pages/dashboard"),
+  "/dashboard": () => import("@/pages/agent-dashboard"),
+  "/agent-dashboard": () => import("@/pages/agent-dashboard"),
+  "/manager-dashboard": () => import("@/pages/dashboard"),
   "/sales/all-leads": () => import("@/pages/leads"),
   "/sales": () => import("@/pages/sales-dashboard"),
   "/my-leads": () => import("@/pages/sales-dashboard"),
+  "/builder": () => import("@/configurator/BuilderPage"),
+  "/sales/lead-builder": () => import("@/configurator/BuilderPage"),
   "/admin": () => import("@/pages/admin"),
+  "/admin/users": () => import("@/pages/admin-users"),
+  "/admin/pricing": () => import("@/admin/PricingAdminPage"),
   "/pipeline": () => import("@/pages/pipeline"),
+  "/pipeline-funnel": () => import("@/pages/pipeline-funnel"),
   "/automation": () => import("@/pages/automation"),
   "/settings": () => import("@/pages/settings"),
   "/projects": () => import("@/pages/projects"),
@@ -34,6 +41,60 @@ const prefetchMap: Record<string, () => void> = {
   "/crm/admin": () => import("@/pages/crm-admin"),
 };
 
+// Sales section items - visible to all authenticated users
+const salesItems = [
+  {
+    title: "Dashboard",
+    url: routes.dashboard(),
+    icon: Home,
+  },
+  {
+    title: "My Leads",
+    url: routes.myLeads(),
+    icon: Users,
+  },
+  {
+    title: "Lead Builder",
+    url: "/sales/lead-builder",
+    icon: Hammer,
+  },
+  {
+    title: "Pipeline",
+    url: routes.pipeline(),
+    icon: LayoutGrid,
+  },
+  {
+    title: "Funnel View",
+    url: routes.pipelineFunnel(),
+    icon: TrendingDown,
+  },
+  {
+    title: "Callbacks",
+    url: "/callbacks",
+    icon: Calendar,
+  },
+  {
+    title: "Projects",
+    url: "/projects",
+    icon: Building2,
+  },
+];
+
+// Manager items - visible to MANAGER and ADMIN only
+const managerItems = [
+  {
+    title: "All Leads",
+    url: routes.allLeads(),
+    icon: Users,
+  },
+  {
+    title: "Manager Dashboard",
+    url: routes.managerDashboard(),
+    icon: BarChart3,
+  },
+];
+
+// CRM section items
 const crmItems = [
   {
     title: "Deals",
@@ -49,51 +110,35 @@ const crmItems = [
     title: "Reports",
     url: "/crm/reports",
     icon: BarChart3,
+    managerOnly: true,
   },
   {
     title: "CRM Settings",
     url: "/crm/admin",
     icon: Settings,
+    managerOnly: true,
   },
 ];
 
-const menuItems = [
+// Admin & Ops section items
+const adminItems = [
   {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Admin",
+    title: "Admin Home",
     url: "/admin",
     icon: Shield,
-  },
-  {
-    title: "Leads",
-    url: "/sales/all-leads",
-    icon: Users,
     adminOnly: true,
   },
   {
-    title: "My Leads",
-    url: "/my-leads",
+    title: "Users",
+    url: "/admin/users",
     icon: Users,
-    requiresAuth: true,
+    managerOnly: true,
   },
   {
-    title: "Projects",
-    url: "/projects",
-    icon: Building2,
-  },
-  {
-    title: "Callbacks",
-    url: "/callbacks",
-    icon: Calendar,
-  },
-  {
-    title: "Pipeline",
-    url: "/pipeline",
-    icon: LayoutGrid,
+    title: "Pricing",
+    url: "/admin/pricing",
+    icon: Settings,
+    adminOnly: true,
   },
   {
     title: "Automation",
@@ -110,6 +155,7 @@ const menuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout, isAuthenticated } = useAuth();
+  const userIsManagerOrAdmin = isManagerOrAdmin(user?.role);
 
   const handleLogout = async () => {
     await logout();
@@ -131,12 +177,56 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent>
+        {/* Sales section */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Sales</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {salesItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === item.url}
+                    data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                    onMouseEnter={() => prefetchMap[item.url]?.()}
+                  >
+                    <Link href={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+              {/* Manager-only items */}
+              {userIsManagerOrAdmin && managerItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === item.url}
+                    data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                    onMouseEnter={() => prefetchMap[item.url]?.()}
+                  >
+                    <Link href={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* CRM section */}
         <SidebarGroup>
           <SidebarGroupLabel>CRM</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {crmItems
-                .filter((item) => item.title !== "CRM Settings" || user?.role === "ADMIN" || user?.role === "MANAGER")
+                .filter((item: any) => {
+                  if (item.managerOnly) return userIsManagerOrAdmin;
+                  return true;
+                })
                 .map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
@@ -156,14 +246,15 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* Admin & Ops section - filtered by role */}
         <SidebarGroup>
-          <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>Admin & Ops</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems
-                .filter((item) => {
-                  if (item.title === "Leads") return user?.role === "ADMIN" || user?.role === "MANAGER";
-                  if (item.title === "Admin") return user?.role === "ADMIN";
+              {adminItems
+                .filter((item: any) => {
+                  if (item.adminOnly) return user?.role === "ADMIN";
+                  if (item.managerOnly) return userIsManagerOrAdmin;
                   return true;
                 })
                 .map((item) => (
@@ -171,7 +262,7 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={location === item.url}
-                      data-testid={`nav-${item.title.toLowerCase()}`}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                       onMouseEnter={() => prefetchMap[item.url]?.()}
                     >
                       <Link href={item.url}>
