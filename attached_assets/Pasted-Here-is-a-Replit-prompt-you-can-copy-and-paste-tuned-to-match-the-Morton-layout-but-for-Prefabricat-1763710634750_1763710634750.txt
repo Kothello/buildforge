@@ -1,0 +1,52 @@
+Here is a Replit prompt you can copy and paste, tuned to match the Morton layout but for Prefabricated Iron.
+
+```text
+I already have a React site for Prefabricated Iron. Update ONLY the homepage layout to follow the same structure and flow as the Morton Buildings homepage, but customized for a cold formed steel brand.
+
+Keep my existing branding and navigation (PF logo on the left, Projects and About Us links, 3D Studio button on the right). Do not reintroduce a Get A Quote link in the header.
+
+Homepage layout I want, in order:
+
+1) Hero section
+Create a full screen hero banner similar to Morton’s “The Morton Advantage”.
+Background: unique image of a modern cold formed steel building.
+Centered text:
+  Main title: “The Prefabricated Iron Advantage”
+  Subtitle: “Built in steel. Built to last.”
+  One short supporting sentence about durability and performance of cold formed steel.
+  Primary button: “Learn More” that scrolls to an Advantage section.
+
+2) Advantage section
+Under the hero, add a section similar to “The Morton Advantage”.
+Title: “Why Prefabricated Iron”
+Short paragraph explaining materials, engineering, and warranty for cold formed steel buildings.
+Secondary button: “Explore Our Advantage” that could later link to a detailed page.
+
+3) 3D Studio section
+Next, add a feature block similar to Morton’s “Introducing your 3D Studio design tool”.
+Background can be a subtle image or gradient.
+Title: “Your Vision. Our Steel.”
+Subtitle line: “Design and visualize your building in our 3D Studio.”
+Button: “Start Designing” linking to the 3D Studio page or route.
+
+4) Category highlight bands
+Below that, create four horizontal feature sections similar to Morton’s “premium storage”, “equestrian buildings”, “farm buildings”, and “commercial buildings”.
+Each section should have:
+  A background image that clearly shows a cold formed steel building for that use case.
+  A bold heading and a one sentence description.
+  A “Learn More” button.
+Use these categories and make each image unique:
+  a) “Residential & Barndominiums” – modern steel framed homes and barndos.
+  b) “Shops & Premium Storage” – hobby shops, garages, and storage.
+  c) “Agricultural Steel Buildings” – barns and machine storage in steel.
+  d) “Commercial Steel Facilities” – warehouses, offices, and light industrial.
+
+5) Design rules
+All buildings must look like cold formed steel structures only: metal siding, metal roofs, and steel framing. No wood barns or wood post framing.
+Do not reuse images within the homepage. Every hero and section uses its own unique image.
+Match the Morton style: large typography, plenty of vertical spacing, centered text in the hero and first sections, and strong call to action buttons.
+Keep the overall look modern, upscale, and sleek, matching the rest of Prefabricated Iron’s site.
+Make sure everything is responsive on desktop and mobile.
+
+Please modify the existing React components and CSS rather than starting from scratch, and show me the updated JSX and styles for the homepage that implement this Morton style layout for Prefabricated Iron.
+```

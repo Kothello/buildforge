@@ -1,0 +1,48 @@
+Here’s a prompt you can paste straight into Replit AI:
+
+---
+
+I already have a React site for **Prefabricated Iron**. Please **only redesign the “What We Build” section**, not the whole app.
+
+Use the existing heading “What We Build” and subheading, but make this section look much more modern, upscale, and clearly focused on **cold-formed steel buildings only**.
+
+Requirements:
+
+1. Layout
+
+   * Turn this into a responsive grid with **4 cards on desktop, 2 on tablet, 1 on mobile**.
+   * Each card should have:
+
+     * A large image at the top
+     * A subtle dark gradient overlay on the bottom of the image
+     * The category name (e.g. “Luxury Barndominiums”) and a small label like “Residential / Commercial / Agricultural / Equestrian”.
+     * A short 1–2 line description underneath the image.
+     * A clean “View Details” button with modern hover state.
+
+2. Content & categories
+
+   * All buildings must clearly look like **cold-formed steel** (metal siding, metal roofs, steel framing).
+   * No wood barns, wood posts, or designs that look obviously wood-framed.
+   * Keep “Luxury Barndominiums” and “Modern Warehouses”, and add at least **two more categories**, for example:
+
+     * “Agricultural Steel Barns” (Agricultural)
+     * “Steel Shops & Garages” (Residential/Commercial)
+   * Each card must use a **unique image** (no repeated images).
+
+3. Visual style
+
+   * Make the cards feel high-end and sleek: rounded corners, soft shadows, plenty of white space, and smooth hover effects (slight lift + shadow and maybe a small image zoom).
+   * Typography should be bold and easy to read, similar to the rest of the site.
+   * Use neutral, professional colors that match the existing brand.
+
+4. Implementation details
+
+   * Update the existing “WhatWeBuild” component (or equivalent) instead of creating an entirely new page.
+   * Store the categories in a data array and map over them to render the cards, so it’s easy to add/remove categories later.
+   * Make sure the section remains fully responsive.
+
+Use MortonBuildings.com only as a **layout and feel reference**, but remember: **Prefabricated Iron builds cold-formed steel buildings only**, so images and wording must reflect steel, not wood.
+
+Please show the updated JSX and CSS (or styled components) for this improved “What We Build” section.
+
+---

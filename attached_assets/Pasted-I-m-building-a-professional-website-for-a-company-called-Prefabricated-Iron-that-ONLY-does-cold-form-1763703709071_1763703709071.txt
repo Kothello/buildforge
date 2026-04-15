@@ -1,0 +1,34 @@
+I’m building a professional website for a company called Prefabricated Iron that ONLY does cold-formed steel buildings, not wood barns.
+
+Use my current “BuildPro” style as the base: clean navigation bar at the top, a full-screen hero carousel, category cards, and an admin panel to add/edit/delete building categories. Keep the overall layout similar to MortonBuildings.com, but change the branding to Prefabricated Iron with a simple logo (text + icon).
+
+Important requirements from my client’s feedback:
+
+All buildings shown must be realistic steel buildings.
+
+Do NOT use photos that are clearly wood pole barns or wood post-frame buildings.
+
+Avoid images with a bunch of dormers, complex hip roofs, or big wood post lean-tos that would be extremely expensive or unrealistic in steel. Use simpler, clean gable-roof steel buildings instead.
+
+Morton’s does wood; Prefabricated Iron focuses ONLY on steel. Make sure the copy and imagery emphasize steel construction, durability, and cost-efficiency.
+
+If you use any AI or stock placeholder images, make them clearly steel (metal siding, metal roofs, steel framing) and not misleading.
+
+Pages/sections to include:
+• Hero image carousel with 3–4 slides (Residential, Agricultural, Commercial, Equestrian, etc.), each slide clearly a steel building with a headline, short description, and “Learn More” button.
+• Navigation: Home, See Projects, What We Build, Repairs, Renovations, 3D Studio, Contact, plus an “Admin” link.
+• “What We Build” section with responsive cards for each category (Residential, Barndominiums, Shops & Garages, Horse Barns, Warehouses, etc.), all using steel-accurate images.
+• “Why Steel vs Wood” section that explains benefits of steel over wood, branded as Prefabricated Iron.
+• Contact/quote CTA section with a simple form.
+
+Admin panel requirements:
+• Simple password-protected admin page.
+• Ability to add, edit, and delete building categories (title, description, image URL, and tag like Residential/Agricultural/Commercial).
+• Changes should update the main “What We Build” grid.
+
+Tech stack:
+• Use React with a clean, modern component structure.
+• Use a global theme (colors, fonts, spacing) that feels similar to the current BuildPro preview but fully branded as Prefabricated Iron.
+• Make the layout responsive and production-ready.
+
+Generate all the React code, basic styles, and any seed data so I can run this immediately. Replace any misleading wood-style photos with realistic steel building placeholders and label them clearly.

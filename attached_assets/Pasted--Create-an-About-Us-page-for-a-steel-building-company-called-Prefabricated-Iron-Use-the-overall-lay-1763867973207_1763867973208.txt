@@ -1,0 +1,82 @@
+“Create an About Us page for a steel building company called Prefabricated Iron.
+Use the overall layout and section structure of Morton Buildings’ ‘The Morton Advantage’ page (https://mortonbuildings.com/the-morton-advantage
+), but write original text for my brand.
+
+Requirements:
+
+General
+
+Route/URL: /about
+
+Clean, modern, responsive layout.
+
+Same fonts, colors, and button styles as my home page.
+
+Top hero section
+
+Page title: The Prefabricated Iron Advantage (or About Prefabricated Iron).
+
+Subheadline in all caps style: BUILT STRONGER. LASTS LONGER. LOOKS BETTER.
+
+2–3 sentence intro explaining that Prefabricated Iron uses 100% American-made cold-formed steel and focuses on durability, performance, and long-term value for residential, commercial, and agricultural projects.
+
+Section 1 – Our Materials
+
+H2 heading: OUR MATERIALS
+
+2–3 short paragraphs explaining:
+
+High-strength, cold-formed American steel.
+
+In-house control of key components.
+
+Corrosion-resistant finishes, tight building envelope, and energy-efficient design.
+
+Section 2 – Our People
+
+H2 heading: OUR PEOPLE
+
+2–3 paragraphs describing:
+
+Specialized, full-time steel construction crews.
+
+Experienced foremen and project support.
+
+A culture of ownership and craftsmanship focused on customer satisfaction.
+
+Section 3 – Our Warranty
+
+H2 heading: OUR WARRANTY
+
+1–2 paragraphs describing:
+
+A strong, straightforward warranty that covers materials and workmanship.
+
+Warranty handled directly by Prefabricated Iron (no third-party runaround).
+
+Emphasis on accountability and long-term support.
+
+Section 4 – What We Build
+
+H2 heading: WHAT WE BUILD
+
+Short paragraph saying we design and build residential, commercial, agricultural, and community steel structures.
+
+Below it, create a simple responsive grid of 4 cards:
+
+Residential
+
+Commercial
+
+Agricultural
+
+Community
+Each card has one sentence describing typical projects.
+
+Bottom call-to-action
+
+Full-width band with headline: Ready to start your project?
+
+Button: Get a Quote linking to /get-a-quote.
+
+Make the visual hierarchy, spacing, and section flow feel similar to the ‘The Morton Advantage’ page, but keep all copy unique to Prefabricated Iron.”

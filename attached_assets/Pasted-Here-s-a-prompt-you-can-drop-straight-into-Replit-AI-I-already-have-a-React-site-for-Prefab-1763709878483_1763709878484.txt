@@ -1,0 +1,31 @@
+Here’s a prompt you can drop straight into Replit AI:
+
+---
+
+I already have a React site for **Prefabricated Iron** (PF). Please update the existing code and styles instead of starting from scratch. Use my current layout, but make these exact changes:
+
+1. **Hero logo change**
+
+   * Remove the large centered logo icon and “PREFABRICATED IRON” text that currently sit in the middle of the hero image.
+   * The hero section should only show the background image with the main heading (for example “Agricultural Steel Buildings”) and subheading/CTA text. No big logo floating in the center.
+
+2. **Navigation redesign (match reference style)**
+
+   * Top-left: show a simple text logo `PF` followed by a thin vertical divider, just like in the second screenshot.
+   * To the right of that, add the nav links: `Projects` and `About Us`.
+   * On the far right, add a black rounded “3D Studio ✚” button (modern pill-style button).
+   * **Remove “Get A Quote” from the top navigation on the first page.** If you want, you can link to a quote section further down the page instead, but it should not appear as a nav item in the header on the homepage.
+
+3. **Images on the first page**
+
+   * On the homepage, do NOT repeat any of the same images.
+   * Each hero slide and each main section/card on the first page must use a unique image. No duplicates anywhere on that page.
+   * All images should look like modern, upscale **steel** buildings (no wood barns).
+
+4. **Overall visual style**
+
+   * Make the design modern, upscale, and sleek: clean typography, good white space, smooth hover states, and subtle shadows.
+   * Keep colors neutral and professional (white/gray/black with small accent color), appropriate for a premium steel-building brand.
+   * Ensure everything is fully responsive and looks good on desktop and mobile.
+
+Please modify the existing components, CSS, and layout to reflect these requirements and then show me the updated main layout (App, header/nav, hero, and homepage sections) with the new navigation bar, hero without the centered logo, and all unique images on the first page.

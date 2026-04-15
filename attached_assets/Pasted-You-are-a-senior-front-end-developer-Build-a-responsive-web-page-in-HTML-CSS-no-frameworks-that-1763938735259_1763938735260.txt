@@ -1,0 +1,78 @@
+You are a senior front-end developer.
+Build a responsive web page in HTML + CSS (no frameworks) that will be the “Learn More” page linked from this hero section:
+
+Hero text on existing page:
+“Residential & Barndominiums
+Modern steel-framed homes and barndominiums that combine contemporary design with superior durability and energy efficiency.”
+
+Goal of this page:
+
+Educate visitors about residential steel homes and barndominiums.
+
+Show beautiful examples.
+
+Drive them to request a quote or consultation.
+
+Design requirements:
+
+Modern, sleek, high-end look.
+
+Full-width layout with generous white space.
+
+Neutral palette (light background, dark text, subtle accent color).
+
+Clean, large typography.
+
+Sections separated with padding and subtle dividers, no heavy borders.
+
+Match the feel of a luxury modern home site, similar to a hero showing a modern barndominium at sunset.
+
+Page sections to implement (with placeholder text and images):
+
+Hero / Intro
+
+H1: “Residential & Barndominiums”
+
+Short intro paragraph (2–3 lines).
+
+Primary CTA button: “Request a Consultation”.
+
+What Is a Residential Steel Home or Barndominium?
+
+H2 + 2–3 short paragraphs explaining in simple terms.
+
+Why Choose Steel-Framed Homes & Barndominiums?
+
+H2 + a responsive 2–3 column list of feature cards (durability, low maintenance, energy efficiency, design flexibility, speed of build, etc.).
+
+Design Styles & Floor Plan Ideas
+
+H2 + 3–4 cards, each with: style name, short description, approx. size, ideal owner.
+
+How the Process Works
+
+H2 + horizontal or vertical stepper: Step 1–5 from consultation to move-in.
+
+Inspiration Gallery
+
+H2 + responsive image grid (use placeholder images and captions).
+
+FAQ
+
+H2 + 6–8 accordion-style FAQ items (you can implement simple show/hide with minimal JavaScript).
+
+Final Call to Action
+
+Strong closing line and a repeated “Request a Consultation” button.
+
+Technical details:
+
+Use semantic HTML5 (section, header, main, footer, etc.).
+
+Use a single style block or separate CSS file with BEM-style class names.
+
+Make it mobile-first and responsive (stack columns on small screens, max-width container with centered content).
+
+Include minimal vanilla JavaScript only for FAQ toggles and smooth scrolling to the CTA section.
+
+Return complete HTML and CSS in one file I can drop straight into Replit.

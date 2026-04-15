@@ -1,0 +1,113 @@
+have a steel building company that focuses on cold-formed steel (C-channel) and red iron buildings. Create or update my Get a Quote page component so it is clean, modern, and conversion-focused.
+
+Use React + Tailwind (or the existing stack in this project) and build a single page at route /quote with this structure and these fields:
+
+HERO SECTION
+
+Large heading: “Get a Quote for Your Steel Building”
+
+Subheading: one short sentence explaining that we specialize in cold-formed (C-channel) and red iron steel buildings.
+
+Small line about speed: “Fill out the form below and we’ll respond within 1 business day.”
+
+3-STEP “HOW IT WORKS” ROW
+Display three small cards or icons in a row (stack on mobile):
+
+Step 1: “Tell us about your project”
+
+Step 2: “We design and price your building”
+
+Step 3: “You review and approve”
+
+MAIN QUOTE FORM
+Use a card-style layout with good spacing and clear section headers. Group fields logically and make the layout responsive. The form must include:
+
+CONTACT INFO
+
+Full Name (required)
+
+Email (required)
+
+Phone (required)
+
+Preferred contact method (dropdown: Phone, Email, Either)
+
+PROJECT BASICS
+
+Project type (dropdown: Residential, Commercial, Agricultural, Community, Other)
+
+Building purpose (short text input)
+
+City (text)
+
+State (text or dropdown)
+
+ZIP code (text)
+
+Desired start timing (dropdown: ASAP, 1–3 months, 3–6 months, 6+ months)
+
+STRUCTURE TYPE
+Use radio buttons:
+
+Cold-formed steel (C-channel)
+
+Red iron
+
+Not sure – help me choose
+
+SIZE & FEATURES
+
+Approx. building size (3 inputs: Length, Width, Height, with “ft” labels)
+
+Roof style (dropdown: Gable, Single slope, Not sure)
+
+Doors & openings (textarea OR checkboxes for: Overhead doors, Walk doors, Windows)
+
+Insulation / energy efficiency (dropdown: None, Basic, High)
+
+SITE CONDITIONS
+
+Is your site prepared? (dropdown: Yes, No, In progress)
+
+Foundation (dropdown: Existing slab, Need slab, Not sure)
+
+BUDGET & NOTES
+
+Budget range (dropdown: Under $50k, $50k–$100k, $100k–$250k, $250k+)
+
+Additional notes (textarea)
+
+Optional file upload field for plans/photos if the stack supports it
+
+CONSENT & SUBMIT
+
+Checkbox: “I agree to be contacted about this project.” (required)
+
+Large primary button: “Get My Steel Building Quote”
+
+TRUST SECTION UNDER THE FORM
+Below the form, add:
+
+A short paragraph about using high-quality, American-made steel and professional crews.
+
+A small FAQ list (3–4 questions) in a simple layout:
+
+“How long does it take to get a quote?”
+
+“Do you build in my area?”
+
+“Do you handle installation?”
+
+“What’s the difference between cold-formed and red iron?” (brief answers)
+
+STYLE REQUIREMENTS
+
+Use a clean, modern layout with plenty of white space.
+
+Use a single accent color that would fit a steel/industrial brand (like dark blue or charcoal).
+
+Make everything fully responsive for mobile, tablet, and desktop.
+
+Add basic client-side validation for required fields (name, email, phone, project type, structure type).
+
+Return the complete component code ready to paste into my project, and tell me which file to put it in (for example: src/pages/quote.tsx or equivalent based on what you detect from the project).
