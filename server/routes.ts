@@ -2,6 +2,7 @@ import type { Express, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import cookieParser from "cookie-parser";
 import PDFDocument from "pdfkit";
+import { decodeCursor, clampLimit, buildCursorFromLead, type PaginatedResponse } from "./lib/pagination";
 import { storage } from "./storage";
 import { 
   insertLeadSchema, 
@@ -229,11 +230,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ];
     
     // Check if this is a public path or if path starts with public prefix
-    const isPublic = publicPaths.some(path => 
+    const isPublic = publicPaths.some(path =>
       req.path === path || req.path.startsWith(path + '/')
     );
-    
+
     if (isPublic) {
+      return next();
+    }
+
+    // Public website quote submissions: POST /api/leads is open, but the
+    // handler itself rejects when source === 'crm_builder' without a user.
+    if (req.method === 'POST' && req.path === '/leads') {
       return next();
     }
     
@@ -480,6 +487,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching assignable users:", error);
       res.status(500).json({ error: "Failed to fetch assignable users" });
+    }
+  });
+
+  /**
+   * GET /api/users/sales-reps
+   * Returns sales reps with their lead counts for LeadDistribution panel
+   * Manager/Admin only
+   */
+  /**
+   * GET /api/users/sales-reps
+   * Returns sales reps with lead counts for LeadDistribution panel
+   * MANAGER/ADMIN only - no PII exposed
+   */
+  app.get("/api/users/sales-reps", authMiddleware(storage), requireRole("ADMIN", "MANAGER"), async (req: AuthenticatedRequest, res) => {
+    try {
+      const allUsers = await storage.getUsers();
+      
+      // Get active sales reps
+      const salesReps = allUsers.filter(u => 
+        u.active && (u.role === 'REP' || u.role === 'SALES_REP')
+      );
+      
+      // Get lead counts efficiently using the storage method
+      const leadCounts = await storage.getLeadCountsByAssignee();
+      
+      // Return minimal safe data - no email, no internal flags
+      const reps = salesReps.map(rep => ({
+        id: rep.id,
+        name: rep.name || 'Unknown Rep',
+        leadCount: leadCounts[rep.id] || 0,
+      }));
+      
+      res.json({ reps });
+    } catch (error) {
+      console.error("Error fetching sales reps:", error);
+      res.status(500).json({ error: "Failed to fetch sales reps" });
     }
   });
 
@@ -1170,6 +1213,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * GET /api/agent-dashboard/summary
+   * Returns summary stats for the agent dashboard
+   */
+  app.get("/api/agent-dashboard/summary", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = req.user!;
+      const userId = user.id;
+      
+      // Get lead counts by stage for this user
+      const userLeads = await storage.getLeads(userId, 1000, 0);
+      
+      // Count leads by stage
+      const stageCounts: Record<string, number> = {
+        working_lead: 0,
+        callbacks: 0,
+        sold_building: 0,
+        in_manufacturing: 0,
+        delivered: 0,
+      };
+      
+      for (const lead of userLeads) {
+        const stage = lead.stage?.toLowerCase().replace(/\s+/g, '_') || 'working_lead';
+        if (stage in stageCounts) {
+          stageCounts[stage]++;
+        } else if (stage === 'working' || stage === 'new') {
+          stageCounts.working_lead++;
+        } else if (stage.includes('fabrication') || stage.includes('manufacturing')) {
+          stageCounts.in_manufacturing++;
+        } else if (stage.includes('delivered')) {
+          stageCounts.delivered++;
+        }
+      }
+      
+      // Get callbacks count
+      const callbacks = await storage.getCallbacks();
+      const userCallbacks = callbacks.filter((cb: any) => cb.assignedTo === userId);
+      
+      res.json({
+        totalLeads: userLeads.length,
+        callbacks: userCallbacks.length,
+        inManufacturing: stageCounts.in_manufacturing,
+        delivered: stageCounts.delivered,
+        stageCounts,
+      });
+    } catch (error) {
+      console.error("Failed to fetch agent dashboard summary:", error);
+      res.status(500).json({ error: "Failed to fetch agent dashboard summary" });
+    }
+  });
+
+  /**
+   * POST /api/leads/claim-next
+   * Claims the next available unassigned lead for the requesting REP
+   * Prioritizes working_lead stage, uses atomic update to prevent races
+   */
+  app.post("/api/leads/claim-next", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = req.user!;
+      
+      // Claim atomically - storage method handles the transaction
+      const claimedLead = await storage.claimNextLead(user.id);
+      
+      if (!claimedLead) {
+        return res.status(409).json({ 
+          message: "No unassigned leads available" 
+        });
+      }
+      
+      res.json({ lead: claimedLead });
+    } catch (error) {
+      console.error("Failed to claim lead:", error);
+      res.status(500).json({ error: "Failed to claim lead" });
+    }
+  });
+  
+  // Keep legacy endpoint for backward compatibility
+  app.post("/api/agent/claim-next-lead", authMiddleware(storage), async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = req.user!;
+      const claimedLead = await storage.claimNextLead(user.id);
+      
+      if (!claimedLead) {
+        return res.status(409).json({ 
+          message: "No unassigned leads available" 
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        lead: claimedLead,
+        message: `Successfully claimed lead: ${claimedLead.companyName}`
+      });
+    } catch (error) {
+      console.error("Failed to claim lead:", error);
+      res.status(500).json({ error: "Failed to claim lead" });
+    }
+  });
+
+  /**
    * GET /api/pipeline/stats
    * Returns lead counts grouped by stage for funnel visualization
    * 
@@ -1242,8 +1384,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user!;
       const isAdminOrManager = user.role === "ADMIN" || user.role === "MANAGER";
       
-      // Pagination support
-      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      // Check if cursor-based pagination requested
+      const usePaged = req.query.paged === "1" || req.query.cursor;
+      const cursorParam = req.query.cursor as string | undefined;
+      const cursor = cursorParam ? decodeCursor(cursorParam) : null;
+      
+      // Pagination params
+      const limit = clampLimit(parseInt(req.query.limit as string) || 50, 50, 200);
       const offset = parseInt(req.query.offset as string) || 0;
       
       // Stage filter support - normalize the incoming stage param
@@ -1259,16 +1406,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check for "mine" filter for REP's own leads
       const mineFilter = req.query.mine === "true";
       
+      // Determine scope
+      const assignedToFilter = (user.role === "REP" || mineFilter) ? user.id : undefined;
+      
+      if (!isAdminOrManager && !mineFilter && user.role !== "REP") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      // Use cursor-based pagination when paged=1
+      if (usePaged) {
+        const leads = await storage.getLeadsPaginated({
+          assignedTo: assignedToFilter,
+          stage: stageFilter,
+          cursor,
+          limit: limit + 1, // fetch one extra to detect hasMore
+        });
+        
+        const hasMore = leads.length > limit;
+        const items = hasMore ? leads.slice(0, limit) : leads;
+        const enrichedItems = items.map(enrichLeadWithComputedFields);
+        
+        const nextCursor = hasMore && items.length > 0 
+          ? buildCursorFromLead(items[items.length - 1])
+          : null;
+        
+        return res.json({
+          items: enrichedItems,
+          nextCursor,
+        } as PaginatedResponse<any>);
+      }
+      
+      // Legacy offset-based pagination (backward compatible)
       let allLeads;
       let total;
       if (isAdminOrManager && !mineFilter) {
         allLeads = await storage.getLeads(undefined, limit, offset);
         total = await storage.getLeadsCount();
-      } else if (user.role === "REP" || mineFilter) {
+      } else {
         allLeads = await storage.getLeads(user.id, limit, offset);
         total = await storage.getLeadsCount(user.id);
-      } else {
-        return res.status(403).json({ error: "Forbidden" });
       }
       
       // Apply stage filter if provided (server-side filtering)
@@ -1278,7 +1454,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const leadStage = lead.stage?.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') || '';
           return leadStage === stageFilter;
         });
-        // Adjust total for stage-filtered results
         total = filteredLeads.length;
       }
       
@@ -1310,8 +1485,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/leads", async (req: AuthenticatedRequest, res) => {
     try {
-      const validatedData = insertLeadSchema.parse(req.body);
-      
+      // Accept both {name, company} (legacy public builder) and {contactName, companyName} (CRM)
+      const body = req.body ?? {};
+      const contactName: string = body.contactName ?? body.name ?? "";
+      const companyName: string = body.companyName ?? body.company ?? "";
+      const source: string = body.source ?? "website_configurator";
+
+      if (!contactName || !source) {
+        return res.status(400).json({ error: "Invalid lead data", detail: "contactName and source are required" });
+      }
+
+      const validatedData: any = {
+        contactName,
+        companyName: companyName || contactName,
+        email: body.email ?? null,
+        phone: body.phone ?? null,
+        source,
+        notes: body.notes ?? null,
+        buildingSpecs: body.buildingSpecs ?? null,
+        configuration: body.configuration ?? null,
+        totalPrice: body.totalPrice ? String(body.totalPrice) : "0",
+      };
+
       // CRM Builder mode: require auth and auto-assign to the creating user
       if (validatedData.source === "crm_builder") {
         if (!req.user?.id) {
@@ -1340,10 +1535,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await triggerWebhook("new_lead", lead);
-      
+
       res.json(lead);
     } catch (error) {
-      res.status(400).json({ error: "Invalid lead data" });
+      console.error("POST /api/leads failed:", error);
+      res.status(400).json({
+        error: "Invalid lead data",
+        detail: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -1512,15 +1711,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pageWidth = doc.page.width;
       const maxWidth = pageWidth - marginLeft - marginRight;
 
-      doc.fontSize(24).font("Helvetica-Bold").text("STEELFLOW ONE", marginLeft);
-      doc.fontSize(12).font("Helvetica").text("Steel Building Quote", marginLeft);
+      doc.fontSize(24).font("Helvetica-Bold").text("BUILDFORGE", marginLeft);
+      doc.fontSize(12).font("Helvetica").text("Construction Quote", marginLeft);
 
       // Company info on right side of header
       const companyInfoX = pageWidth - marginRight - 180;
       const companyInfoY = doc.y - 40;
-      doc.fontSize(9).font("Helvetica").text("steelflow.one", companyInfoX, companyInfoY, { align: "right", width: 170 });
-      doc.text("sales@steelflow.one", companyInfoX, companyInfoY + 14, { align: "right", width: 170 });
-      doc.text("(800) 555-STEEL", companyInfoX, companyInfoY + 28, { align: "right", width: 170 });
+      doc.fontSize(9).font("Helvetica").text("buildforge.com", companyInfoX, companyInfoY, { align: "right", width: 170 });
+      doc.text("sales@buildforge.com", companyInfoX, companyInfoY + 14, { align: "right", width: 170 });
+      doc.text("(800) 555-BUILD", companyInfoX, companyInfoY + 28, { align: "right", width: 170 });
 
       // Separator line
       doc.moveTo(marginLeft, doc.y + 10).lineTo(pageWidth - marginRight, doc.y + 10).stroke();

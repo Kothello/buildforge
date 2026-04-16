@@ -182,7 +182,7 @@ export function LeadDetailSheet({
             </div>
             <div className="flex-1 overflow-hidden w-full">
               <Suspense fallback={<div className="h-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
-                <LeadConfiguratorEmbed lead={lead} onSave={onLeadUpdate} />
+                <LeadConfiguratorEmbed lead={lead} onLeadUpdated={onLeadUpdate} />
               </Suspense>
             </div>
           </div>

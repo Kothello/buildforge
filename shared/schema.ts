@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, decimal, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal, jsonb, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -89,7 +89,15 @@ export const leads = pgTable("leads", {
   projectNotes: text("project_notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Indexes for pagination and filtering performance
+  assignedToIdx: index("leads_assigned_to_idx").on(table.assignedTo),
+  stageIdx: index("leads_stage_idx").on(table.stage),
+  assignedStageCreatedIdx: index("leads_assigned_stage_created_idx").on(table.assignedTo, table.stage, table.createdAt),
+  stageCreatedIdx: index("leads_stage_created_idx").on(table.stage, table.createdAt),
+  createdAtIdx: index("leads_created_at_idx").on(table.createdAt),
+  nextCallbackAtIdx: index("leads_next_callback_at_idx").on(table.nextCallbackAt),
+}));
 
 export const leadHistory = pgTable("lead_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

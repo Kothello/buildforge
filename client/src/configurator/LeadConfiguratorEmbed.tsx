@@ -1,124 +1,81 @@
 import { useState, lazy, Suspense, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Lead } from '@shared/schema';
+import type { Lead } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Pencil, Save } from 'lucide-react';
-import type { BuildingSpecs } from './BuilderPage';
-import type { BuildingConfig } from './types';
+import type { BuildingSpecs, BuildingConfig } from './BuilderPage';
 
 const LazyBuilderPage = lazy(() => import('./BuilderPage'));
 
 function ConfiguratorSkeleton({ isEditing }: { isEditing: boolean }) {
-  if (!isEditing) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-muted/20">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-muted-foreground">Loading 3D view...</span>
-        </div>
-      </div>
-    );
-  }
-  
   return (
-    <div className="h-full w-full flex">
-      <div className="flex-1 bg-muted/20 flex items-center justify-center">
+    <div className={`h-full w-full flex ${isEditing ? '' : 'items-center justify-center'} bg-muted/20`}>
+      {isEditing ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Loading 3D configurator...</span>
+          </div>
+        </div>
+      ) : (
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-muted-foreground">Loading 3D view...</span>
         </div>
-      </div>
-      <div className="w-80 border-l border-border p-4 space-y-4">
-        <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
-        <div className="h-8 bg-muted/30 rounded animate-pulse" />
-        <div className="space-y-3">
-          <div className="h-10 bg-muted/40 rounded animate-pulse" />
-          <div className="h-10 bg-muted/40 rounded animate-pulse" />
-          <div className="h-10 bg-muted/40 rounded animate-pulse" />
-        </div>
-        <div className="h-8 bg-muted/30 rounded animate-pulse mt-6" />
-        <div className="space-y-3">
-          <div className="h-10 bg-muted/40 rounded animate-pulse" />
-          <div className="h-10 bg-muted/40 rounded animate-pulse" />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
 interface LeadConfiguratorEmbedProps {
   lead: Lead;
-  leadId: string;
+  leadId?: string;
   onLeadUpdated?: (updatedLead: Lead) => void;
+  onSave?: (config: BuildingConfig, specs: BuildingSpecs, totalPrice: string) => void;
 }
 
-export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfiguratorEmbedProps) {
+export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated, onSave: onSaveProp }: LeadConfiguratorEmbedProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentTotalPrice, setCurrentTotalPrice] = useState<string>(lead.totalPrice || '0');
   const { toast } = useToast();
   const saveRef = useRef<(() => void) | null>(null);
-  
+
   const initialConfig = (lead.configuration as BuildingConfig) || undefined;
+  const resolvedLeadId = leadId || String(lead.id);
 
   const updateMutation = useMutation({
-    mutationFn: async ({ config, buildingSpecs, totalPrice }: { 
-      config: BuildingConfig; 
-      buildingSpecs: BuildingSpecs; 
+    mutationFn: async ({ config, buildingSpecs, totalPrice }: {
+      config: BuildingConfig;
+      buildingSpecs: BuildingSpecs;
       totalPrice: string;
     }) => {
-      if (!lead.id) {
-        throw new Error('Lead ID is required');
-      }
-      
-      const payload = {
+      const response = await apiRequest('PATCH', `/api/leads/${lead.id}`, {
         buildingSpecs,
         configuration: config,
         totalPrice,
-      };
-
-      const response = await apiRequest('PATCH', `/api/leads/${lead.id}`, payload);
-      const data = await response.json();
-      console.log('[LeadConfiguratorEmbed] PATCH response:', data);
-      console.log('[LeadConfiguratorEmbed] updatedLead.totalPrice:', data.totalPrice);
-      return data;
+      });
+      return response.json();
     },
     onSuccess: async (updatedLead: Lead) => {
-      console.log('[LeadConfiguratorEmbed] onSuccess called with:', updatedLead);
-      console.log('[LeadConfiguratorEmbed] Cache key for detail:', ["/api/leads", leadId]);
-      
-      // Quote snapshot is now auto-captured by the PATCH endpoint
-      // Just invalidate the cache to refetch latest quotes
-      queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId, "quotes"] });
-      
       setIsSaving(false);
-      
-      // Update individual lead query cache (used by lead detail page)
+
+      queryClient.invalidateQueries({ queryKey: ['/api/leads', resolvedLeadId, 'quotes'] });
+
       queryClient.setQueryData<Lead>(
-        ["/api/leads", leadId],
+        ['/api/leads', resolvedLeadId],
         updatedLead
       );
-      
-      // Update leads list query cache (used by /sales My Leads page)
+
       queryClient.setQueryData<Lead[]>(
-        ["/api/leads"],
-        (old) => {
-          console.log('[LeadConfiguratorEmbed] Updating list cache. Old leads count:', old?.length);
-          return old ? old.map((l) => (l.id === updatedLead.id ? updatedLead : l)) : [updatedLead];
-        }
+        ['/api/leads'],
+        (old) => old ? old.map((l) => (l.id === updatedLead.id ? updatedLead : l)) : [updatedLead]
       );
-      
-      toast({
-        title: 'Saved',
-        description: 'Configuration updated successfully',
-      });
-      
-      // Notify parent component of the update
+
+      toast({ title: 'Saved', description: 'Configuration updated successfully' });
       onLeadUpdated?.(updatedLead);
-      
-      // Exit edit mode after successful save
       setIsEditing(false);
     },
     onError: (error) => {
@@ -132,14 +89,12 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
   });
 
   const handleSave = (config: BuildingConfig, buildingSpecs: BuildingSpecs, totalPrice: string) => {
+    if (onSaveProp) {
+      onSaveProp(config, buildingSpecs, totalPrice);
+      return;
+    }
     setIsSaving(true);
     updateMutation.mutate({ config, buildingSpecs, totalPrice });
-  };
-
-  const triggerSave = () => {
-    if (saveRef.current) {
-      saveRef.current();
-    }
   };
 
   return (
@@ -177,7 +132,7 @@ export function LeadConfiguratorEmbed({ lead, leadId, onLeadUpdated }: LeadConfi
             </p>
           </div>
           <Button
-            onClick={triggerSave}
+            onClick={() => saveRef.current?.()}
             disabled={isSaving}
             className="w-full gap-2"
             data-testid="button-save-configuration"
