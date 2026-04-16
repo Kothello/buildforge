@@ -3,8 +3,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { submitToCRM, type WebsiteFormData } from "@/lib/crmIntegration";
+import AIQuoteResult from "@/components/AIQuoteResult";
 
 export default function Quote() {
   const initialFormData: WebsiteFormData = {
@@ -37,6 +38,44 @@ export default function Quote() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [aiQuote, setAiQuote] = useState<any>(null);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleAIQuote = async () => {
+    if (!formData.structureType || !formData.length || !formData.width) {
+      setAiError("Please fill in structure type, length, and width first.");
+      return;
+    }
+    setIsGeneratingAI(true);
+    setAiError(null);
+    setAiQuote(null);
+    try {
+      const res = await fetch("/api/ai-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          structureType: formData.structureType,
+          length: formData.length,
+          width: formData.width,
+          height: formData.height,
+          roofStyle: formData.roofStyle,
+          doors: formData.doors,
+          insulation: formData.insulation,
+          foundation: formData.foundation,
+          buildingPurpose: formData.buildingPurpose,
+          state: formData.state,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to generate estimate");
+      const data = await res.json();
+      setAiQuote(data);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Failed to generate AI estimate");
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -538,30 +577,60 @@ export default function Quote() {
                         </div>
                       )}
 
-                      <Button
-                        type="submit"
-                        size="lg"
-                        className="w-full font-semibold text-lg h-auto py-4"
-                        data-testid="button-submit-quote"
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="mr-2 w-5 h-5 animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            Get My Steel Building Quote
-                            <ChevronRight className="ml-2 w-5 h-5" />
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          type="submit"
+                          size="lg"
+                          className="flex-1 font-semibold text-lg h-auto py-4"
+                          data-testid="button-submit-quote"
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 w-5 h-5 animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              Get My Steel Building Quote
+                              <ChevronRight className="ml-2 w-5 h-5" />
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="lg"
+                          variant="outline"
+                          className="flex-1 font-semibold text-lg h-auto py-4 border-2 border-primary text-primary hover:bg-primary/10"
+                          onClick={handleAIQuote}
+                          disabled={isGeneratingAI}
+                          data-testid="button-ai-quote"
+                        >
+                          {isGeneratingAI ? (
+                            <>
+                              <Loader2 className="mr-2 w-5 h-5 animate-spin" />
+                              Generating Estimate...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 w-5 h-5" />
+                              Instant AI Estimate
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      {aiError && (
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mt-4">
+                          <p className="text-red-700 dark:text-red-300">{aiError}</p>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
               </form>
             </Card>
+
+            {aiQuote && <AIQuoteResult quote={aiQuote} />}
           </div>
         </section>
 
