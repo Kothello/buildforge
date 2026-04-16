@@ -1,10 +1,10 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { Search, TrendingUp, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Lead } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -13,8 +13,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { PIPELINE_STAGES, StageId } from "@shared/pipelineStages";
 import { StageFilterBar } from "@/components/leads/StageFilterBar";
 import { useLeadNavigation } from "@/hooks/useLeadNavigation";
-import { normalizeArray } from "@/lib/normalize";
 import { normalizeStageId } from "@/lib/stage";
+import { fetchLeadsPage } from "@/lib/leadsApi";
 
 const prefetchLeadEdit = () => {
   import("@/pages/lead-edit");
@@ -112,15 +112,64 @@ export default function SalesDashboard() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // Highlight support for newly claimed leads
+  const [highlightedLeadId, setHighlightedLeadId] = useState<string | null>(null);
+  const highlightedRowRef = useRef<HTMLTableRowElement>(null);
 
   // Valid stage IDs from shared configuration
   const validStageIds: StageId[] = PIPELINE_STAGES.map(s => s.id as StageId);
 
-  // Sync URL → stageFilter whenever the route changes
+  // Fetch leads data FIRST (before any effects that use it)
+  const {
+    data: leadsData,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["/api/leads", "mine", { stage: stageFilter }],
+    queryFn: async ({ pageParam }) => {
+      return fetchLeadsPage({
+        mine: true,
+        stage: stageFilter === "ALL" ? null : stageFilter,
+        cursor: pageParam,
+        limit: 50,
+      });
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
+  });
+
+  // Flatten paginated results into a single array (must be before effects that use leads)
+  const leads: Lead[] = useMemo(() => {
+    if (!leadsData?.pages) return [];
+    return leadsData.pages.flatMap((page) => page.items as Lead[]);
+  }, [leadsData]);
+
+  // Sync URL → stageFilter and highlight param whenever the route changes
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const rawStageParam = params.get("stage");
     const normalizedStage = normalizeStageId(rawStageParam);
+    
+    // Handle highlight param
+    const highlightParam = params.get("highlight");
+    if (highlightParam) {
+      setHighlightedLeadId(highlightParam);
+      // Clear highlight after 3 seconds
+      const timer = setTimeout(() => {
+        setHighlightedLeadId(null);
+        // Remove highlight from URL
+        params.delete("highlight");
+        const query = params.toString();
+        const newUrl = query ? `${location}?${query}` : location;
+        navigate(newUrl, { replace: true });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
 
     if (normalizedStage && validStageIds.includes(normalizedStage)) {
       setStageFilter(normalizedStage as StageFilter);
@@ -128,6 +177,17 @@ export default function SalesDashboard() {
       setStageFilter("ALL");
     }
   }, [location]);
+  
+  // Scroll highlighted row into view (only if lead is in the current list)
+  useEffect(() => {
+    if (highlightedLeadId && highlightedRowRef.current) {
+      // Only scroll if the highlighted lead is actually in our leads array
+      const leadExists = leads.some(lead => lead.id === highlightedLeadId);
+      if (leadExists) {
+        highlightedRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [highlightedLeadId, leads]);
 
   // Update stage filter and URL
   const handleStageChange = (nextStage: StageFilter) => {
@@ -147,18 +207,6 @@ export default function SalesDashboard() {
     navigate(newUrl);
   };
 
-  const { data: leads = [], isLoading } = useQuery({
-    queryKey: ["/api/leads", "mine"],
-    queryFn: async () => {
-      const r = await fetch("/api/leads?mine=true", { credentials: "include" });
-      if (!r.ok) return [];
-      const data = await r.json();
-      return normalizeArray<Lead>(data);
-    },
-    staleTime: 1000 * 30,
-    refetchOnWindowFocus: true,
-  });
-
   const { data: allUsers = [] } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
@@ -176,10 +224,11 @@ export default function SalesDashboard() {
         throw new Error("Failed to delete lead");
       }
     },
-    onSuccess: (_data, id) => {
-      queryClient.setQueryData<Lead[]>(["/api/leads", "mine"], (old) =>
-        old ? old.filter((lead) => lead.id !== id) : old
-      );
+    onSuccess: () => {
+      // Invalidate all leads queries to refresh data
+      queryClient.invalidateQueries({ 
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "/api/leads" 
+      });
       toast({ title: "Lead deleted", description: "The lead has been permanently removed." });
       setDeletingId(null);
     },
@@ -673,10 +722,12 @@ export default function SalesDashboard() {
                 const needsAttention =
                   (lead.daysSinceLastDispo ?? 0) >= STALE_DISPO_DAYS ||
                   (lead.daysOnStage ?? 0) >= STALE_STAGE_DAYS;
+                const isHighlighted = lead.id === highlightedLeadId;
                 return (
                 <tr 
-                  key={lead.id} 
-                  className={`border-b border-border/50 hover:bg-card/30 transition ${needsAttention ? "bg-destructive/5" : ""}`} 
+                  key={lead.id}
+                  ref={isHighlighted ? highlightedRowRef : undefined}
+                  className={`border-b border-border/50 hover:bg-card/30 transition-all duration-300 ${needsAttention ? "bg-destructive/5" : ""} ${isHighlighted ? "ring-2 ring-primary bg-primary/10 animate-pulse" : ""}`} 
                   onMouseEnter={prefetchLeadEdit}
                 >
                   <td className="py-3 px-3 sm:px-4">
@@ -750,6 +801,27 @@ export default function SalesDashboard() {
               })}
             </tbody>
           </table>
+
+          {/* Load More button for pagination */}
+          {hasNextPage && (
+            <div className="flex justify-center py-4">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                data-testid="button-load-more"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

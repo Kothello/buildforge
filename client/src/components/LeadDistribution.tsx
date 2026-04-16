@@ -1,56 +1,62 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { authedFetch } from "@/lib/authedFetch";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Users, AlertCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Loader2, Users, AlertCircle, Lock } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 interface SalesRep {
   id: string;
   name: string;
-  email: string;
-  leadsAvailable: number;
-  leadsReserved: number;
-  onBreak: boolean;
-  breakType: string | null;
+  leadCount: number;
+}
+
+interface SalesRepsResponse {
+  reps: SalesRep[];
 }
 
 export function LeadDistribution() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  
+  // Only managers/admins can view this panel
+  const isManagerOrAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
 
-  const { data: salesReps, isLoading } = useQuery<SalesRep[]>({
+  const { data: salesRepsData, isLoading, error } = useQuery<SalesRepsResponse>({
     queryKey: ['/api/users/sales-reps'],
     queryFn: async () => {
       const response = await authedFetch('/api/users/sales-reps');
-      if (!response.ok) throw new Error('Failed to fetch sales reps');
-      return response.json();
-    }
-  });
-
-  const releaseMutation = useMutation({
-    mutationFn: async (repId: string) => {
-      const response = await authedFetch(`/api/leads/release/${repId}`, {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to release leads');
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('FORBIDDEN');
+        }
+        throw new Error('Failed to fetch sales reps');
+      }
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users/sales-reps'] });
-      toast({
-        title: "Leads Released",
-        description: "Reserved leads have been returned to the pool",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to release leads",
-        variant: "destructive",
-      });
-    }
+    enabled: isManagerOrAdmin, // Only fetch if user is manager/admin
+    retry: false, // Don't retry on 403
   });
+  
+  const salesReps = salesRepsData?.reps || [];
+  
+  // Show role-gated message for non-managers
+  if (!isManagerOrAdmin) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Lead Distribution
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+            <Lock className="h-8 w-8 mb-2" />
+            <p className="text-sm">Team distribution is available to managers</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -91,55 +97,19 @@ export function LeadDistribution() {
             <thead>
               <tr className="border-b">
                 <th className="text-left py-3 px-4 font-semibold">Sales Rep</th>
-                <th className="text-center py-3 px-4 font-semibold">Available</th>
-                <th className="text-center py-3 px-4 font-semibold">Reserved</th>
-                <th className="text-center py-3 px-4 font-semibold">Status</th>
-                <th className="text-center py-3 px-4 font-semibold">Actions</th>
+                <th className="text-center py-3 px-4 font-semibold">Lead Count</th>
               </tr>
             </thead>
             <tbody>
               {salesReps.map((rep) => (
                 <tr key={rep.id} className="border-b hover:bg-muted/50">
                   <td className="py-3 px-4">
-                    <div>
-                      <div className="font-medium">{rep.name}</div>
-                      <div className="text-sm text-muted-foreground">{rep.email}</div>
-                    </div>
+                    <div className="font-medium">{rep.name}</div>
                   </td>
                   <td className="text-center py-3 px-4">
-                    <span className="text-lg font-bold text-green-600">
-                      {rep.leadsAvailable}
+                    <span className="text-lg font-bold text-primary">
+                      {rep.leadCount}
                     </span>
-                  </td>
-                  <td className="text-center py-3 px-4">
-                    <span className="text-lg font-bold text-yellow-600">
-                      {rep.leadsReserved}
-                    </span>
-                  </td>
-                  <td className="text-center py-3 px-4">
-                    {rep.onBreak ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                        {rep.breakType || 'On Break'}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Active
-                      </span>
-                    )}
-                  </td>
-                  <td className="text-center py-3 px-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => releaseMutation.mutate(rep.id)}
-                      disabled={rep.leadsReserved === 0 || releaseMutation.isPending}
-                    >
-                      {releaseMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        'Release'
-                      )}
-                    </Button>
                   </td>
                 </tr>
               ))}
@@ -148,22 +118,16 @@ export function LeadDistribution() {
         </div>
 
         {/* Summary */}
-        <div className="mt-6 grid grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-2 gap-4">
           <div className="text-center p-4 bg-muted rounded-lg">
             <div className="text-2xl font-bold">
-              {salesReps.reduce((sum, rep) => sum + rep.leadsAvailable, 0)}
+              {salesReps.reduce((sum, rep) => sum + rep.leadCount, 0)}
             </div>
-            <div className="text-sm text-muted-foreground">Total Available</div>
+            <div className="text-sm text-muted-foreground">Total Leads</div>
           </div>
           <div className="text-center p-4 bg-muted rounded-lg">
             <div className="text-2xl font-bold">
-              {salesReps.reduce((sum, rep) => sum + rep.leadsReserved, 0)}
-            </div>
-            <div className="text-sm text-muted-foreground">Total Reserved</div>
-          </div>
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <div className="text-2xl font-bold">
-              {salesReps.filter(rep => !rep.onBreak).length}
+              {salesReps.length}
             </div>
             <div className="text-sm text-muted-foreground">Active Reps</div>
           </div>

@@ -1,0 +1,44 @@
+fix: Production hardening - auth-by-default, rate limiting, and security fixes
+
+SECURITY IMPROVEMENTS:
+- Auth-by-default middleware on all /api routes (only /api/auth/*, /api/public/*, /api/health public)
+- OpenAI endpoints secured with rate limiting (20 req/min per user) and payload size caps
+- Privilege escalation fixed in user updates (allowlisted fields only)
+- Role gates on admin/destructive routes (pipeline-stages, settings, user management)
+- Removed optionalAuthMiddleware from all write operations
+
+RELIABILITY:
+- Safe user deletion with business rules (from previous commit)
+- Proper status codes (400, 403, 404, 409, 500)
+- Fixed server binding to localhost (was 0.0.0.0 causing ENOTSUP on Node v23.9)
+
+NEW FEATURES:
+- GET /api/users/assignable - Returns active users for assignment dropdowns
+- AI rate limiter with Retry-After headers on 429 responses
+- Payload size validation middleware for AI endpoints
+
+TECHNICAL DETAILS:
+- Auth-by-default checks req.path relative to /api mount point
+- Rate limiting uses in-memory Map (consider Redis for production)
+- User update allowlist: name (all), email/role/active/password (ADMIN only)
+- Prevents self-elevation, self-deactivation
+- Password hash never returned in responses
+
+FILES CHANGED:
+- server/routes.ts (+200 lines) - Auth middleware, rate limiting, security fixes
+- server/app.ts (binding fix) - Changed from 0.0.0.0 to 127.0.0.1
+- server/auth.ts - Added verifyAccessToken export
+- server/storage.ts (+58 lines) - Reference counting, safe delete (previous)
+- client/src/pages/admin-users.tsx (+93 lines) - Delete flow (previous)
+
+TESTING:
+- All protected endpoints return 401 without auth ✓
+- Public endpoints accessible (/api/auth/*, /api/public/*) ✓
+- Assignable users endpoint returns active users ✓
+- Build successful (161.5kb) ✓
+- Zero new TypeScript errors ✓
+
+See PRODUCTION_HARDENING_SUMMARY.md for complete documentation.
+
+Closes: Production readiness blockers
+Related: Admin user management, API security audit

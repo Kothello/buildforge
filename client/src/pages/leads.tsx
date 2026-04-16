@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { LoadState } from "@/components/app/LoadState";
 import { ManagerOnly } from "@/components/app/ManagerOnly";
 import { normalizeStageId } from "@/lib/stage";
+import { fetchLeadsPage } from "@/lib/leadsApi";
 
 const prefetchLeadEdit = () => {
   import("@/pages/lead-edit");
@@ -94,16 +95,34 @@ export default function LeadsPage() {
     return null;
   }
 
-  const { data: leads = [], isLoading, error: leadsError } = useQuery({
-    queryKey: ["/api/leads", "all"],
-    queryFn: async () => {
-      const r = await fetch("/api/leads");
-      const data = await r.json();
-      return Array.isArray(data) ? data : [];
+  const {
+    data: leadsData,
+    isLoading,
+    error: leadsError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["/api/leads", "all", { stage: stageFilter }],
+    queryFn: async ({ pageParam }) => {
+      return fetchLeadsPage({
+        mine: false,
+        stage: stageFilter === "ALL" ? null : stageFilter,
+        cursor: pageParam,
+        limit: 50,
+      });
     },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
   });
+
+  // Flatten paginated results into a single array
+  const leads: Lead[] = useMemo(() => {
+    if (!leadsData?.pages) return [];
+    return leadsData.pages.flatMap((page) => page.items as Lead[]);
+  }, [leadsData]);
 
   // Use /api/users/assignable - returns active REPs only, available to all authenticated users
   const { data: allUsers = [] } = useQuery({
@@ -126,11 +145,11 @@ export default function LeadsPage() {
         throw new Error("Failed to delete lead");
       }
     },
-    onSuccess: (_data, id) => {
-      queryClient.setQueryData<Lead[]>(["/api/leads", "all"], (old) =>
-        old ? old.filter((lead) => lead.id !== id) : old
-      );
-      queryClient.invalidateQueries({ queryKey: ["/api/leads", "mine"] });
+    onSuccess: () => {
+      // Invalidate all leads queries to refresh data
+      queryClient.invalidateQueries({ 
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "/api/leads" 
+      });
       toast({ title: "Lead deleted", description: "The lead has been permanently removed." });
       setDeletingId(null);
     },
@@ -648,6 +667,27 @@ export default function LeadsPage() {
               ))}
             </tbody>
           </table>
+
+          {/* Load More button for pagination */}
+          {hasNextPage && (
+            <div className="flex justify-center py-4">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                data-testid="button-load-more"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

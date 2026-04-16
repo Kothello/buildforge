@@ -14,7 +14,7 @@ export async function seedData() {
 
     const user = await storage.createUser({
       name: "John Sales",
-      email: "john@steelflow.com",
+      email: "john@buildforge.com",
       role: "REP",
       avatar: null,
     });
@@ -121,16 +121,16 @@ async function seedCrmData() {
     console.log("Seeding CRM data...");
 
     const hashedPassword = await hashPassword("admin123");
-    const adminUser = await storage.getUserByEmail("admin@steelflow.com");
+    const adminUser = await storage.getUserByEmail("admin@buildforge.com");
     if (!adminUser) {
       await storage.createUser({
         name: "Admin User",
-        email: "admin@steelflow.com",
+        email: "admin@buildforge.com",
         role: "ADMIN",
         passwordHash: hashedPassword,
         avatar: null,
       });
-      console.log("Created admin user (email: admin@steelflow.com, password: admin123)");
+      console.log("Created admin user (email: admin@buildforge.com, password: admin123)");
     }
 
     const defaultStages = [

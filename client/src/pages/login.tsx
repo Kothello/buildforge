@@ -55,7 +55,7 @@ export default function LoginPage() {
               <Building2 className="h-6 w-6 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle>Prefabricated Iron CRM</CardTitle>
+          <CardTitle>BuildForge CRM</CardTitle>
           <CardDescription>Sign in to manage your deals and contacts</CardDescription>
         </CardHeader>
         <CardContent>

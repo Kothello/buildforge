@@ -44,7 +44,7 @@ export default function Settings() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue="rep@steelflow.com" data-testid="input-email" />
+                <Input id="email" type="email" defaultValue="rep@buildforge.com" data-testid="input-email" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>

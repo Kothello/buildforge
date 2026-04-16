@@ -21,7 +21,7 @@ export default function Automation() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Automation</h1>
           <p className="text-muted-foreground mt-1">
-            Connect SteelFlow to Zapier and automate your entire workflow
+            Connect BuildForge to Zapier and automate your entire workflow
           </p>
         </div>
 
@@ -34,7 +34,7 @@ export default function Automation() {
               <div>
                 <CardTitle>Zapier Integration</CardTitle>
                 <CardDescription>
-                  Every action in SteelFlow triggers a webhook you can connect to 5,000+ apps
+                  Every action in BuildForge triggers a webhook you can connect to 5,000+ apps
                 </CardDescription>
               </div>
             </div>

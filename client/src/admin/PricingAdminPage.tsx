@@ -51,17 +51,21 @@ export default function PricingAdminPage() {
   async function loadPricingRules() {
     try {
       setLoading(true);
-      const response = await fetch('/api/pricing/rules');
-      if (!response.ok) throw new Error('Failed to load rules');
+      const response = await fetch('/api/pricing/rules', { credentials: 'include' });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to load rules: ${response.status} ${errorText}`);
+      }
 
       const data = await response.json();
       setCostRules(data.costRules || []);
       setPriceRules(data.priceRules || []);
       setPromoCodes(data.promoCodes || []);
     } catch (error) {
+      console.error('Pricing rules load error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load pricing rules',
+        description: error instanceof Error ? error.message : 'Failed to load pricing rules',
         variant: 'destructive'
       });
     } finally {
@@ -74,6 +78,7 @@ export default function PricingAdminPage() {
       const response = await fetch('/api/pricing/rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ costRules, priceRules, promoCodes })
       });
 

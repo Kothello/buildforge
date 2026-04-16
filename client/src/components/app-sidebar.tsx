@@ -167,11 +167,11 @@ export function AppSidebar() {
       <SidebarHeader className="p-4 border-b">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-            <span className="text-xl font-bold text-primary">SF</span>
+            <span className="text-xl font-bold text-primary">BF</span>
           </div>
           <div>
-            <h2 className="font-bold text-base">SteelFlow One</h2>
-            <p className="text-xs text-muted-foreground">Premium CRM</p>
+            <h2 className="font-bold text-base">BuildForge</h2>
+            <p className="text-xs text-muted-foreground">Construction CRM</p>
           </div>
         </div>
       </SidebarHeader>

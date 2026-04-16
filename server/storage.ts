@@ -75,7 +75,7 @@ import {
   workflowRunSteps,
   auditLogs,
 } from "@shared/schema";
-import { eq, and, gte, lte, ilike, or, desc, asc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, lt, ilike, or, desc, asc, sql, type SQL } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -84,6 +84,8 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
+  getUserReferenceCounts(id: string): Promise<{leads: number, deals: number, callbacks: number, activities: number, tasks: number, workflows: number, total: number}>;
+  countAdminUsers(): Promise<number>;
   
   createRefreshToken(token: InsertRefreshToken): Promise<RefreshToken>;
   getRefreshToken(token: string): Promise<RefreshToken | undefined>;
@@ -124,10 +126,19 @@ export interface IStorage {
   getSetting(key: string): Promise<Setting | undefined>;
   upsertSetting(key: string, value: any): Promise<Setting>;
   
-  getLeads(userId?: string): Promise<Lead[]>;
+  getLeads(userId?: string, limit?: number, offset?: number): Promise<Lead[]>;
+  getLeadsCount(userId?: string): Promise<number>;
+  getLeadsPaginated(opts: {
+    assignedTo?: string;
+    stage?: string;
+    cursor?: { t: number; id: string } | null;
+    limit: number;
+  }): Promise<Lead[]>;
   getLead(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, updates: Partial<Lead>): Promise<Lead | undefined>;
+  claimNextLead(userId: string): Promise<Lead | null>;
+  getLeadCountsByAssignee(): Promise<Record<string, number>>;
   deleteLead(id: string): Promise<boolean>;
   
   getDeals(): Promise<Deal[]>;
@@ -221,9 +232,59 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUserReferenceCounts(id: string): Promise<{leads: number, deals: number, callbacks: number, activities: number, tasks: number, workflows: number, total: number}> {
+    // Count all records referencing this user across all tables
+    const [leadsCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(or(eq(leads.assignedTo, id), eq(leads.salesRepId, id)));
+    
+    const [dealsCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(crmDeals)
+      .where(eq(crmDeals.ownerId, id));
+    
+    const [callbacksCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(callbacks)
+      .where(eq(callbacks.userId, id));
+    
+    const [activitiesCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(activities)
+      .where(eq(activities.userId, id));
+    
+    const [tasksCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(eq(tasks.assignedToId, id));
+    
+    const [workflowsCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(workflows)
+      .where(eq(workflows.createdBy, id));
+
+    const counts = {
+      leads: leadsCount?.count || 0,
+      deals: dealsCount?.count || 0,
+      callbacks: callbacksCount?.count || 0,
+      activities: activitiesCount?.count || 0,
+      tasks: tasksCount?.count || 0,
+      workflows: workflowsCount?.count || 0,
+      total: 0
+    };
+    
+    counts.total = counts.leads + counts.deals + counts.callbacks + counts.activities + counts.tasks + counts.workflows;
+    
+    return counts;
+  }
+
+  async countAdminUsers(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(and(eq(users.role, 'ADMIN'), eq(users.active, true)));
+    return result?.count || 0;
+  }
+
   async deleteUser(id: string): Promise<boolean> {
+    // Clean up refresh tokens - safe to delete
     await db.delete(refreshTokens).where(eq(refreshTokens.userId, id));
-    await db.delete(leads).where(eq(leads.assignedTo, id));
+    
+    // Delete the user - will fail if FK constraints exist
     const result = await db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
   }
@@ -453,11 +514,71 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getLeads(userId?: string): Promise<Lead[]> {
-    if (userId) {
-      return await db.select().from(leads).where(eq(leads.assignedTo, userId)).orderBy(desc(leads.createdAt));
+  async getLeads(userId?: string, limit?: number, offset?: number): Promise<Lead[]> {
+    const query = userId 
+      ? db.select().from(leads).where(eq(leads.assignedTo, userId)).orderBy(desc(leads.createdAt), desc(leads.id))
+      : db.select().from(leads).orderBy(desc(leads.createdAt), desc(leads.id));
+    
+    if (limit !== undefined) {
+      query.limit(limit);
     }
-    return await db.select().from(leads).orderBy(desc(leads.createdAt));
+    if (offset !== undefined) {
+      query.offset(offset);
+    }
+    
+    return await query;
+  }
+
+  async getLeadsCount(userId?: string): Promise<number> {
+    const query = userId
+      ? db.select({ count: sql<number>`count(*)::int` }).from(leads).where(eq(leads.assignedTo, userId))
+      : db.select({ count: sql<number>`count(*)::int` }).from(leads);
+    
+    const [result] = await query;
+    return result?.count || 0;
+  }
+
+  async getLeadsPaginated(opts: {
+    assignedTo?: string;
+    stage?: string;
+    cursor?: { t: number; id: string } | null;
+    limit: number;
+  }): Promise<Lead[]> {
+    const { assignedTo, stage, cursor, limit } = opts;
+    
+    // Build WHERE conditions
+    const conditions: SQL[] = [];
+    
+    if (assignedTo) {
+      conditions.push(eq(leads.assignedTo, assignedTo));
+    }
+    
+    if (stage) {
+      conditions.push(eq(leads.stage, stage));
+    }
+    
+    // Cursor condition: (createdAt < cursor.t) OR (createdAt = cursor.t AND id < cursor.id)
+    if (cursor) {
+      const cursorTime = new Date(cursor.t);
+      conditions.push(
+        or(
+          lt(leads.createdAt, cursorTime),
+          and(eq(leads.createdAt, cursorTime), lt(leads.id, cursor.id))
+        )!
+      );
+    }
+    
+    // Build and execute query
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const result = await db
+      .select()
+      .from(leads)
+      .where(whereClause)
+      .orderBy(desc(leads.createdAt), desc(leads.id))
+      .limit(limit);
+    
+    return result;
   }
 
   async getLead(id: string): Promise<Lead | undefined> {
@@ -477,6 +598,71 @@ export class DatabaseStorage implements IStorage {
       .where(eq(leads.id, id))
       .returning();
     return lead || undefined;
+  }
+
+  /**
+   * Atomically claim the next available unassigned lead
+   * Prioritizes working_lead stage, then by createdAt ASC (oldest first)
+   */
+  async claimNextLead(userId: string): Promise<Lead | null> {
+    // Use a subquery to select and update atomically
+    // This prevents race conditions where multiple users try to claim the same lead
+    const result = await db
+      .update(leads)
+      .set({ 
+        assignedTo: userId, 
+        salesRepId: userId,
+        updatedAt: new Date() 
+      })
+      .where(
+        eq(
+          leads.id,
+          db
+            .select({ id: leads.id })
+            .from(leads)
+            .where(
+              and(
+                sql`${leads.assignedTo} IS NULL`,
+                // Prioritize working_lead stage
+                or(
+                  eq(leads.stage, 'working_lead'),
+                  eq(leads.stage, 'new')
+                )
+              )
+            )
+            .orderBy(
+              // Prioritize working_lead over new
+              sql`CASE WHEN ${leads.stage} = 'working_lead' THEN 0 ELSE 1 END`,
+              asc(leads.createdAt)
+            )
+            .limit(1)
+        )
+      )
+      .returning();
+    
+    return result[0] || null;
+  }
+
+  /**
+   * Get lead counts grouped by assignedTo (efficient SQL GROUP BY)
+   */
+  async getLeadCountsByAssignee(): Promise<Record<string, number>> {
+    const result = await db
+      .select({
+        assignedTo: leads.assignedTo,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(leads)
+      .where(sql`${leads.assignedTo} IS NOT NULL`)
+      .groupBy(leads.assignedTo);
+    
+    const counts: Record<string, number> = {};
+    for (const row of result) {
+      if (row.assignedTo) {
+        counts[row.assignedTo] = row.count;
+      }
+    }
+    return counts;
   }
 
   async deleteLead(id: string): Promise<boolean> {

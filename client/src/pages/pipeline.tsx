@@ -55,7 +55,7 @@ export default function Pipeline() {
   });
 
   const { data: deals = [] } = useQuery<Deal[]>({
-    queryKey: ["/api/deals"],
+    queryKey: ["/api/crm/deals"],
   });
 
   const updateLeadMutation = useMutation({
